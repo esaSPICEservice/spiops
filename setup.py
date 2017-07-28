@@ -11,7 +11,7 @@ from os import path
 here = path.abspath(path.dirname(__file__))
 
 # Get the long description from the README file
-with open(path.join(here, 'README.txt'), encoding='utf-8') as f:
+with open(path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(
@@ -27,8 +27,26 @@ setup(
 
     # Application author details:
     author="Marc Costa Sitja, ESAC/ESA",
-    author_email="marc.costa@.esa.int",
-    url="https://spice.esac.esa.int",
+    author_email="marc.costa@esa.int",
+    url="https://github.com/marcsit/spiops",
+
+
+    # Classifiers
+    classifiers=[
+        # How mature is this project? Common values are
+        #   3 - Alpha
+        #   4 - Beta
+        #   5 - Production/Stable
+        'Development Status :: 3 - Alpha',
+        'Intended Audience :: Science Operations Engineers and Developers, Planetary Scientists',
+        'Topic :: Planetary Science :: Geometry Computations',
+        'License :: OSI Approved :: MIT License',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.5',
+    ],
+
+    # Keywords
+    keywords=['esa', 'spice', 'naif', 'planetary', 'space', 'geometry'],
 
     # Packages
     packages=["spiops"],
@@ -37,5 +55,6 @@ setup(
     include_package_data=False,
 
     # Dependent packages (distributions)
-    install_requires=['spiceypy>=0.2.0'],
+    install_requires=['spiceypy'],
+    python_requires='>=3',
 )
