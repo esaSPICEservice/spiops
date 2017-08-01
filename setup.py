@@ -21,7 +21,7 @@ setup(
     version="0.1.0",
 
     description="Extension of SPICE functionalities for ESA Planetary Missons",
-    long_description=open('README.rst').read(),
+    long_description=open('README.md').read(),
     license= open(path.join(here,'LICENSE')).read(),
     data_files = [('', ['LICENSE'])],
 
