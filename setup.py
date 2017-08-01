@@ -28,7 +28,7 @@ setup(
     # Application author details:
     author="Marc Costa Sitja, ESAC/ESA",
     author_email="marc.costa@esa.int",
-    url="https://github.com/marcsit/spiops",
+    url="https://mcosta@repos.cosmos.esa.int/socci/scm/spice/spiops.git",
 
 
     # Classifiers

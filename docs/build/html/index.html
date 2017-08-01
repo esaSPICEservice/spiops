@@ -159,6 +159,19 @@
 <p>spiops is a library aimed to help scientists and engineers that deal with
 Solar System Geometry mainly for planetary science. More in particular is
 aimed to assists the users to extend the usage of SPICE.</p>
+<p>Functionalities vary from the computation of the illumination of a given
+Field-of-View to obtaining the coverage of a given S/C for a particular
+meta-kernel.</p>
+<p>The underlying idea of spiops is to be used as a multi-user and
+multi-disciplinary pool of re-usable SPICE based functions to provide cross
+mission and discipline support of SPICE for ESA Planetary and Heliophyiscs
+missions.</p>
+<p>Feedback and new functionalities are always welcome, if you discover that a
+function is not
+working as expected or if you have a function that you believe can be of
+interest to other people please open an issue or contact <a class="reference external" href="mailto:marc&#46;costa&#37;&#52;&#48;esa&#46;int">marc<span>&#46;</span>costa<span>&#64;</span>esa<span>&#46;</span>int</a>.</p>
+<p>spiops is developed and maintained by the ESA SPICE Service (ESS)
+<a class="reference external" href="http://spice.esac.esa.int">http://spice.esac.esa.int</a>.</p>
 <p>SPICE is an essential tool for scientists and engineers alike in the
 planetary science field for Solar System Geometry. Please visit the NAIF
 website  for more details about SPICE.</p>
@@ -182,8 +195,21 @@ website  for more details about SPICE.</p>
 <li><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></li>
 <li><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></li>
 </ul>
-<div class="section" id="citing-spiops">
-<h2>Citing spiops<a class="headerlink" href="#citing-spiops" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h2>
+<p>First install the dependencies (spiceypy, pytest) for the project. Then run</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">pip3</span> <span class="n">install</span> <span class="n">spiops</span>
+</pre></div>
+</div>
+<p>to install from pypi. If you wish to install spiops from source first
+download or clone the project from: <a class="reference external" href="https://mcosta&#64;repos.cosmos.esa.int/socci/scm/spice/spiops.git">https://mcosta&#64;repos.cosmos.esa.int/socci/scm/spice/spiops.git</a></p>
+<p>Then run</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">python3</span> <span class="n">setup</span><span class="o">.</span><span class="n">py</span> <span class="n">install</span><span class="o">.</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="citations">
+<h2>Citations<a class="headerlink" href="#citations" title="Permalink to this headline">¶</a></h2>
 <p>If the use of spiops is used in a publication, please consider
 citing spiops, SpiceyPy and the SPICE toolkit. The citation information
 for SPICE can be found on the NAIF website and the citation information for
