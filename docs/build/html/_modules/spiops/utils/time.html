@@ -1,0 +1,218 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>spiops.utils.time &#8212; spiops 0.1.0 documentation</title>
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '0.1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for spiops.utils.time</h1><div class="highlight"><pre>
+<span class="kn">import</span> <span class="nn">spiceypy</span> <span class="k">as</span> <span class="nn">cspice</span>
+
+
+<div class="viewcode-block" id="et2cal"><a class="viewcode-back" href="../../../documentation.html#spiops.utils.time.et2cal">[docs]</a><span class="k">def</span> <span class="nf">et2cal</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;UTC&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Converts Ephemeris Time (ET) into UTC or Calendar TDB (CAL) time. Accepts</span>
+<span class="sd">    a single time or a lists of times. This function assumes that the support</span>
+<span class="sd">    kernels (meta-kernel or leapseconds kernel has been loaded)</span>
+
+<span class="sd">    :param time: Input ET time</span>
+<span class="sd">    :type time: Union[float, list]</span>
+<span class="sd">    :param format: Desired output format; &#39;UTC&#39; or &#39;CAL&#39;</span>
+<span class="sd">    :type format: str</span>
+<span class="sd">    :return: Output time in &#39;UTC&#39;, &#39;CAL&#39; or &#39;TDB&#39;</span>
+<span class="sd">    :rtype: Union[str, list]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">timlen</span> <span class="o">=</span> <span class="mi">62</span>
+    <span class="n">out_list</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="nb">float</span><span class="p">):</span>
+        <span class="n">time</span> <span class="o">=</span> <span class="p">[</span><span class="n">time</span><span class="p">]</span>
+
+    <span class="k">for</span> <span class="n">element</span> <span class="ow">in</span> <span class="n">time</span><span class="p">:</span>
+
+        <span class="k">if</span> <span class="nb">format</span> <span class="o">==</span> <span class="s1">&#39;UTC&#39;</span><span class="p">:</span>
+            <span class="n">out_elm</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">et2utc</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="s1">&#39;ISOC&#39;</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+
+        <span class="k">elif</span> <span class="nb">format</span> <span class="o">==</span> <span class="s1">&#39;CAL&#39;</span><span class="p">:</span>
+            <span class="n">out_elm</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">timout</span><span class="p">(</span><span class="n">element</span><span class="p">,</span>
+                                    <span class="s2">&quot;YYYY-MM-DDTHR:MN:SC.###::TDB&quot;</span><span class="p">,</span> <span class="n">timlen</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">out_elm</span> <span class="o">=</span> <span class="n">element</span>
+
+        <span class="n">out_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">out_elm</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">out_list</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">out_time</span> <span class="o">=</span> <span class="n">out_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">out_time</span> <span class="o">=</span> <span class="n">out_list</span>
+
+    <span class="k">return</span> <span class="n">out_time</span></div>
+
+
+<div class="viewcode-block" id="cov_int"><a class="viewcode-back" href="../../../documentation.html#spiops.utils.time.cov_int">[docs]</a><span class="k">def</span> <span class="nf">cov_int</span><span class="p">(</span><span class="n">object_cov</span><span class="p">,</span> <span class="n">object_id</span><span class="p">,</span> <span class="n">kernel</span><span class="p">,</span> <span class="n">time_format</span><span class="o">=</span><span class="s1">&#39;TDB&#39;</span><span class="p">,</span>
+            <span class="n">global_boundary</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">report</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generates a list of time windows out of a SPICE cell for which either</span>
+<span class="sd">    the SPICE API spkcov_c or ckcov_c have been run.</span>
+
+
+<span class="sd">    :param object_cov: SPICE</span>
+<span class="sd">    :type object_cov:</span>
+<span class="sd">    :param object_id: Object ID or Name for which we provide the coverage</span>
+<span class="sd">    :type object_id: Union[str, int]</span>
+<span class="sd">    :param kernel: Kernel name for which the coverage is being checked</span>
+<span class="sd">    :type kernel: str</span>
+<span class="sd">    :param time_format: Desired output format; &#39;UTC&#39; or &#39;CAL&#39;</span>
+<span class="sd">    :type time_format: str</span>
+<span class="sd">    :param global_boundary: Boolean to indicate whether if we want all the coverage windows or only the absolute start and finish coverage times</span>
+<span class="sd">    :type global_boundary: bool</span>
+<span class="sd">    :param report: If True prints the resulting coverage on the screen</span>
+<span class="sd">    :type report: bool</span>
+<span class="sd">    :return: Time Windows in the shape of a list</span>
+<span class="sd">    :rtype: list</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">boundaries</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="k">if</span> <span class="s1">&#39;/&#39;</span> <span class="ow">in</span> <span class="n">kernel</span><span class="p">:</span>
+        <span class="n">kernel</span> <span class="o">=</span> <span class="n">kernel</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="c1">#</span>
+    <span class="c1"># Reporting should only be activated if we are not asking for global</span>
+    <span class="c1"># boundaries.</span>
+    <span class="c1">#</span>
+    <span class="k">if</span> <span class="n">report</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">global_boundary</span><span class="p">:</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">body_name</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">bodc2n</span><span class="p">(</span><span class="n">object_id</span><span class="p">)</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="n">body_name</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">frmnam</span><span class="p">(</span><span class="n">object_id</span><span class="p">,</span> <span class="mi">60</span><span class="p">)</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Coverage for {} in {} [{}]:&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">body_name</span><span class="p">,</span> <span class="n">kernel</span><span class="p">,</span>
+                                                   <span class="n">time_format</span><span class="p">))</span>
+
+    <span class="n">index</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">number_of_intervals</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="n">cspice</span><span class="o">.</span><span class="n">wncard</span><span class="p">(</span><span class="n">object_cov</span><span class="p">))</span>
+    <span class="n">interval_start</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">interval_finish</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">for</span> <span class="n">element</span> <span class="ow">in</span> <span class="n">number_of_intervals</span><span class="p">:</span>
+        <span class="n">et_boundaries</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">wnfetd</span><span class="p">(</span><span class="n">object_cov</span><span class="p">,</span> <span class="n">index</span><span class="p">)</span>
+
+        <span class="n">interval_start</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">et_boundaries</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">interval_finish</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">et_boundaries</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+        <span class="n">index</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="n">boundaries</span> <span class="o">=</span> <span class="n">et2cal</span><span class="p">(</span><span class="n">et_boundaries</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="n">time_format</span><span class="p">)</span>
+
+        <span class="n">interval_start</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">et_boundaries</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">interval_finish</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">et_boundaries</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="n">report</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">global_boundary</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Interval {}: {} - {}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">index</span><span class="p">,</span>
+                                                  <span class="n">boundaries</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                                                  <span class="n">boundaries</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+
+    <span class="c1">#</span>
+    <span class="c1"># If the global_boundary parameter is set the only output is the global</span>
+    <span class="c1"># coverage start and finish</span>
+    <span class="c1">#</span>
+    <span class="k">if</span> <span class="n">global_boundary</span><span class="p">:</span>
+
+        <span class="n">start_time</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">interval_start</span><span class="p">)</span>
+        <span class="n">finish_time</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">interval_finish</span><span class="p">)</span>
+
+        <span class="n">boundaries</span> <span class="o">=</span> <span class="n">et2cal</span><span class="p">([</span><span class="n">start_time</span><span class="p">,</span> <span class="n">finish_time</span><span class="p">],</span> <span class="nb">format</span><span class="o">=</span><span class="n">time_format</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">boundaries</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">spiops</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../documentation.html">spiops package</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Marc Costa Sitja.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

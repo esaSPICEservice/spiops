@@ -1,0 +1,40 @@
+
+.DS_Store
+.DS_Store?
+*.o
+.tar
+.gz
+.zip
+*.pyc
+*.so
+
+# Spice Kernels
+*.bsp
+*.bpc
+*.bds
+*.dsk
+*.ek
+*.tpc
+*.tsc
+*.tf
+*.tls
+*.ti
+*.bc
+
+# test
+spiops/test/sandbox.py
+
+# Docs
+docs/_build
+docs/make.bat
+docs/Makefile
+
+# Pycharm specific things
+.idea/
+
+# python things
+*.egg-info*
+dist/
+.cache/
+__pycache__/
+.eggs/

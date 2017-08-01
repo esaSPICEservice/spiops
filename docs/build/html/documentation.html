@@ -1,0 +1,331 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>spiops package &#8212; spiops 0.1.0 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Welcome to spiops’s documentation!" href="index.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="spiops-package">
+<h1>spiops package<a class="headerlink" href="#spiops-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="module-spiops.spiops">
+<span id="spiops-spiops-module"></span><h2>spiops.spiops module<a class="headerlink" href="#module-spiops.spiops" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="spiops.spiops.cov_ck_ker">
+<code class="descclassname">spiops.spiops.</code><code class="descname">cov_ck_ker</code><span class="sig-paren">(</span><em>ck</em>, <em>support_ker</em>, <em>object='ALL'</em>, <em>time_format='UTC'</em>, <em>report=False</em>, <em>unload=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/spiops/spiops.html#cov_ck_ker"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#spiops.spiops.cov_ck_ker" title="Permalink to this definition">¶</a></dt>
+<dd><p>Provides time coverage summary for a given object for a given CK file.
+Several options are available. This function is based on the following
+SPICE API:</p>
+<p><a class="reference external" href="http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/ckcov_c.html">http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/ckcov_c.html</a></p>
+<p>The NAIF utility CKBRIEF can be used for the same purpose.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>ck</strong> – CK file to be used</li>
+<li><strong>support_ker</strong> (<em>Union</em><em>[</em><a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a><em>, </em><em>list</em><em>]</em>) – Support kernels required to run the function. At least it should be a leapseconds kernel (LSK) and a Spacecraft clock kernel (SCLK) optionally a meta-kernel (MK) which is highly recommended</li>
+<li><strong>object</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Ephemeris Object to obtain the coverage from</li>
+<li><strong>time_format</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Output time format; it can be ‘UTC’, ‘CAL’ (for TDB in calendar format) or ‘TDB’. Default is ‘TDB’</li>
+<li><strong>global_boundary</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – Boolean to indicate whether if we want all the coverage windows or only the absolute start and finish coverage times</li>
+<li><strong>report</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – If True prints the resulting coverage on the screen</li>
+<li><strong>unload</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – If True it will unload the input meta-kernel</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Returns a list with the coverage intervals</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">list</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="spiops.spiops.cov_ck_obj">
+<code class="descclassname">spiops.spiops.</code><code class="descname">cov_ck_obj</code><span class="sig-paren">(</span><em>mk</em>, <em>object</em>, <em>time_format='UTC'</em>, <em>global_boundary=False</em>, <em>report=False</em>, <em>unload=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/spiops/spiops.html#cov_ck_obj"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#spiops.spiops.cov_ck_obj" title="Permalink to this definition">¶</a></dt>
+<dd><p>Provides time coverage summary for a given object for a list of
+binary CK files provided in a meta-kernel. Several options are
+available. This function is based on the following SPICE API:</p>
+<p><a class="reference external" href="http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/ckcov_c.html">http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/ckcov_c.html</a></p>
+<p>The NAIF utility CKBRIEF can be used for the same purpose.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>mk</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Meta-kernel to load the computation scenario</li>
+<li><strong>object</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Ephemeris Object to obtain the coverage from</li>
+<li><strong>time_format</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Output time format; it can be ‘UTC’, ‘CAL’ (for TDB in calendar format) or ‘TDB’. Default is ‘TDB’</li>
+<li><strong>global_boundary</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – Boolean to indicate whether if we want all the coverage windows or only the absolute start and finish coverage times</li>
+<li><strong>report</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – If True prints the resulting coverage on the screen</li>
+<li><strong>unload</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – If True it will unload the input meta-kernel</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Returns a list with the coverage intervals</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">list</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="spiops.spiops.cov_spk_ker">
+<code class="descclassname">spiops.spiops.</code><code class="descname">cov_spk_ker</code><span class="sig-paren">(</span><em>spk</em>, <em>support_ker</em>, <em>object='ALL'</em>, <em>time_format='TDB'</em>, <em>report=False</em>, <em>unload=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/spiops/spiops.html#cov_spk_ker"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#spiops.spiops.cov_spk_ker" title="Permalink to this definition">¶</a></dt>
+<dd><p>Provides time coverage summary for a given object for a given SPK file.
+Several options are available. This function is based on the following
+SPICE API:</p>
+<p><a class="reference external" href="http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/spkcov_c.html">http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/spkcov_c.html</a></p>
+<p>The NAIF utility BRIEF can be used for the same purpose.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>spk</strong> – SPK file to be used</li>
+<li><strong>support_ker</strong> (<em>Union</em><em>[</em><a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a><em>, </em><em>list</em><em>]</em>) – Support kernels required to run the function. At least it should be a leapseconds kernel (LSK) and optionally a meta-kernel (MK)</li>
+<li><strong>object</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Ephemeris Object to obtain the coverage from</li>
+<li><strong>time_format</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Output time format; it can be ‘UTC’, ‘CAL’ (for TDB in calendar format) or ‘TDB’. Default is ‘TDB’</li>
+<li><strong>global_boundary</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – Boolean to indicate whether if we want all the coverage windows or only the absolute start and finish coverage times</li>
+<li><strong>report</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – If True prints the resulting coverage on the screen</li>
+<li><strong>unload</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – If True it will unload the input meta-kernel</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Returns a list with the coverage intervals</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">list</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="spiops.spiops.cov_spk_obj">
+<code class="descclassname">spiops.spiops.</code><code class="descname">cov_spk_obj</code><span class="sig-paren">(</span><em>mk</em>, <em>object</em>, <em>time_format='TDB'</em>, <em>global_boundary=False</em>, <em>report=False</em>, <em>unload=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/spiops/spiops.html#cov_spk_obj"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#spiops.spiops.cov_spk_obj" title="Permalink to this definition">¶</a></dt>
+<dd><p>Provides time coverage summary for a given object for a list of
+binary SPK files provided in a meta-kernel. Several options are
+available. This function is based on the following SPICE API:</p>
+<p><a class="reference external" href="http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/spkcov_c.html">http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/spkcov_c.html</a></p>
+<p>The NAIF utility BRIEF can be used for the same purpose.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>mk</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Meta-kernel to load the computation scenario</li>
+<li><strong>object</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Ephemeris Object to obtain the coverage from</li>
+<li><strong>time_format</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Output time format; it can be ‘UTC’, ‘CAL’ (for TDB in calendar format) or ‘TDB’. Default is ‘TDB’</li>
+<li><strong>global_boundary</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – Boolean to indicate whether if we want all the coverage windows or only the absolute start and finish coverage times</li>
+<li><strong>report</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – If True prints the resulting coverage on the screen</li>
+<li><strong>unload</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – If True it will unload the input meta-kernel</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Returns a list with the coverage intervals</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">list</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="spiops.spiops.fov_illum">
+<code class="descclassname">spiops.spiops.</code><code class="descname">fov_illum</code><span class="sig-paren">(</span><em>mk</em>, <em>sensor</em>, <em>time=None</em>, <em>angle='DEGREES'</em>, <em>abcorr='LT+S'</em>, <em>report=False</em>, <em>unload=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/spiops/spiops.html#fov_illum"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#spiops.spiops.fov_illum" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determine the Illumination of a given FoV (for light scattering computations
+for example). This function is based on  the following SPICE APIs:</p>
+<p><a class="reference external" href="http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/getfov_c.html">http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/getfov_c.html</a>
+<a class="reference external" href="http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/spkezp_c.html">http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/spkezp_c.html</a></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>mk</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Meta-kernel to load the computation scenario</li>
+<li><strong>sensor</strong> (<em>Union</em><em>[</em><a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/2/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a><em>]</em>) – Sensor ID code or name</li>
+<li><strong>time</strong> (<em>Union</em><em>[</em><a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/2/library/functions.html#float" title="(in Python v2.7)"><em>float</em></a><em>]</em>) – Time to compute the quantity</li>
+<li><strong>angle</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Angular unit; it can be ‘DEGREES’ or ‘RADIANS’. Default is ‘DEGREES’</li>
+<li><strong>abcorr</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Aberration correction. Default and recommended is ‘LT+S’</li>
+<li><strong>report</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – If True prints the resulting illumination angle on the screen</li>
+<li><strong>unload</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – If True it will unload the input meta-kernel</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Angle in between a sensor’s boresight and the sun-sc direction</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last"><a class="reference external" href="https://docs.python.org/2/library/functions.html#float" title="(in Python v2.7)">float</a></p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+<div class="section" id="module-spiops.utils.time">
+<span id="spiops-utils-time"></span><h2>spiops.utils.time<a class="headerlink" href="#module-spiops.utils.time" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="spiops.utils.time.cov_int">
+<code class="descclassname">spiops.utils.time.</code><code class="descname">cov_int</code><span class="sig-paren">(</span><em>object_cov</em>, <em>object_id</em>, <em>kernel</em>, <em>time_format='TDB'</em>, <em>global_boundary=False</em>, <em>report=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/spiops/utils/time.html#cov_int"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#spiops.utils.time.cov_int" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generates a list of time windows out of a SPICE cell for which either
+the SPICE API spkcov_c or ckcov_c have been run.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>object_cov</strong> – SPICE</li>
+<li><strong>object_id</strong> (<em>Union</em><em>[</em><a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/2/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a><em>]</em>) – Object ID or Name for which we provide the coverage</li>
+<li><strong>kernel</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Kernel name for which the coverage is being checked</li>
+<li><strong>time_format</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Desired output format; ‘UTC’ or ‘CAL’</li>
+<li><strong>global_boundary</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – Boolean to indicate whether if we want all the coverage windows or only the absolute start and finish coverage times</li>
+<li><strong>report</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – If True prints the resulting coverage on the screen</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Time Windows in the shape of a list</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">list</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="spiops.utils.time.et2cal">
+<code class="descclassname">spiops.utils.time.</code><code class="descname">et2cal</code><span class="sig-paren">(</span><em>time</em>, <em>format='UTC'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/spiops/utils/time.html#et2cal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#spiops.utils.time.et2cal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts Ephemeris Time (ET) into UTC or Calendar TDB (CAL) time. Accepts
+a single time or a lists of times. This function assumes that the support
+kernels (meta-kernel or leapseconds kernel has been loaded)</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>time</strong> (<em>Union</em><em>[</em><a class="reference external" href="https://docs.python.org/2/library/functions.html#float" title="(in Python v2.7)"><em>float</em></a><em>, </em><em>list</em><em>]</em>) – Input ET time</li>
+<li><strong>format</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Desired output format; ‘UTC’ or ‘CAL’</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Output time in ‘UTC’, ‘CAL’ or ‘TDB’</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">Union[<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)">str</a>, list]</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">spiops</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">spiops package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#module-spiops.spiops">spiops.spiops module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-spiops.utils.time">spiops.utils.time</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="index.html" title="previous chapter">Welcome to spiops’s documentation!</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Marc Costa Sitja.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+      |
+      <a href="_sources/documentation.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

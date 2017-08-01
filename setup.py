@@ -49,7 +49,7 @@ setup(
     keywords=['esa', 'spice', 'naif', 'planetary', 'space', 'geometry'],
 
     # Packages
-    packages=["spiops"],
+    packages=find_packages(),
 
     # Include additional files into the package
     include_package_data=False,

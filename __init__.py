@@ -1,1 +1,1 @@
-from .spiops import *
+from spiops import *

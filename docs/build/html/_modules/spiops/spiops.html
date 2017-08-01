@@ -1,0 +1,532 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>spiops.spiops &#8212; spiops 0.1.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for spiops.spiops</h1><div class="highlight"><pre>
+<span class="ch">#!/usr/bin/env python3</span>
+
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">spiceypy</span> <span class="k">as</span> <span class="nn">cspice</span>
+<span class="kn">from</span> <span class="nn">spiceypy.utils.support_types</span> <span class="k">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">.utils</span> <span class="k">import</span> <span class="n">time</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">The MIT License (MIT)</span>
+<span class="sd">Copyright (c) [2015-2017] [Andrew Annex]</span>
+<span class="sd">Permission is hereby granted, free of charge, to any person obtaining a copy</span>
+<span class="sd">of this software and associated documentation files (the &quot;Software&quot;), to deal</span>
+<span class="sd">in the Software without restriction, including without limitation the rights</span>
+<span class="sd">to use, copy, modify, merge, publish, distribute, sublicense, and/or sell</span>
+<span class="sd">copies of the Software, and to permit persons to whom the Software is</span>
+<span class="sd">furnished to do so, subject to the following conditions:</span>
+<span class="sd">The above copyright notice and this permission notice shall be included in all</span>
+<span class="sd">copies or substantial portions of the Software.</span>
+<span class="sd">THE SOFTWARE IS PROVIDED &quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR</span>
+<span class="sd">IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,</span>
+<span class="sd">FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE</span>
+<span class="sd">AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER</span>
+<span class="sd">LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,</span>
+<span class="sd">OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE</span>
+<span class="sd">SOFTWARE.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+
+<div class="viewcode-block" id="fov_illum"><a class="viewcode-back" href="../../documentation.html#spiops.spiops.fov_illum">[docs]</a><span class="k">def</span> <span class="nf">fov_illum</span><span class="p">(</span><span class="n">mk</span><span class="p">,</span> <span class="n">sensor</span><span class="p">,</span> <span class="n">time</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">angle</span><span class="o">=</span><span class="s1">&#39;DEGREES&#39;</span><span class="p">,</span> <span class="n">abcorr</span><span class="o">=</span><span class="s1">&#39;LT+S&#39;</span><span class="p">,</span>
+              <span class="n">report</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">unload</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Determine the Illumination of a given FoV (for light scattering computations</span>
+<span class="sd">    for example). This function is based on  the following SPICE APIs:</span>
+
+<span class="sd">    http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/getfov_c.html</span>
+<span class="sd">    http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/spkezp_c.html</span>
+
+
+<span class="sd">    :param mk: Meta-kernel to load the computation scenario</span>
+<span class="sd">    :type mk: str</span>
+<span class="sd">    :param sensor: Sensor ID code or name</span>
+<span class="sd">    :type sensor: Union[str, int]</span>
+<span class="sd">    :param time: Time to compute the quantity</span>
+<span class="sd">    :type time: Union[str, float]</span>
+<span class="sd">    :param angle: Angular unit; it can be &#39;DEGREES&#39; or &#39;RADIANS&#39;. Default is &#39;DEGREES&#39;</span>
+<span class="sd">    :type angle: str</span>
+<span class="sd">    :param abcorr: Aberration correction. Default and recommended is &#39;LT+S&#39;</span>
+<span class="sd">    :type abcorr: str</span>
+<span class="sd">    :param report: If True prints the resulting illumination angle on the screen</span>
+<span class="sd">    :type report: bool</span>
+<span class="sd">    :param unload: If True it will unload the input meta-kernel</span>
+<span class="sd">    :type unload: bool</span>
+<span class="sd">    :return: Angle in between a sensor&#39;s boresight and the sun-sc direction</span>
+<span class="sd">    :rtype: float</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">room</span> <span class="o">=</span> <span class="mi">99</span>
+    <span class="n">shapelen</span> <span class="o">=</span> <span class="mi">1000</span>
+    <span class="n">framelen</span> <span class="o">=</span> <span class="mi">1000</span>
+    <span class="n">angle</span> <span class="o">=</span> <span class="n">angle</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
+
+    <span class="n">cspice</span><span class="o">.</span><span class="n">furnsh</span><span class="p">(</span><span class="n">mk</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">time</span><span class="p">:</span>
+        <span class="n">time</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">utc2et</span><span class="p">(</span><span class="n">time</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">time</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">utc2et</span><span class="p">(</span><span class="s1">&#39;2016-08-10T00:00:00&#39;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">angle</span> <span class="o">!=</span> <span class="s1">&#39;DEGREES&#39;</span> <span class="ow">and</span> <span class="n">angle</span> <span class="o">!=</span> <span class="s1">&#39;RADIANS&#39;</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;angle should be either degrees or radians&#39;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sensor</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">instid</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">bodn2c</span><span class="p">(</span><span class="n">sensor</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">instid</span> <span class="o">=</span> <span class="n">sensor</span>
+
+    <span class="n">shape</span><span class="p">,</span> <span class="n">frame</span><span class="p">,</span> <span class="n">bsight</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">bounds</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">getfov</span><span class="p">(</span><span class="n">instid</span><span class="p">,</span> <span class="n">room</span><span class="p">,</span> <span class="n">shapelen</span><span class="p">,</span>
+                                                    <span class="n">framelen</span><span class="p">)</span>
+
+    <span class="n">rotation</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">pxform</span><span class="p">(</span><span class="n">frame</span><span class="p">,</span> <span class="s1">&#39;J2000&#39;</span><span class="p">,</span> <span class="n">time</span><span class="p">)</span>
+
+    <span class="n">bsight</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">mxv</span><span class="p">(</span><span class="n">rotation</span><span class="p">,</span> <span class="n">bsight</span><span class="p">)</span>
+
+    <span class="c1"># The following assumes that the IDs of the given S/C FK have been defined</span>
+    <span class="c1"># according to the NAIF/ESS standards:</span>
+    <span class="c1">#</span>
+    <span class="c1">#    -NXXX</span>
+    <span class="c1">#</span>
+    <span class="c1">#       where:</span>
+    <span class="c1">#          N is the SC id and can consist on a given number of digits</span>
+    <span class="c1">#          XXX are three digits that identify the sensor</span>
+    <span class="n">sc_id</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">instid</span><span class="p">)[:</span><span class="o">-</span><span class="mi">3</span><span class="p">])</span>
+
+    <span class="n">ptarg</span><span class="p">,</span> <span class="n">lt</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">spkezp</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="n">time</span><span class="p">,</span> <span class="s1">&#39;J2000&#39;</span><span class="p">,</span> <span class="n">abcorr</span><span class="p">,</span> <span class="n">sc_id</span><span class="p">)</span>
+
+    <span class="n">fov_illumination</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">vsep</span><span class="p">(</span><span class="n">bsight</span><span class="p">,</span> <span class="n">ptarg</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">unload</span><span class="p">:</span>
+        <span class="n">cspice</span><span class="o">.</span><span class="n">unload</span><span class="p">(</span><span class="n">mk</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">angle</span> <span class="o">==</span> <span class="s1">&#39;DEGREES&#39;</span><span class="p">:</span>
+        <span class="n">fov_illumination</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">degrees</span><span class="p">(</span><span class="n">fov_illumination</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">report</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Illumination angle of {} is {} [{}]&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">sensor</span><span class="p">,</span>
+                                                           <span class="n">fov_illumination</span><span class="p">,</span>
+                                                           <span class="n">angle</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">fov_illumination</span></div>
+
+
+<div class="viewcode-block" id="cov_spk_obj"><a class="viewcode-back" href="../../documentation.html#spiops.spiops.cov_spk_obj">[docs]</a><span class="k">def</span> <span class="nf">cov_spk_obj</span><span class="p">(</span><span class="n">mk</span><span class="p">,</span> <span class="nb">object</span><span class="p">,</span> <span class="n">time_format</span><span class="o">=</span><span class="s1">&#39;TDB&#39;</span><span class="p">,</span> <span class="n">global_boundary</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">report</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">unload</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Provides time coverage summary for a given object for a list of</span>
+<span class="sd">    binary SPK files provided in a meta-kernel. Several options are</span>
+<span class="sd">    available. This function is based on the following SPICE API:</span>
+
+<span class="sd">    http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/spkcov_c.html</span>
+
+<span class="sd">    The NAIF utility BRIEF can be used for the same purpose.</span>
+
+<span class="sd">    :param mk: Meta-kernel to load the computation scenario</span>
+<span class="sd">    :type mk: str</span>
+<span class="sd">    :param object: Ephemeris Object to obtain the coverage from</span>
+<span class="sd">    :type object: str</span>
+<span class="sd">    :param time_format: Output time format; it can be &#39;UTC&#39;, &#39;CAL&#39; (for TDB in calendar format) or &#39;TDB&#39;. Default is &#39;TDB&#39;</span>
+<span class="sd">    :type time_format: str</span>
+<span class="sd">    :param global_boundary: Boolean to indicate whether if we want all the coverage windows or only the absolute start and finish coverage times</span>
+<span class="sd">    :type global_boundary: bool</span>
+<span class="sd">    :param report: If True prints the resulting coverage on the screen</span>
+<span class="sd">    :type report: bool</span>
+<span class="sd">    :param unload: If True it will unload the input meta-kernel</span>
+<span class="sd">    :type unload: bool</span>
+<span class="sd">    :return: Returns a list with the coverage intervals</span>
+<span class="sd">    :rtype: list</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">cspice</span><span class="o">.</span><span class="n">furnsh</span><span class="p">(</span><span class="n">mk</span><span class="p">)</span>
+    <span class="n">boundaries_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">et_boundaries_list</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="n">object_id</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">bodn2c</span><span class="p">(</span><span class="nb">object</span><span class="p">)</span>
+    <span class="n">maxwin</span> <span class="o">=</span> <span class="mi">2000</span>
+    <span class="n">spk_count</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">ktotal</span><span class="p">(</span><span class="s1">&#39;SPK&#39;</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+
+    <span class="k">while</span> <span class="n">spk_count</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+
+        <span class="n">spk_kernel</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">kdata</span><span class="p">(</span><span class="n">spk_count</span><span class="p">,</span> <span class="s1">&#39;SPK&#39;</span><span class="p">,</span> <span class="mi">155</span><span class="p">,</span> <span class="mi">155</span><span class="p">,</span> <span class="mi">155</span><span class="p">)</span>
+
+        <span class="n">spk_ids</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">spkobj</span><span class="p">(</span><span class="n">spk_kernel</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="k">for</span> <span class="nb">id</span> <span class="ow">in</span> <span class="n">spk_ids</span><span class="p">:</span>
+
+            <span class="k">if</span> <span class="nb">id</span> <span class="o">==</span> <span class="n">object_id</span><span class="p">:</span>
+
+                <span class="n">object_cov</span> <span class="o">=</span> <span class="n">SPICEDOUBLE_CELL</span><span class="p">(</span><span class="n">maxwin</span><span class="p">)</span>
+                <span class="n">cspice</span><span class="o">.</span><span class="n">spkcov</span><span class="p">(</span><span class="n">spk_kernel</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">object_id</span><span class="p">,</span> <span class="n">object_cov</span><span class="p">)</span>
+
+                <span class="n">boundaries</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">cov_int</span><span class="p">(</span><span class="n">object_cov</span><span class="o">=</span><span class="n">object_cov</span><span class="p">,</span>
+                                          <span class="n">object_id</span><span class="o">=</span><span class="n">object_id</span><span class="p">,</span>
+                                          <span class="n">kernel</span><span class="o">=</span><span class="n">spk_kernel</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                                          <span class="n">global_boundary</span><span class="o">=</span><span class="n">global_boundary</span><span class="p">,</span>
+                                          <span class="n">time_format</span><span class="o">=</span><span class="n">time_format</span><span class="p">,</span>
+                                          <span class="n">report</span><span class="o">=</span><span class="n">report</span><span class="p">)</span>
+
+                <span class="n">boundaries_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">boundaries</span><span class="p">)</span>
+
+                <span class="c1">#</span>
+                <span class="c1"># We need to have the boundaries in TDB in order to sort out the</span>
+                <span class="c1"># min and max to obtain the global ones for multiple kernels</span>
+                <span class="c1">#</span>
+                <span class="k">if</span> <span class="n">global_boundary</span><span class="p">:</span>
+                    <span class="n">et_boundaries_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cov_int</span><span class="p">(</span>
+                                                      <span class="n">object_cov</span><span class="o">=</span><span class="n">object_cov</span><span class="p">,</span>
+                                                      <span class="n">object_id</span><span class="o">=</span><span class="n">object_id</span><span class="p">,</span>
+                                                      <span class="n">kernel</span><span class="o">=</span><span class="n">spk_kernel</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                                                      <span class="n">global_boundary</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                                      <span class="n">time_format</span><span class="o">=</span><span class="s1">&#39;TDB&#39;</span><span class="p">,</span>
+                                                      <span class="n">report</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+
+
+
+        <span class="n">spk_count</span> <span class="o">-=</span> <span class="mi">1</span>
+
+    <span class="k">if</span> <span class="n">global_boundary</span><span class="p">:</span>
+        <span class="n">start_time</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">et_boundaries_list</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">finish_time</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">et_boundaries_list</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="n">boundaries_list</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">et2cal</span><span class="p">([</span><span class="n">start_time</span><span class="p">,</span> <span class="n">finish_time</span><span class="p">],</span>
+                                      <span class="nb">format</span><span class="o">=</span><span class="n">time_format</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">report</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Global Coverage for {} [{}]: {} - {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">str</span><span class="p">(</span><span class="n">cspice</span><span class="o">.</span><span class="n">bodc2n</span><span class="p">(</span><span class="n">object_id</span><span class="p">)),</span> <span class="n">time_format</span><span class="p">,</span> <span class="n">boundaries_list</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                <span class="n">boundaries_list</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+
+
+    <span class="k">if</span> <span class="n">unload</span><span class="p">:</span>
+        <span class="n">cspice</span><span class="o">.</span><span class="n">unload</span><span class="p">(</span><span class="n">mk</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">boundaries_list</span></div>
+
+
+<div class="viewcode-block" id="cov_spk_ker"><a class="viewcode-back" href="../../documentation.html#spiops.spiops.cov_spk_ker">[docs]</a><span class="k">def</span> <span class="nf">cov_spk_ker</span><span class="p">(</span><span class="n">spk</span><span class="p">,</span> <span class="n">support_ker</span><span class="p">,</span> <span class="nb">object</span><span class="o">=</span><span class="s1">&#39;ALL&#39;</span><span class="p">,</span> <span class="n">time_format</span><span class="o">=</span> <span class="s1">&#39;TDB&#39;</span><span class="p">,</span>
+                <span class="n">report</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">unload</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Provides time coverage summary for a given object for a given SPK file.</span>
+<span class="sd">    Several options are available. This function is based on the following</span>
+<span class="sd">    SPICE API:</span>
+
+<span class="sd">    http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/spkcov_c.html</span>
+
+<span class="sd">    The NAIF utility BRIEF can be used for the same purpose.</span>
+
+<span class="sd">    :param spk: SPK file to be used</span>
+<span class="sd">    :type mk: str</span>
+<span class="sd">    :param support_ker: Support kernels required to run the function. At least it should be a leapseconds kernel (LSK) and optionally a meta-kernel (MK)</span>
+<span class="sd">    :type support_ker: Union[str, list]</span>
+<span class="sd">    :param object: Ephemeris Object to obtain the coverage from</span>
+<span class="sd">    :type object: str</span>
+<span class="sd">    :param time_format: Output time format; it can be &#39;UTC&#39;, &#39;CAL&#39; (for TDB in calendar format) or &#39;TDB&#39;. Default is &#39;TDB&#39;</span>
+<span class="sd">    :type time_format: str</span>
+<span class="sd">    :param global_boundary: Boolean to indicate whether if we want all the coverage windows or only the absolute start and finish coverage times</span>
+<span class="sd">    :type global_boundary: bool</span>
+<span class="sd">    :param report: If True prints the resulting coverage on the screen</span>
+<span class="sd">    :type report: bool</span>
+<span class="sd">    :param unload: If True it will unload the input meta-kernel</span>
+<span class="sd">    :type unload: bool</span>
+<span class="sd">    :return: Returns a list with the coverage intervals</span>
+<span class="sd">    :rtype: list</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">cspice</span><span class="o">.</span><span class="n">furnsh</span><span class="p">(</span><span class="n">spk</span><span class="p">)</span>
+    <span class="n">maxwin</span> <span class="o">=</span> <span class="mi">2000</span>
+
+    <span class="n">cspice</span><span class="o">.</span><span class="n">furnsh</span><span class="p">(</span><span class="n">support_ker</span><span class="p">)</span>
+
+    <span class="n">boundaries_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">boundaries</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="n">spk_ids</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">spkobj</span><span class="p">(</span><span class="n">spk</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">object</span> <span class="o">==</span> <span class="s1">&#39;ALL&#39;</span><span class="p">:</span>
+        <span class="n">object_id</span> <span class="o">=</span> <span class="n">spk_ids</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">object_id</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">bodn2c</span><span class="p">(</span><span class="nb">object</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="nb">id</span> <span class="ow">in</span> <span class="n">spk_ids</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">id</span> <span class="o">==</span> <span class="n">object_id</span><span class="p">:</span>
+            <span class="n">object_cov</span> <span class="o">=</span> <span class="n">SPICEDOUBLE_CELL</span><span class="p">(</span><span class="n">maxwin</span><span class="p">)</span>
+            <span class="n">cspice</span><span class="o">.</span><span class="n">spkcov</span><span class="p">(</span><span class="n">spk</span><span class="p">,</span> <span class="n">object_id</span><span class="p">,</span> <span class="n">object_cov</span><span class="p">)</span>
+
+            <span class="n">boundaries</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">cov_int</span><span class="p">(</span><span class="n">object_cov</span><span class="o">=</span><span class="n">object_cov</span><span class="p">,</span>
+                                      <span class="n">object_id</span><span class="o">=</span><span class="n">object_id</span><span class="p">,</span>
+                                      <span class="n">kernel</span><span class="o">=</span><span class="n">spk</span><span class="p">,</span>
+                                      <span class="n">time_format</span><span class="o">=</span><span class="n">time_format</span><span class="p">,</span> <span class="n">report</span><span class="o">=</span><span class="n">report</span><span class="p">)</span>
+
+        <span class="n">boundaries_list</span> <span class="o">+=</span> <span class="n">boundaries</span>
+
+        <span class="k">if</span> <span class="n">unload</span><span class="p">:</span>
+            <span class="n">cspice</span><span class="o">.</span><span class="n">unload</span><span class="p">(</span><span class="n">spk</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="p">(</span><span class="n">boundaries_list</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="cov_ck_obj"><a class="viewcode-back" href="../../documentation.html#spiops.spiops.cov_ck_obj">[docs]</a><span class="k">def</span> <span class="nf">cov_ck_obj</span><span class="p">(</span><span class="n">mk</span><span class="p">,</span> <span class="nb">object</span><span class="p">,</span> <span class="n">time_format</span><span class="o">=</span> <span class="s1">&#39;UTC&#39;</span><span class="p">,</span> <span class="n">global_boundary</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+               <span class="n">report</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">unload</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Provides time coverage summary for a given object for a list of</span>
+<span class="sd">    binary CK files provided in a meta-kernel. Several options are</span>
+<span class="sd">    available. This function is based on the following SPICE API:</span>
+
+<span class="sd">    http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/ckcov_c.html</span>
+
+<span class="sd">    The NAIF utility CKBRIEF can be used for the same purpose.</span>
+
+<span class="sd">    :param mk: Meta-kernel to load the computation scenario</span>
+<span class="sd">    :type mk: str</span>
+<span class="sd">    :param object: Ephemeris Object to obtain the coverage from</span>
+<span class="sd">    :type object: str</span>
+<span class="sd">    :param time_format: Output time format; it can be &#39;UTC&#39;, &#39;CAL&#39; (for TDB in calendar format) or &#39;TDB&#39;. Default is &#39;TDB&#39;</span>
+<span class="sd">    :type time_format: str</span>
+<span class="sd">    :param global_boundary: Boolean to indicate whether if we want all the coverage windows or only the absolute start and finish coverage times</span>
+<span class="sd">    :type global_boundary: bool</span>
+<span class="sd">    :param report: If True prints the resulting coverage on the screen</span>
+<span class="sd">    :type report: bool</span>
+<span class="sd">    :param unload: If True it will unload the input meta-kernel</span>
+<span class="sd">    :type unload: bool</span>
+<span class="sd">    :return: Returns a list with the coverage intervals</span>
+<span class="sd">    :rtype: list</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">cspice</span><span class="o">.</span><span class="n">furnsh</span><span class="p">(</span><span class="n">mk</span><span class="p">)</span>
+    <span class="n">boundaries_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">et_boundaries_list</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="n">object_id</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">namfrm</span><span class="p">(</span><span class="nb">object</span><span class="p">)</span>
+    <span class="n">MAXIV</span> <span class="o">=</span> <span class="mi">2000</span>
+    <span class="n">ck_count</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">ktotal</span><span class="p">(</span><span class="s1">&#39;CK&#39;</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+    <span class="n">WINSIZ</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">MAXIV</span>
+    <span class="n">MAXOBJ</span> <span class="o">=</span> <span class="mi">10000</span>
+
+    <span class="k">while</span> <span class="n">ck_count</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+
+        <span class="n">ck_ids</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">support_types</span><span class="o">.</span><span class="n">SPICEINT_CELL</span><span class="p">(</span><span class="n">MAXOBJ</span><span class="p">)</span>
+        <span class="n">ck_kernel</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">kdata</span><span class="p">(</span><span class="n">ck_count</span><span class="p">,</span> <span class="s1">&#39;CK&#39;</span><span class="p">,</span> <span class="mi">155</span><span class="p">,</span> <span class="mi">155</span><span class="p">,</span> <span class="mi">155</span><span class="p">)</span>
+        <span class="n">ck_ids</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">ckobj</span><span class="p">(</span><span class="n">ck</span><span class="o">=</span><span class="n">ck_kernel</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">outCell</span><span class="o">=</span><span class="n">ck_ids</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="nb">id</span> <span class="ow">in</span> <span class="n">ck_ids</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">id</span> <span class="o">==</span> <span class="n">object_id</span><span class="p">:</span>
+                <span class="n">object_cov</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">support_types</span><span class="o">.</span><span class="n">SPICEDOUBLE_CELL</span><span class="p">(</span><span class="n">WINSIZ</span><span class="p">)</span>
+                <span class="n">object_cov</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">ckcov</span><span class="p">(</span><span class="n">ck</span><span class="o">=</span><span class="n">ck_kernel</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">idcode</span><span class="o">=</span><span class="n">object_id</span><span class="p">,</span>
+                                          <span class="n">needav</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="s1">&#39;SEGMENT&#39;</span><span class="p">,</span>
+                                          <span class="n">tol</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">timsys</span><span class="o">=</span><span class="s1">&#39;TDB&#39;</span><span class="p">,</span>
+                                          <span class="n">cover</span><span class="o">=</span><span class="n">object_cov</span><span class="p">)</span>
+
+                <span class="n">boundaries</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">cov_int</span><span class="p">(</span><span class="n">object_cov</span><span class="o">=</span><span class="n">object_cov</span><span class="p">,</span>
+                                          <span class="n">object_id</span><span class="o">=</span><span class="n">object_id</span><span class="p">,</span>
+                                          <span class="n">kernel</span><span class="o">=</span><span class="n">ck_kernel</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                                          <span class="n">global_boundary</span><span class="o">=</span><span class="n">global_boundary</span><span class="p">,</span>
+                                          <span class="n">time_format</span><span class="o">=</span><span class="n">time_format</span><span class="p">,</span>
+                                          <span class="n">report</span><span class="o">=</span><span class="n">report</span><span class="p">)</span>
+
+                <span class="n">boundaries_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">boundaries</span><span class="p">)</span>
+
+                <span class="c1">#</span>
+                <span class="c1"># We need to have the boundaries in TDB in order to sort out the</span>
+                <span class="c1"># min and max to obtain the global ones for multiple kernels</span>
+                <span class="c1">#</span>
+                <span class="k">if</span> <span class="n">global_boundary</span><span class="p">:</span>
+                    <span class="n">et_boundaries_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">cov_int</span><span class="p">(</span>
+                                                      <span class="n">object_cov</span><span class="o">=</span><span class="n">object_cov</span><span class="p">,</span>
+                                                      <span class="n">object_id</span><span class="o">=</span><span class="n">object_id</span><span class="p">,</span>
+                                                      <span class="n">kernel</span><span class="o">=</span><span class="n">ck_kernel</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                                                      <span class="n">global_boundary</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                                      <span class="n">time_format</span><span class="o">=</span><span class="s1">&#39;TDB&#39;</span><span class="p">,</span>
+                                                      <span class="n">report</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+
+        <span class="n">ck_count</span> <span class="o">-=</span> <span class="mi">1</span>
+
+    <span class="k">if</span> <span class="n">global_boundary</span><span class="p">:</span>
+        <span class="n">start_time</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">et_boundaries_list</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">finish_time</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">et_boundaries_list</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="n">boundaries_list</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">et2cal</span><span class="p">([</span><span class="n">start_time</span><span class="p">,</span> <span class="n">finish_time</span><span class="p">],</span>
+                                      <span class="nb">format</span><span class="o">=</span><span class="n">time_format</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">report</span><span class="p">:</span>
+
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">body_name</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">bodc2n</span><span class="p">(</span><span class="n">object_id</span><span class="p">)</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="n">body_name</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">frmnam</span><span class="p">(</span><span class="n">object_id</span><span class="p">,</span> <span class="mi">60</span><span class="p">)</span>
+
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Global Coverage for {} [{}]: {} - {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                   <span class="n">body_name</span><span class="p">,</span> <span class="n">time_format</span><span class="p">,</span> <span class="n">boundaries_list</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                <span class="n">boundaries_list</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+
+    <span class="k">if</span> <span class="n">unload</span><span class="p">:</span>
+        <span class="n">cspice</span><span class="o">.</span><span class="n">unload</span><span class="p">(</span><span class="n">mk</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">boundaries_list</span></div>
+
+
+<div class="viewcode-block" id="cov_ck_ker"><a class="viewcode-back" href="../../documentation.html#spiops.spiops.cov_ck_ker">[docs]</a><span class="k">def</span> <span class="nf">cov_ck_ker</span><span class="p">(</span><span class="n">ck</span><span class="p">,</span> <span class="n">support_ker</span><span class="p">,</span> <span class="nb">object</span><span class="o">=</span><span class="s1">&#39;ALL&#39;</span><span class="p">,</span> <span class="n">time_format</span><span class="o">=</span> <span class="s1">&#39;UTC&#39;</span><span class="p">,</span>
+               <span class="n">report</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">unload</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Provides time coverage summary for a given object for a given CK file.</span>
+<span class="sd">    Several options are available. This function is based on the following</span>
+<span class="sd">    SPICE API:</span>
+
+<span class="sd">    http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/ckcov_c.html</span>
+
+<span class="sd">    The NAIF utility CKBRIEF can be used for the same purpose.</span>
+
+<span class="sd">    :param ck: CK file to be used</span>
+<span class="sd">    :type mk: str</span>
+<span class="sd">    :param support_ker: Support kernels required to run the function. At least it should be a leapseconds kernel (LSK) and a Spacecraft clock kernel (SCLK) optionally a meta-kernel (MK) which is highly recommended</span>
+<span class="sd">    :type support_ker: Union[str, list]</span>
+<span class="sd">    :param object: Ephemeris Object to obtain the coverage from</span>
+<span class="sd">    :type object: str</span>
+<span class="sd">    :param time_format: Output time format; it can be &#39;UTC&#39;, &#39;CAL&#39; (for TDB in calendar format) or &#39;TDB&#39;. Default is &#39;TDB&#39;</span>
+<span class="sd">    :type time_format: str</span>
+<span class="sd">    :param global_boundary: Boolean to indicate whether if we want all the coverage windows or only the absolute start and finish coverage times</span>
+<span class="sd">    :type global_boundary: bool</span>
+<span class="sd">    :param report: If True prints the resulting coverage on the screen</span>
+<span class="sd">    :type report: bool</span>
+<span class="sd">    :param unload: If True it will unload the input meta-kernel</span>
+<span class="sd">    :type unload: bool</span>
+<span class="sd">    :return: Returns a list with the coverage intervals</span>
+<span class="sd">    :rtype: list</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">cspice</span><span class="o">.</span><span class="n">furnsh</span><span class="p">(</span><span class="n">ck</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">support_ker</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">support_ker</span> <span class="o">=</span> <span class="p">[</span><span class="n">support_ker</span><span class="p">]</span>
+
+    <span class="k">for</span> <span class="n">ker</span> <span class="ow">in</span> <span class="n">support_ker</span><span class="p">:</span>
+        <span class="n">cspice</span><span class="o">.</span><span class="n">furnsh</span><span class="p">(</span><span class="n">ker</span><span class="p">)</span>
+
+    <span class="n">boundaries_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">boundaries</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="n">object_id</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">namfrm</span><span class="p">(</span><span class="nb">object</span><span class="p">)</span>
+    <span class="n">MAXIV</span> <span class="o">=</span> <span class="mi">2000</span>
+    <span class="n">WINSIZ</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">MAXIV</span>
+    <span class="n">MAXOBJ</span> <span class="o">=</span> <span class="mi">10000</span>
+
+    <span class="k">if</span> <span class="nb">object</span> <span class="o">==</span> <span class="s1">&#39;ALL&#39;</span><span class="p">:</span>
+        <span class="n">ck_ids</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">support_types</span><span class="o">.</span><span class="n">SPICEINT_CELL</span><span class="p">(</span><span class="n">MAXOBJ</span><span class="p">)</span>
+        <span class="n">ck_ids</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">ckobj</span><span class="p">(</span><span class="n">ck</span><span class="p">,</span> <span class="n">outCell</span><span class="o">=</span><span class="n">ck_ids</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">ck_ids</span> <span class="o">=</span> <span class="p">[</span><span class="n">cspice</span><span class="o">.</span><span class="n">namfrm</span><span class="p">(</span><span class="nb">object</span><span class="p">)]</span>
+
+    <span class="k">for</span> <span class="nb">id</span> <span class="ow">in</span> <span class="n">ck_ids</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">id</span> <span class="o">==</span> <span class="n">object_id</span><span class="p">:</span>
+            <span class="n">object_cov</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">support_types</span><span class="o">.</span><span class="n">SPICEDOUBLE_CELL</span><span class="p">(</span><span class="n">WINSIZ</span><span class="p">)</span>
+            <span class="n">cspice</span><span class="o">.</span><span class="n">scard</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">object_cov</span>
+            <span class="n">object_cov</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">ckcov</span><span class="p">(</span><span class="n">ck</span><span class="o">=</span><span class="n">ck</span><span class="p">,</span> <span class="n">idcode</span><span class="o">=</span><span class="n">object_id</span><span class="p">,</span>
+                                      <span class="n">needav</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="s1">&#39;SEGMENT&#39;</span><span class="p">,</span>
+                                      <span class="n">tol</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">timsys</span><span class="o">=</span><span class="s1">&#39;TDB&#39;</span><span class="p">,</span>
+                                      <span class="n">cover</span><span class="o">=</span><span class="n">object_cov</span><span class="p">)</span>
+
+            <span class="n">boundaries</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">cov_int</span><span class="p">(</span><span class="n">object_cov</span><span class="o">=</span><span class="n">object_cov</span><span class="p">,</span>
+                                      <span class="n">object_id</span><span class="o">=</span><span class="n">object_id</span><span class="p">,</span>
+                                      <span class="n">kernel</span><span class="o">=</span><span class="n">ck</span><span class="p">,</span>
+                                      <span class="n">time_format</span><span class="o">=</span><span class="n">time_format</span><span class="p">,</span> <span class="n">report</span><span class="o">=</span><span class="n">report</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">boundaries</span> <span class="o">!=</span> <span class="p">[]:</span>
+        <span class="n">boundaries_list</span> <span class="o">+=</span> <span class="n">boundaries</span>
+
+    <span class="k">if</span> <span class="n">unload</span><span class="p">:</span>
+        <span class="n">cspice</span><span class="o">.</span><span class="n">unload</span><span class="p">(</span><span class="n">ck</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="p">(</span><span class="n">boundaries_list</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">spiops</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../documentation.html">spiops package</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Marc Costa Sitja.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
