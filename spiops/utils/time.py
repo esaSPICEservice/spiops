@@ -1,21 +1,26 @@
 import spiceypy as cspice
 
 
-def et2cal(time, format='UTC'):
+def et2cal(time, format='UTC', support_ker=False, unload=False):
     """
     Converts Ephemeris Time (ET) into UTC or Calendar TDB (CAL) time. Accepts
     a single time or a lists of times. This function assumes that the support
-    kernels (meta-kernel or leapseconds kernel has been loaded)
+    kernels (meta-kernel or leapseconds kernel) has been loaded.
 
     :param time: Input ET time
     :type time: Union[float, list]
     :param format: Desired output format; 'UTC' or 'CAL'
     :type format: str
+    :param unload: If True it will unload the input meta-kernel
+    :type unload: bool
     :return: Output time in 'UTC', 'CAL' or 'TDB'
     :rtype: Union[str, list]
     """
     timlen = 62
     out_list = []
+
+    if support_ker:
+        cspice.furnsh(support_ker)
 
     if isinstance(time, float):
         time = [time]
@@ -37,6 +42,64 @@ def et2cal(time, format='UTC'):
         out_time = out_list[0]
     else:
         out_time = out_list
+
+    if unload:
+        cspice.unload(support_ker)
+
+    return out_time
+
+
+def cal2et(time, format='UTC', support_ker=False, unload=False):
+    """
+    Converts UTC or Calendar TDB (CAL) time to Ephemeris Time (ET). Accepts
+    a single time or a lists of times. This function assumes that the support
+    kernels (meta-kernel or leapseconds) kernel has been loaded.
+
+    :param time: Input UTC or CAL time
+    :type time: Union[float, list]
+    :param format: Input format; 'UTC' or 'CAL'
+    :type format: str
+    :param unload: If True it will unload the input meta-kernel
+    :type unload: bool
+    :return: Output ET
+    :rtype: Union[str, list]
+    """
+    out_list = []
+
+    if isinstance(time, str):
+        time = [time]
+
+    #
+    # We need to specify that is Calendar format in TDB. If it is UTC we need
+    # to load the support kernels
+    #
+    if support_ker:
+        cspice.furnsh(support_ker)
+
+
+    if format == 'CAL':
+            time[:] = [x.replace('T', ' ') for x in time]
+            time[:] = [x + ' TDB' for x in time]
+
+    for element in time:
+
+        if format == 'UTC':
+            out_elm = cspice.utc2et(element)
+
+        elif format == 'CAL':
+            out_elm = cspice.str2et(element)
+        else:
+            out_elm = element
+
+        out_list.append(out_elm)
+
+    if len(out_list) == 1:
+        out_time = out_list[0]
+    else:
+        out_time = out_list
+
+    if unload:
+        cspice.unload(support_ker)
 
     return out_time
 

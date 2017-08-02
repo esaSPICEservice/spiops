@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>spiops.utils.time &mdash; spiops 0.1.0 documentation</title>
+  <title>spiops.utils.time &mdash; spiops  documentation</title>
   
 
   
@@ -35,7 +35,7 @@
         <link rel="index" title="Index"
               href="../../../genindex.html"/>
         <link rel="search" title="Search" href="../../../search.html"/>
-    <link rel="top" title="spiops 0.1.0 documentation" href="../../../index.html"/>
+    <link rel="top" title="spiops  documentation" href="../../../index.html"/>
         <link rel="up" title="Module code" href="../../index.html"/> 
 
   
@@ -65,7 +65,7 @@
             
             
               <div class="version">
-                0.1.0
+                0.1.2
               </div>
             
           
@@ -158,21 +158,26 @@
 <span class="kn">import</span> <span class="nn">spiceypy</span> <span class="k">as</span> <span class="nn">cspice</span>
 
 
-<div class="viewcode-block" id="et2cal"><a class="viewcode-back" href="../../../documentation.html#spiops.utils.time.et2cal">[docs]</a><span class="k">def</span> <span class="nf">et2cal</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;UTC&#39;</span><span class="p">):</span>
+<div class="viewcode-block" id="et2cal"><a class="viewcode-back" href="../../../documentation.html#spiops.utils.time.et2cal">[docs]</a><span class="k">def</span> <span class="nf">et2cal</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;UTC&#39;</span><span class="p">,</span> <span class="n">support_ker</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">unload</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Converts Ephemeris Time (ET) into UTC or Calendar TDB (CAL) time. Accepts</span>
 <span class="sd">    a single time or a lists of times. This function assumes that the support</span>
-<span class="sd">    kernels (meta-kernel or leapseconds kernel has been loaded)</span>
+<span class="sd">    kernels (meta-kernel or leapseconds kernel) has been loaded.</span>
 
 <span class="sd">    :param time: Input ET time</span>
 <span class="sd">    :type time: Union[float, list]</span>
 <span class="sd">    :param format: Desired output format; &#39;UTC&#39; or &#39;CAL&#39;</span>
 <span class="sd">    :type format: str</span>
+<span class="sd">    :param unload: If True it will unload the input meta-kernel</span>
+<span class="sd">    :type unload: bool</span>
 <span class="sd">    :return: Output time in &#39;UTC&#39;, &#39;CAL&#39; or &#39;TDB&#39;</span>
 <span class="sd">    :rtype: Union[str, list]</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">timlen</span> <span class="o">=</span> <span class="mi">62</span>
     <span class="n">out_list</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">if</span> <span class="n">support_ker</span><span class="p">:</span>
+        <span class="n">cspice</span><span class="o">.</span><span class="n">furnsh</span><span class="p">(</span><span class="n">support_ker</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="nb">float</span><span class="p">):</span>
         <span class="n">time</span> <span class="o">=</span> <span class="p">[</span><span class="n">time</span><span class="p">]</span>
@@ -194,6 +199,64 @@
         <span class="n">out_time</span> <span class="o">=</span> <span class="n">out_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">out_time</span> <span class="o">=</span> <span class="n">out_list</span>
+
+    <span class="k">if</span> <span class="n">unload</span><span class="p">:</span>
+        <span class="n">cspice</span><span class="o">.</span><span class="n">unload</span><span class="p">(</span><span class="n">support_ker</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">out_time</span></div>
+
+
+<div class="viewcode-block" id="cal2et"><a class="viewcode-back" href="../../../documentation.html#spiops.utils.time.cal2et">[docs]</a><span class="k">def</span> <span class="nf">cal2et</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;UTC&#39;</span><span class="p">,</span> <span class="n">support_ker</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">unload</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Converts UTC or Calendar TDB (CAL) time to Ephemeris Time (ET). Accepts</span>
+<span class="sd">    a single time or a lists of times. This function assumes that the support</span>
+<span class="sd">    kernels (meta-kernel or leapseconds) kernel has been loaded.</span>
+
+<span class="sd">    :param time: Input UTC or CAL time</span>
+<span class="sd">    :type time: Union[float, list]</span>
+<span class="sd">    :param format: Input format; &#39;UTC&#39; or &#39;CAL&#39;</span>
+<span class="sd">    :type format: str</span>
+<span class="sd">    :param unload: If True it will unload the input meta-kernel</span>
+<span class="sd">    :type unload: bool</span>
+<span class="sd">    :return: Output ET</span>
+<span class="sd">    :rtype: Union[str, list]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">out_list</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">time</span> <span class="o">=</span> <span class="p">[</span><span class="n">time</span><span class="p">]</span>
+
+    <span class="c1">#</span>
+    <span class="c1"># We need to specify that is Calendar format in TDB. If it is UTC we need</span>
+    <span class="c1"># to load the support kernels</span>
+    <span class="c1">#</span>
+    <span class="k">if</span> <span class="n">support_ker</span><span class="p">:</span>
+        <span class="n">cspice</span><span class="o">.</span><span class="n">furnsh</span><span class="p">(</span><span class="n">support_ker</span><span class="p">)</span>
+
+
+    <span class="k">if</span> <span class="nb">format</span> <span class="o">==</span> <span class="s1">&#39;CAL&#39;</span><span class="p">:</span>
+            <span class="n">time</span><span class="p">[:]</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;T&#39;</span><span class="p">,</span> <span class="s1">&#39; &#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">time</span><span class="p">]</span>
+            <span class="n">time</span><span class="p">[:]</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span> <span class="o">+</span> <span class="s1">&#39; TDB&#39;</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">time</span><span class="p">]</span>
+
+    <span class="k">for</span> <span class="n">element</span> <span class="ow">in</span> <span class="n">time</span><span class="p">:</span>
+
+        <span class="k">if</span> <span class="nb">format</span> <span class="o">==</span> <span class="s1">&#39;UTC&#39;</span><span class="p">:</span>
+            <span class="n">out_elm</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">utc2et</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+
+        <span class="k">elif</span> <span class="nb">format</span> <span class="o">==</span> <span class="s1">&#39;CAL&#39;</span><span class="p">:</span>
+            <span class="n">out_elm</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">str2et</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">out_elm</span> <span class="o">=</span> <span class="n">element</span>
+
+        <span class="n">out_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">out_elm</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">out_list</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">out_time</span> <span class="o">=</span> <span class="n">out_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">out_time</span> <span class="o">=</span> <span class="n">out_list</span>
+
+    <span class="k">if</span> <span class="n">unload</span><span class="p">:</span>
+        <span class="n">cspice</span><span class="o">.</span><span class="n">unload</span><span class="p">(</span><span class="n">support_ker</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">out_time</span></div>
 
@@ -310,7 +373,7 @@
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'../../../',
-            VERSION:'0.1.0',
+            VERSION:'',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true,

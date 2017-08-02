@@ -18,7 +18,7 @@ setup(
     name="spiops",
 
     # Version number (initial):
-    version="0.1.0",
+    version="0.1.2",
 
     description="Extension of SPICE functionalities for ESA Planetary Missons",
     long_description=open('README.md').read(),
@@ -27,7 +27,7 @@ setup(
 
     # Application author details:
     author="Marc Costa Sitja, ESAC/ESA",
-    author_email="marc.costa@esa.int",
+    #author_email="marc.costa@esa.int",
     url="https://mcosta@repos.cosmos.esa.int/socci/scm/spice/spiops.git",
 
 

@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>spiops.spiops &mdash; spiops 0.1.0 documentation</title>
+  <title>spiops.spiops &mdash; spiops  documentation</title>
   
 
   
@@ -35,7 +35,7 @@
         <link rel="index" title="Index"
               href="../../genindex.html"/>
         <link rel="search" title="Search" href="../../search.html"/>
-    <link rel="top" title="spiops 0.1.0 documentation" href="../../index.html"/>
+    <link rel="top" title="spiops  documentation" href="../../index.html"/>
         <link rel="up" title="Module code" href="../index.html"/> 
 
   
@@ -65,7 +65,7 @@
             
             
               <div class="version">
-                0.1.0
+                0.1.2
               </div>
             
           
@@ -427,19 +427,19 @@
 
 <span class="sd">    The NAIF utility CKBRIEF can be used for the same purpose.</span>
 
-<span class="sd">    :param mk: Meta-kernel to load the computation scenario</span>
+<span class="sd">    :param mk: Meta-kernel to load the computation scenario.</span>
 <span class="sd">    :type mk: str</span>
-<span class="sd">    :param object: Ephemeris Object to obtain the coverage from</span>
+<span class="sd">    :param object: Ephemeris Object to obtain the coverage from.</span>
 <span class="sd">    :type object: str</span>
-<span class="sd">    :param time_format: Output time format; it can be &#39;UTC&#39;, &#39;CAL&#39; (for TDB in calendar format) or &#39;TDB&#39;. Default is &#39;TDB&#39;</span>
+<span class="sd">    :param time_format: Output time format; it can be &#39;UTC&#39;, &#39;CAL&#39; (for TDB in calendar format) or &#39;TDB&#39;. Default is &#39;TDB&#39;.</span>
 <span class="sd">    :type time_format: str</span>
-<span class="sd">    :param global_boundary: Boolean to indicate whether if we want all the coverage windows or only the absolute start and finish coverage times</span>
+<span class="sd">    :param global_boundary: Boolean to indicate whether if we want all the coverage windows or only the absolute start and finish coverage times.</span>
 <span class="sd">    :type global_boundary: bool</span>
-<span class="sd">    :param report: If True prints the resulting coverage on the screen</span>
+<span class="sd">    :param report: If True prints the resulting coverage on the screen.</span>
 <span class="sd">    :type report: bool</span>
-<span class="sd">    :param unload: If True it will unload the input meta-kernel</span>
+<span class="sd">    :param unload: If True it will unload the input meta-kernel.</span>
 <span class="sd">    :type unload: bool</span>
-<span class="sd">    :return: Returns a list with the coverage intervals</span>
+<span class="sd">    :return: Returns a list with the coverage intervals.</span>
 <span class="sd">    :rtype: list</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">cspice</span><span class="o">.</span><span class="n">furnsh</span><span class="p">(</span><span class="n">mk</span><span class="p">)</span>
@@ -527,19 +527,19 @@
 
 <span class="sd">    :param ck: CK file to be used</span>
 <span class="sd">    :type mk: str</span>
-<span class="sd">    :param support_ker: Support kernels required to run the function. At least it should be a leapseconds kernel (LSK) and a Spacecraft clock kernel (SCLK) optionally a meta-kernel (MK) which is highly recommended</span>
+<span class="sd">    :param support_ker: Support kernels required to run the function. At least it should be a leapseconds kernel (LSK) and a Spacecraft clock kernel (SCLK) optionally a meta-kernel (MK) which is highly recommended.</span>
 <span class="sd">    :type support_ker: Union[str, list]</span>
-<span class="sd">    :param object: Ephemeris Object to obtain the coverage from</span>
+<span class="sd">    :param object: Ephemeris Object to obtain the coverage from.</span>
 <span class="sd">    :type object: str</span>
-<span class="sd">    :param time_format: Output time format; it can be &#39;UTC&#39;, &#39;CAL&#39; (for TDB in calendar format) or &#39;TDB&#39;. Default is &#39;TDB&#39;</span>
+<span class="sd">    :param time_format: Output time format; it can be &#39;UTC&#39;, &#39;CAL&#39; (for TDB in calendar format) or &#39;TDB&#39;. Default is &#39;TDB&#39;.</span>
 <span class="sd">    :type time_format: str</span>
-<span class="sd">    :param global_boundary: Boolean to indicate whether if we want all the coverage windows or only the absolute start and finish coverage times</span>
+<span class="sd">    :param global_boundary: Boolean to indicate whether if we want all the coverage windows or only the absolute start and finish coverage times.</span>
 <span class="sd">    :type global_boundary: bool</span>
-<span class="sd">    :param report: If True prints the resulting coverage on the screen</span>
+<span class="sd">    :param report: If True prints the resulting coverage on the screen.</span>
 <span class="sd">    :type report: bool</span>
-<span class="sd">    :param unload: If True it will unload the input meta-kernel</span>
+<span class="sd">    :param unload: If True it will unload the input meta-kernel.</span>
 <span class="sd">    :type unload: bool</span>
-<span class="sd">    :return: Returns a list with the coverage intervals</span>
+<span class="sd">    :return: Returns a list with the coverage intervals.</span>
 <span class="sd">    :rtype: list</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">cspice</span><span class="o">.</span><span class="n">furnsh</span><span class="p">(</span><span class="n">ck</span><span class="p">)</span>
@@ -585,6 +585,173 @@
         <span class="n">cspice</span><span class="o">.</span><span class="n">unload</span><span class="p">(</span><span class="n">ck</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="p">(</span><span class="n">boundaries_list</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="fk_body_ifj2000"><a class="viewcode-back" href="../../documentation.html#spiops.spiops.fk_body_ifj2000">[docs]</a><span class="k">def</span> <span class="nf">fk_body_ifj2000</span><span class="p">(</span><span class="n">mission</span><span class="p">,</span> <span class="n">body</span><span class="p">,</span> <span class="n">pck</span><span class="p">,</span> <span class="n">body_spk</span><span class="p">,</span> <span class="n">frame_id</span><span class="p">,</span> <span class="n">report</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+              <span class="n">unload</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generates a given Solar System Natural Body Inertial frame at J2000. This</span>
+<span class="sd">    function is based on a FORTRAN subroutine provided by Boris Semenov</span>
+<span class="sd">    (NAIF/JPL)</span>
+
+<span class="sd">    The frame definition would be as follows:</span>
+
+<span class="sd">    {Body} Inertial Frame at J2000 ({MISSION}_{BODY}_IF_J2000)</span>
+
+<span class="sd">    Definition:</span>
+
+<span class="sd">    The {body} Inertial Frame at J2000 is defined as follows:</span>
+
+<span class="sd">       -  +Z axis is parallel to {body} rotation axis</span>
+<span class="sd">          at J2000, pointing toward the North side of the</span>
+<span class="sd">          invariable plane;</span>
+
+<span class="sd">       -  +X axis is aligned with the ascending node of the {Body}</span>
+<span class="sd">          orbital plane with the {Body} equator plane at J2000;</span>
+
+<span class="sd">       -  +Y axis completes the right-handed system;</span>
+
+<span class="sd">       -  the origin of this frame is the center of mass of {Body}.</span>
+
+<span class="sd">    All vectors are geometric: no aberration corrections are used.</span>
+
+
+<span class="sd">    Remarks:</span>
+
+<span class="sd">    This frame is defined as a fixed offset frame using constant vectors</span>
+<span class="sd">    as the specification method. The fixed offset for these vectors were</span>
+<span class="sd">    based on the following directions (that also define a two-vector</span>
+<span class="sd">    frame):</span>
+
+<span class="sd">      - +Z axis along Right Ascension (RA) and Declination (DEC) of {Body}</span>
+<span class="sd">        pole at J2000 epoch in J2000 inertial frame;</span>
+
+<span class="sd">      - +X axis along the RA/DEC of {Body} instantaneous orbital plane</span>
+<span class="sd">        ascending node on {Body} equator at J2000 epoch in J2000</span>
+<span class="sd">        inertial frame;</span>
+
+<span class="sd">    This frame has been defined based on the IAU_{BODY} frame, whose</span>
+<span class="sd">    evaluation was based on the data included in the loaded PCK file.</span>
+
+<span class="sd">    In addition {body_spk} ephemeris have been used to compute the {Body}</span>
+<span class="sd">    instantaneous orbital plane ascending node on {Body} equator at</span>
+<span class="sd">    J2000 epoch in J2000 inertial frame.</span>
+
+<span class="sd">    :param mission: Name of the mission to use the frame</span>
+<span class="sd">    :type mission: str</span>
+<span class="sd">    :param body: Natural body for which the frame is defined</span>
+<span class="sd">    :type body: str</span>
+<span class="sd">    :param pck: Planetary Constants Kernel to be used to extract the Pole information from</span>
+<span class="sd">    :type pck: str</span>
+<span class="sd">    :param body_spk: SPK kernels that contain the ephemeris of the Natural body</span>
+<span class="sd">    :type body_spk: Union[str, list]</span>
+<span class="sd">    :param frame_id: ID for the new frame. It is recommended to follow the convention recommended by NAIF: -XYYY where X is the ID of the mission S/C and YYY is a number between 900 and 999.</span>
+<span class="sd">    :type frame_id: str</span>
+<span class="sd">    :param report: If True prints some intermediate results.</span>
+<span class="sd">    :type report: bool</span>
+<span class="sd">    :param unload: If True it will unload the input PCK and SPK.</span>
+<span class="sd">    :type unload: bool</span>
+<span class="sd">    :param file: If True it generates the frame definition in a file with the following name: {MISSION}_{BODY}_IF_J2000.tf</span>
+<span class="sd">    :type file: bool</span>
+<span class="sd">    :return: Returns the Euler angles to transform the computed frame with J2000. Only if parameter file is False</span>
+<span class="sd">    :rtype: str</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">body</span> <span class="o">=</span> <span class="n">body</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
+    <span class="n">mission</span> <span class="o">=</span> <span class="n">mission</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
+
+    <span class="n">cspice</span><span class="o">.</span><span class="n">furnsh</span><span class="p">(</span><span class="n">pck</span><span class="p">)</span>
+
+    <span class="c1">#</span>
+    <span class="c1"># This can actually be a list of bodies.</span>
+    <span class="c1">#</span>
+    <span class="n">cspice</span><span class="o">.</span><span class="n">furnsh</span><span class="p">(</span><span class="n">body_spk</span><span class="p">)</span>
+
+    <span class="c1">#</span>
+    <span class="c1"># Get instantaneous Jupiter state at J2000 and compute instantaneous</span>
+    <span class="c1"># orbital normal.</span>
+    <span class="c1">#</span>
+    <span class="n">state</span><span class="p">,</span> <span class="n">lt</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">spkezr</span><span class="p">(</span><span class="n">body</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="s1">&#39;J2000&#39;</span><span class="p">,</span> <span class="s1">&#39;NONE&#39;</span><span class="p">,</span> <span class="s1">&#39;SUN&#39;</span><span class="p">)</span>
+    <span class="n">normal</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">ucrss</span><span class="p">(</span><span class="n">state</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">3</span><span class="p">:</span><span class="mi">1</span><span class="p">],</span> <span class="n">state</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">6</span><span class="p">:</span><span class="mi">1</span><span class="p">])</span>
+
+    <span class="c1">#</span>
+    <span class="c1"># Get J2000 -&gt; IAU_{BODY} rotation at J2000 and compute Body pole</span>
+    <span class="c1"># direction in J2000 at J2000.</span>
+    <span class="c1">#</span>
+    <span class="n">mat</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">pxform</span><span class="p">(</span><span class="s1">&#39;IAU_{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">body</span><span class="p">),</span> <span class="s1">&#39;J2000&#39;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+    <span class="n">z</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">vpack</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+    <span class="n">pole</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">mxv</span><span class="p">(</span><span class="n">mat</span><span class="p">,</span> <span class="n">z</span><span class="p">)</span>
+
+    <span class="c1">#</span>
+    <span class="c1"># Compute direction Body orbit&#39;s ascending node on Body equator at</span>
+    <span class="c1"># J2000 in J2000 and print it and Body pole as RA/DEC in J2000 in</span>
+    <span class="c1"># degrees</span>
+    <span class="c1">#</span>
+    <span class="n">ascnod</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">ucrss</span><span class="p">(</span><span class="n">pole</span><span class="p">,</span> <span class="n">normal</span><span class="p">)</span>
+    <span class="n">r</span><span class="p">,</span> <span class="n">ra</span><span class="p">,</span> <span class="n">dec</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">recrad</span><span class="p">(</span><span class="n">pole</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">report</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;POLE RA/DEC = {}/{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ra</span><span class="o">*</span><span class="n">cspice</span><span class="o">.</span><span class="n">dpr</span><span class="p">(),</span> <span class="n">dec</span><span class="o">*</span><span class="n">cspice</span><span class="o">.</span><span class="n">dpr</span><span class="p">()))</span>
+
+    <span class="n">r</span><span class="p">,</span> <span class="n">ra</span><span class="p">,</span> <span class="n">dec</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">recrad</span><span class="p">(</span><span class="n">ascnod</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">report</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;ASCNOD RA/DEC = {}/{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ra</span> <span class="o">*</span> <span class="n">cspice</span><span class="o">.</span><span class="n">dpr</span><span class="p">(),</span> <span class="n">dec</span> <span class="o">*</span> <span class="n">cspice</span><span class="o">.</span><span class="n">dpr</span><span class="p">()))</span>
+
+    <span class="c1">#</span>
+    <span class="c1"># Build two vector from a with POLE as Z and ASNOD as X and print rotation</span>
+    <span class="c1"># from that frame to J200 as Euler angles.</span>
+    <span class="c1">#</span>
+    <span class="n">mat</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">twovec</span><span class="p">(</span><span class="n">pole</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">ascnod</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">matxp</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">xpose</span><span class="p">(</span><span class="n">mat</span><span class="p">)</span>
+    <span class="n">r3</span><span class="p">,</span> <span class="n">r2</span><span class="p">,</span> <span class="n">r1</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">m2eul</span><span class="p">(</span><span class="n">matxp</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">file</span><span class="p">:</span>
+      <span class="n">body_id</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">bodn2c</span><span class="p">(</span><span class="n">body</span><span class="p">)</span>
+      <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;{}_{}_IF_J2000.tf&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">mission</span><span class="p">,</span> <span class="n">body</span><span class="p">),</span> <span class="s1">&#39;w+&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+
+         <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">r&quot;\begindata&quot;</span><span class="p">)</span>
+         <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1"> </span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+         <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;    FRAME_{}_{}_IF_J2000   = {}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">mission</span><span class="p">,</span> <span class="n">body</span><span class="p">,</span>
+                                                            <span class="n">frame_id</span><span class="p">))</span>
+         <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;    FRAME_{}_NAME              = &#39;{}_{}_IF_J2000&#39;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                 <span class="n">frame_id</span><span class="p">,</span> <span class="n">mission</span><span class="p">,</span> <span class="n">body</span><span class="p">))</span>
+         <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;    FRAME_{}_CLASS             =  4</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">frame_id</span><span class="p">))</span>
+         <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;    FRAME_{}_CLASS_ID          = {}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">frame_id</span><span class="p">,</span>
+                                                              <span class="n">body_id</span><span class="p">))</span>
+         <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;    FRAME_{}_CENTER            =  {}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">frame_id</span><span class="p">,</span>
+                                                                 <span class="n">body_id</span><span class="p">))</span>
+         <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+         <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;    TKFRAME_{}_SPEC            = &#39;ANGLES&#39;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">frame_id</span><span class="p">))</span>
+         <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;    TKFRAME_{}_RELATIVE        = &#39;J2000&#39;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">frame_id</span><span class="p">))</span>
+         <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;    TKFRAME_{}_ANGLES          = (</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">frame_id</span><span class="p">))</span>
+         <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;                                        {}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">r3</span> <span class="o">*</span>
+                                                                     <span class="n">cspice</span><span class="o">.</span><span class="n">dpr</span><span class="p">()))</span>
+         <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;                                        {}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">r2</span> <span class="o">*</span>
+                                                                     <span class="n">cspice</span><span class="o">.</span><span class="n">dpr</span><span class="p">()))</span>
+         <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;                                        {}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">r1</span> <span class="o">*</span>
+                                                                     <span class="n">cspice</span><span class="o">.</span><span class="n">dpr</span><span class="p">()))</span>
+         <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;                                     )</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+         <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;    TKFRAME_{}_AXES            = (</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">frame_id</span><span class="p">))</span>
+         <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;                                        3,</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+         <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;                                        2,</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+         <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;                                        3</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+         <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;                                     )</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+         <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;    TKFRAME_{}_UNITS           = &#39;DEGREES&#39;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">frame_id</span><span class="p">))</span>
+         <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+         <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">r&quot;\begintext&quot;</span><span class="p">)</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s1">&#39;{}_IF-&gt;J2000 (3-2-3): {} - {} - {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">body</span><span class="p">,</span>
+            <span class="n">r3</span> <span class="o">*</span> <span class="n">cspice</span><span class="o">.</span><span class="n">dpr</span><span class="p">(),</span>
+            <span class="n">r2</span> <span class="o">*</span> <span class="n">cspice</span><span class="o">.</span><span class="n">dpr</span><span class="p">(),</span>
+            <span class="n">r1</span> <span class="o">*</span> <span class="n">cspice</span><span class="o">.</span><span class="n">dpr</span><span class="p">())</span>
+
+    <span class="k">if</span> <span class="n">unload</span><span class="p">:</span>
+        <span class="n">cspice</span><span class="o">.</span><span class="n">unload</span><span class="p">(</span><span class="n">pck</span><span class="p">)</span>
+        <span class="n">cspice</span><span class="o">.</span><span class="n">unload</span><span class="p">(</span><span class="n">body_spk</span><span class="p">)</span>
+
+    <span class="k">return</span></div>
+
 </pre></div>
 
            </div>
@@ -621,7 +788,7 @@
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'../../',
-            VERSION:'0.1.0',
+            VERSION:'',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true,

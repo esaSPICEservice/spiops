@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>spiops package &mdash; spiops 0.1.0 documentation</title>
+  <title>spiops package &mdash; spiops  documentation</title>
   
 
   
@@ -35,7 +35,7 @@
         <link rel="index" title="Index"
               href="genindex.html"/>
         <link rel="search" title="Search" href="search.html"/>
-    <link rel="top" title="spiops 0.1.0 documentation" href="index.html"/>
+    <link rel="top" title="spiops  documentation" href="index.html"/>
         <link rel="prev" title="Welcome to spiops’s documentation!" href="index.html"/> 
 
   
@@ -65,7 +65,7 @@
             
             
               <div class="version">
-                0.1.0
+                0.1.2
               </div>
             
           
@@ -93,6 +93,7 @@
 <li class="toctree-l1 current"><a class="current reference internal" href="#">spiops package</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#module-spiops.spiops">spiops.spiops module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#module-spiops.utils.time">spiops.utils.time</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-spiops.classes.observation">spiops.classes.observation</a></li>
 </ul>
 </li>
 </ul>
@@ -176,16 +177,16 @@ SPICE API:</p>
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
 <li><strong>ck</strong> – CK file to be used</li>
-<li><strong>support_ker</strong> (<em>Union</em><em>[</em><a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a><em>, </em><em>list</em><em>]</em>) – Support kernels required to run the function. At least it should be a leapseconds kernel (LSK) and a Spacecraft clock kernel (SCLK) optionally a meta-kernel (MK) which is highly recommended</li>
-<li><strong>object</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Ephemeris Object to obtain the coverage from</li>
-<li><strong>time_format</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Output time format; it can be ‘UTC’, ‘CAL’ (for TDB in calendar format) or ‘TDB’. Default is ‘TDB’</li>
-<li><strong>global_boundary</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – Boolean to indicate whether if we want all the coverage windows or only the absolute start and finish coverage times</li>
-<li><strong>report</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – If True prints the resulting coverage on the screen</li>
-<li><strong>unload</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – If True it will unload the input meta-kernel</li>
+<li><strong>support_ker</strong> (<em>Union</em><em>[</em><a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a><em>, </em><em>list</em><em>]</em>) – Support kernels required to run the function. At least it should be a leapseconds kernel (LSK) and a Spacecraft clock kernel (SCLK) optionally a meta-kernel (MK) which is highly recommended.</li>
+<li><strong>object</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Ephemeris Object to obtain the coverage from.</li>
+<li><strong>time_format</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Output time format; it can be ‘UTC’, ‘CAL’ (for TDB in calendar format) or ‘TDB’. Default is ‘TDB’.</li>
+<li><strong>global_boundary</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – Boolean to indicate whether if we want all the coverage windows or only the absolute start and finish coverage times.</li>
+<li><strong>report</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – If True prints the resulting coverage on the screen.</li>
+<li><strong>unload</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – If True it will unload the input meta-kernel.</li>
 </ul>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Returns a list with the coverage intervals</p>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Returns a list with the coverage intervals.</p>
 </td>
 </tr>
 <tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">list</p>
@@ -208,16 +209,16 @@ available. This function is based on the following SPICE API:</p>
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
-<li><strong>mk</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Meta-kernel to load the computation scenario</li>
-<li><strong>object</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Ephemeris Object to obtain the coverage from</li>
-<li><strong>time_format</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Output time format; it can be ‘UTC’, ‘CAL’ (for TDB in calendar format) or ‘TDB’. Default is ‘TDB’</li>
-<li><strong>global_boundary</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – Boolean to indicate whether if we want all the coverage windows or only the absolute start and finish coverage times</li>
-<li><strong>report</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – If True prints the resulting coverage on the screen</li>
-<li><strong>unload</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – If True it will unload the input meta-kernel</li>
+<li><strong>mk</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Meta-kernel to load the computation scenario.</li>
+<li><strong>object</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Ephemeris Object to obtain the coverage from.</li>
+<li><strong>time_format</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Output time format; it can be ‘UTC’, ‘CAL’ (for TDB in calendar format) or ‘TDB’. Default is ‘TDB’.</li>
+<li><strong>global_boundary</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – Boolean to indicate whether if we want all the coverage windows or only the absolute start and finish coverage times.</li>
+<li><strong>report</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – If True prints the resulting coverage on the screen.</li>
+<li><strong>unload</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – If True it will unload the input meta-kernel.</li>
 </ul>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Returns a list with the coverage intervals</p>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Returns a list with the coverage intervals.</p>
 </td>
 </tr>
 <tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">list</p>
@@ -293,6 +294,73 @@ available. This function is based on the following SPICE API:</p>
 </dd></dl>
 
 <dl class="function">
+<dt id="spiops.spiops.fk_body_ifj2000">
+<code class="descclassname">spiops.spiops.</code><code class="descname">fk_body_ifj2000</code><span class="sig-paren">(</span><em>mission</em>, <em>body</em>, <em>pck</em>, <em>body_spk</em>, <em>frame_id</em>, <em>report=False</em>, <em>unload=False</em>, <em>file=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/spiops/spiops.html#fk_body_ifj2000"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#spiops.spiops.fk_body_ifj2000" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generates a given Solar System Natural Body Inertial frame at J2000. This
+function is based on a FORTRAN subroutine provided by Boris Semenov
+(NAIF/JPL)</p>
+<p>The frame definition would be as follows:</p>
+<p>{Body} Inertial Frame at J2000 ({MISSION}_{BODY}_IF_J2000)</p>
+<p>Definition:</p>
+<p>The {body} Inertial Frame at J2000 is defined as follows:</p>
+<blockquote>
+<div><ul class="simple">
+<li>+Z axis is parallel to {body} rotation axis
+at J2000, pointing toward the North side of the
+invariable plane;</li>
+<li>+X axis is aligned with the ascending node of the {Body}
+orbital plane with the {Body} equator plane at J2000;</li>
+<li>+Y axis completes the right-handed system;</li>
+<li>the origin of this frame is the center of mass of {Body}.</li>
+</ul>
+</div></blockquote>
+<p>All vectors are geometric: no aberration corrections are used.</p>
+<p>Remarks:</p>
+<p>This frame is defined as a fixed offset frame using constant vectors
+as the specification method. The fixed offset for these vectors were
+based on the following directions (that also define a two-vector
+frame):</p>
+<blockquote>
+<div><ul class="simple">
+<li>+Z axis along Right Ascension (RA) and Declination (DEC) of {Body}
+pole at J2000 epoch in J2000 inertial frame;</li>
+<li>+X axis along the RA/DEC of {Body} instantaneous orbital plane
+ascending node on {Body} equator at J2000 epoch in J2000
+inertial frame;</li>
+</ul>
+</div></blockquote>
+<p>This frame has been defined based on the IAU_{BODY} frame, whose
+evaluation was based on the data included in the loaded PCK file.</p>
+<p>In addition {body_spk} ephemeris have been used to compute the {Body}
+instantaneous orbital plane ascending node on {Body} equator at
+J2000 epoch in J2000 inertial frame.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>mission</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Name of the mission to use the frame</li>
+<li><strong>body</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Natural body for which the frame is defined</li>
+<li><strong>pck</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Planetary Constants Kernel to be used to extract the Pole information from</li>
+<li><strong>body_spk</strong> (<em>Union</em><em>[</em><a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a><em>, </em><em>list</em><em>]</em>) – SPK kernels that contain the ephemeris of the Natural body</li>
+<li><strong>frame_id</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – ID for the new frame. It is recommended to follow the convention recommended by NAIF: -XYYY where X is the ID of the mission S/C and YYY is a number between 900 and 999.</li>
+<li><strong>report</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – If True prints some intermediate results.</li>
+<li><strong>unload</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – If True it will unload the input PCK and SPK.</li>
+<li><strong>file</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – If True it generates the frame definition in a file with the following name: {MISSION}_{BODY}_IF_J2000.tf</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Returns the Euler angles to transform the computed frame with J2000. Only if parameter file is False</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last"><a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)">str</a></p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
 <dt id="spiops.spiops.fov_illum">
 <code class="descclassname">spiops.spiops.</code><code class="descname">fov_illum</code><span class="sig-paren">(</span><em>mk</em>, <em>sensor</em>, <em>time=None</em>, <em>angle='DEGREES'</em>, <em>abcorr='LT+S'</em>, <em>report=False</em>, <em>unload=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/spiops/spiops.html#fov_illum"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#spiops.spiops.fov_illum" title="Permalink to this definition">¶</a></dt>
 <dd><p>Determine the Illumination of a given FoV (for light scattering computations
@@ -328,6 +396,33 @@ for example). This function is based on  the following SPICE APIs:</p>
 <div class="section" id="module-spiops.utils.time">
 <span id="spiops-utils-time"></span><h2>spiops.utils.time<a class="headerlink" href="#module-spiops.utils.time" title="Permalink to this headline">¶</a></h2>
 <dl class="function">
+<dt id="spiops.utils.time.cal2et">
+<code class="descclassname">spiops.utils.time.</code><code class="descname">cal2et</code><span class="sig-paren">(</span><em>time</em>, <em>format='UTC'</em>, <em>support_ker=False</em>, <em>unload=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/spiops/utils/time.html#cal2et"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#spiops.utils.time.cal2et" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts UTC or Calendar TDB (CAL) time to Ephemeris Time (ET). Accepts
+a single time or a lists of times. This function assumes that the support
+kernels (meta-kernel or leapseconds) kernel has been loaded.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>time</strong> (<em>Union</em><em>[</em><a class="reference external" href="https://docs.python.org/2/library/functions.html#float" title="(in Python v2.7)"><em>float</em></a><em>, </em><em>list</em><em>]</em>) – Input UTC or CAL time</li>
+<li><strong>format</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Input format; ‘UTC’ or ‘CAL’</li>
+<li><strong>unload</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – If True it will unload the input meta-kernel</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Output ET</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">Union[<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)">str</a>, list]</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
 <dt id="spiops.utils.time.cov_int">
 <code class="descclassname">spiops.utils.time.</code><code class="descname">cov_int</code><span class="sig-paren">(</span><em>object_cov</em>, <em>object_id</em>, <em>kernel</em>, <em>time_format='TDB'</em>, <em>global_boundary=False</em>, <em>report=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/spiops/utils/time.html#cov_int"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#spiops.utils.time.cov_int" title="Permalink to this definition">¶</a></dt>
 <dd><p>Generates a list of time windows out of a SPICE cell for which either
@@ -358,10 +453,10 @@ the SPICE API spkcov_c or ckcov_c have been run.</p>
 
 <dl class="function">
 <dt id="spiops.utils.time.et2cal">
-<code class="descclassname">spiops.utils.time.</code><code class="descname">et2cal</code><span class="sig-paren">(</span><em>time</em>, <em>format='UTC'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/spiops/utils/time.html#et2cal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#spiops.utils.time.et2cal" title="Permalink to this definition">¶</a></dt>
+<code class="descclassname">spiops.utils.time.</code><code class="descname">et2cal</code><span class="sig-paren">(</span><em>time</em>, <em>format='UTC'</em>, <em>support_ker=False</em>, <em>unload=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/spiops/utils/time.html#et2cal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#spiops.utils.time.et2cal" title="Permalink to this definition">¶</a></dt>
 <dd><p>Converts Ephemeris Time (ET) into UTC or Calendar TDB (CAL) time. Accepts
 a single time or a lists of times. This function assumes that the support
-kernels (meta-kernel or leapseconds kernel has been loaded)</p>
+kernels (meta-kernel or leapseconds kernel) has been loaded.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
@@ -369,6 +464,7 @@ kernels (meta-kernel or leapseconds kernel has been loaded)</p>
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
 <li><strong>time</strong> (<em>Union</em><em>[</em><a class="reference external" href="https://docs.python.org/2/library/functions.html#float" title="(in Python v2.7)"><em>float</em></a><em>, </em><em>list</em><em>]</em>) – Input ET time</li>
 <li><strong>format</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Desired output format; ‘UTC’ or ‘CAL’</li>
+<li><strong>unload</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – If True it will unload the input meta-kernel</li>
 </ul>
 </td>
 </tr>
@@ -380,6 +476,54 @@ kernels (meta-kernel or leapseconds kernel has been loaded)</p>
 </tr>
 </tbody>
 </table>
+</dd></dl>
+
+</div>
+<div class="section" id="module-spiops.classes.observation">
+<span id="spiops-classes-observation"></span><h2>spiops.classes.observation<a class="headerlink" href="#module-spiops.classes.observation" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="spiops.classes.observation.TimeWindow">
+<em class="property">class </em><code class="descclassname">spiops.classes.observation.</code><code class="descname">TimeWindow</code><span class="sig-paren">(</span><em>start</em>, <em>finish</em>, <em>current=False</em>, <em>resolution=False</em>, <em>format='UTC'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/spiops/classes/observation.html#TimeWindow"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#spiops.classes.observation.TimeWindow" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>This class defines a Time Window and is the lowest level time entity for
+spiops. The time window is generated with a start and finish times and it
+can also indicate a current instant.</p>
+<dl class="method">
+<dt id="spiops.classes.observation.TimeWindow.getTime">
+<code class="descname">getTime</code><span class="sig-paren">(</span><em>item</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/spiops/classes/observation.html#TimeWindow.getTime"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#spiops.classes.observation.TimeWindow.getTime" title="Permalink to this definition">¶</a></dt>
+<dd><p>Method to obtain the Start, Finish or Current time of the Time Window.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>item</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Time attribute that we want to get from the class: ‘start’, ‘finish’ or ‘current’</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Requested time attribute with the specified format</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)">str</a></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="spiops.classes.observation.TimeWindow.getTimeInterval">
+<code class="descname">getTimeInterval</code><span class="sig-paren">(</span><em>format=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/spiops/classes/observation.html#TimeWindow.getTimeInterval"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#spiops.classes.observation.TimeWindow.getTimeInterval" title="Permalink to this definition">¶</a></dt>
+<dd><p>Method to obtain the Time Interval in a given time format.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>format</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Input format; ‘UTC’ or ‘CAL’</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Time Interval in the provided time format</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">list</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
 </dd></dl>
 
 </div>
@@ -427,7 +571,7 @@ kernels (meta-kernel or leapseconds kernel has been loaded)</p>
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'./',
-            VERSION:'0.1.0',
+            VERSION:'',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true,

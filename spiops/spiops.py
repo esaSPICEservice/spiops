@@ -270,19 +270,19 @@ def cov_ck_obj(mk, object, time_format= 'UTC', global_boundary=False,
 
     The NAIF utility CKBRIEF can be used for the same purpose.
 
-    :param mk: Meta-kernel to load the computation scenario
+    :param mk: Meta-kernel to load the computation scenario.
     :type mk: str
-    :param object: Ephemeris Object to obtain the coverage from
+    :param object: Ephemeris Object to obtain the coverage from.
     :type object: str
-    :param time_format: Output time format; it can be 'UTC', 'CAL' (for TDB in calendar format) or 'TDB'. Default is 'TDB'
+    :param time_format: Output time format; it can be 'UTC', 'CAL' (for TDB in calendar format) or 'TDB'. Default is 'TDB'.
     :type time_format: str
-    :param global_boundary: Boolean to indicate whether if we want all the coverage windows or only the absolute start and finish coverage times
+    :param global_boundary: Boolean to indicate whether if we want all the coverage windows or only the absolute start and finish coverage times.
     :type global_boundary: bool
-    :param report: If True prints the resulting coverage on the screen
+    :param report: If True prints the resulting coverage on the screen.
     :type report: bool
-    :param unload: If True it will unload the input meta-kernel
+    :param unload: If True it will unload the input meta-kernel.
     :type unload: bool
-    :return: Returns a list with the coverage intervals
+    :return: Returns a list with the coverage intervals.
     :rtype: list
     """
     cspice.furnsh(mk)
@@ -370,19 +370,19 @@ def cov_ck_ker(ck, support_ker, object='ALL', time_format= 'UTC',
 
     :param ck: CK file to be used
     :type mk: str
-    :param support_ker: Support kernels required to run the function. At least it should be a leapseconds kernel (LSK) and a Spacecraft clock kernel (SCLK) optionally a meta-kernel (MK) which is highly recommended
+    :param support_ker: Support kernels required to run the function. At least it should be a leapseconds kernel (LSK) and a Spacecraft clock kernel (SCLK) optionally a meta-kernel (MK) which is highly recommended.
     :type support_ker: Union[str, list]
-    :param object: Ephemeris Object to obtain the coverage from
+    :param object: Ephemeris Object to obtain the coverage from.
     :type object: str
-    :param time_format: Output time format; it can be 'UTC', 'CAL' (for TDB in calendar format) or 'TDB'. Default is 'TDB'
+    :param time_format: Output time format; it can be 'UTC', 'CAL' (for TDB in calendar format) or 'TDB'. Default is 'TDB'.
     :type time_format: str
-    :param global_boundary: Boolean to indicate whether if we want all the coverage windows or only the absolute start and finish coverage times
+    :param global_boundary: Boolean to indicate whether if we want all the coverage windows or only the absolute start and finish coverage times.
     :type global_boundary: bool
-    :param report: If True prints the resulting coverage on the screen
+    :param report: If True prints the resulting coverage on the screen.
     :type report: bool
-    :param unload: If True it will unload the input meta-kernel
+    :param unload: If True it will unload the input meta-kernel.
     :type unload: bool
-    :return: Returns a list with the coverage intervals
+    :return: Returns a list with the coverage intervals.
     :rtype: list
     """
     cspice.furnsh(ck)
@@ -428,3 +428,170 @@ def cov_ck_ker(ck, support_ker, object='ALL', time_format= 'UTC',
         cspice.unload(ck)
 
     return (boundaries_list)
+
+
+def fk_body_ifj2000(mission, body, pck, body_spk, frame_id, report=False,
+              unload=False, file=True):
+    """
+    Generates a given Solar System Natural Body Inertial frame at J2000. This
+    function is based on a FORTRAN subroutine provided by Boris Semenov
+    (NAIF/JPL)
+
+    The frame definition would be as follows:
+
+    {Body} Inertial Frame at J2000 ({MISSION}_{BODY}_IF_J2000)
+
+    Definition:
+
+    The {body} Inertial Frame at J2000 is defined as follows:
+
+       -  +Z axis is parallel to {body} rotation axis
+          at J2000, pointing toward the North side of the
+          invariable plane;
+
+       -  +X axis is aligned with the ascending node of the {Body}
+          orbital plane with the {Body} equator plane at J2000;
+
+       -  +Y axis completes the right-handed system;
+
+       -  the origin of this frame is the center of mass of {Body}.
+
+    All vectors are geometric: no aberration corrections are used.
+
+
+    Remarks:
+
+    This frame is defined as a fixed offset frame using constant vectors
+    as the specification method. The fixed offset for these vectors were
+    based on the following directions (that also define a two-vector
+    frame):
+
+      - +Z axis along Right Ascension (RA) and Declination (DEC) of {Body}
+        pole at J2000 epoch in J2000 inertial frame;
+
+      - +X axis along the RA/DEC of {Body} instantaneous orbital plane
+        ascending node on {Body} equator at J2000 epoch in J2000
+        inertial frame;
+
+    This frame has been defined based on the IAU_{BODY} frame, whose
+    evaluation was based on the data included in the loaded PCK file.
+
+    In addition {body_spk} ephemeris have been used to compute the {Body}
+    instantaneous orbital plane ascending node on {Body} equator at
+    J2000 epoch in J2000 inertial frame.
+
+    :param mission: Name of the mission to use the frame
+    :type mission: str
+    :param body: Natural body for which the frame is defined
+    :type body: str
+    :param pck: Planetary Constants Kernel to be used to extract the Pole information from
+    :type pck: str
+    :param body_spk: SPK kernels that contain the ephemeris of the Natural body
+    :type body_spk: Union[str, list]
+    :param frame_id: ID for the new frame. It is recommended to follow the convention recommended by NAIF: -XYYY where X is the ID of the mission S/C and YYY is a number between 900 and 999.
+    :type frame_id: str
+    :param report: If True prints some intermediate results.
+    :type report: bool
+    :param unload: If True it will unload the input PCK and SPK.
+    :type unload: bool
+    :param file: If True it generates the frame definition in a file with the following name: {MISSION}_{BODY}_IF_J2000.tf
+    :type file: bool
+    :return: Returns the Euler angles to transform the computed frame with J2000. Only if parameter file is False
+    :rtype: str
+    """
+    body = body.upper()
+    mission = mission.upper()
+
+    cspice.furnsh(pck)
+
+    #
+    # This can actually be a list of bodies.
+    #
+    cspice.furnsh(body_spk)
+
+    #
+    # Get instantaneous Jupiter state at J2000 and compute instantaneous
+    # orbital normal.
+    #
+    state, lt = cspice.spkezr(body, 0.0, 'J2000', 'NONE', 'SUN')
+    normal = cspice.ucrss(state[0:3:1], state[3:6:1])
+
+    #
+    # Get J2000 -> IAU_{BODY} rotation at J2000 and compute Body pole
+    # direction in J2000 at J2000.
+    #
+    mat = cspice.pxform('IAU_{}'.format(body), 'J2000', 0.0)
+    z = cspice.vpack(0.0, 0.0, 1.0)
+    pole = cspice.mxv(mat, z)
+
+    #
+    # Compute direction Body orbit's ascending node on Body equator at
+    # J2000 in J2000 and print it and Body pole as RA/DEC in J2000 in
+    # degrees
+    #
+    ascnod = cspice.ucrss(pole, normal)
+    r, ra, dec = cspice.recrad(pole)
+
+    if report:
+        print('POLE RA/DEC = {}/{}'.format(ra*cspice.dpr(), dec*cspice.dpr()))
+
+    r, ra, dec = cspice.recrad(ascnod)
+
+    if report:
+        print('ASCNOD RA/DEC = {}/{}'.format(ra * cspice.dpr(), dec * cspice.dpr()))
+
+    #
+    # Build two vector from a with POLE as Z and ASNOD as X and print rotation
+    # from that frame to J200 as Euler angles.
+    #
+    mat = cspice.twovec(pole, 3, ascnod, 1)
+    matxp = cspice.xpose(mat)
+    r3, r2, r1 = cspice.m2eul(matxp, 3, 2, 3)
+
+    if file:
+      body_id = cspice.bodn2c(body)
+      with open('{}_{}_IF_J2000.tf'.format(mission, body), 'w+') as f:
+
+         f.write(r"\begindata")
+         f.write('\n \n')
+         f.write('    FRAME_{}_{}_IF_J2000   = {}\n'.format(mission, body,
+                                                            frame_id))
+         f.write("    FRAME_{}_NAME              = '{}_{}_IF_J2000'\n".format(
+                 frame_id, mission, body))
+         f.write('    FRAME_{}_CLASS             =  4\n'.format(frame_id))
+         f.write('    FRAME_{}_CLASS_ID          = {}\n'.format(frame_id,
+                                                              body_id))
+         f.write('    FRAME_{}_CENTER            =  {}\n'.format(frame_id,
+                                                                 body_id))
+         f.write('\n')
+         f.write("    TKFRAME_{}_SPEC            = 'ANGLES'\n".format(frame_id))
+         f.write("    TKFRAME_{}_RELATIVE        = 'J2000'\n".format(frame_id))
+         f.write('    TKFRAME_{}_ANGLES          = (\n'.format(frame_id))
+         f.write('                                        {}\n'.format(r3 *
+                                                                     cspice.dpr()))
+         f.write('                                        {}\n'.format(r2 *
+                                                                     cspice.dpr()))
+         f.write('                                        {}\n'.format(r1 *
+                                                                     cspice.dpr()))
+         f.write('                                     )\n')
+         f.write('    TKFRAME_{}_AXES            = (\n'.format(frame_id))
+         f.write('                                        3,\n')
+         f.write('                                        2,\n')
+         f.write('                                        3\n')
+         f.write('                                     )\n')
+         f.write("    TKFRAME_{}_UNITS           = 'DEGREES'\n".format(frame_id))
+         f.write('\n')
+         f.write(r"\begintext")
+
+    else:
+        return '{}_IF->J2000 (3-2-3): {} - {} - {}'.format(body,
+            r3 * cspice.dpr(),
+            r2 * cspice.dpr(),
+            r1 * cspice.dpr())
+
+    if unload:
+        cspice.unload(pck)
+        cspice.unload(body_spk)
+
+    return
+
