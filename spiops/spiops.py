@@ -510,7 +510,7 @@ def fk_body_ifj2000(mission, body, pck, body_spk, frame_id, report=False,
     cspice.furnsh(body_spk)
 
     #
-    # Get instantaneous Jupiter state at J2000 and compute instantaneous
+    # Get instantaneous Body state at J2000 and compute instantaneous
     # orbital normal.
     #
     state, lt = cspice.spkezr(body, 0.0, 'J2000', 'NONE', 'SUN')
@@ -560,7 +560,7 @@ def fk_body_ifj2000(mission, body, pck, body_spk, frame_id, report=False,
                  frame_id, mission, body))
          f.write('    FRAME_{}_CLASS             =  4\n'.format(frame_id))
          f.write('    FRAME_{}_CLASS_ID          = {}\n'.format(frame_id,
-                                                              body_id))
+                                                              frame_id))
          f.write('    FRAME_{}_CENTER            =  {}\n'.format(frame_id,
                                                                  body_id))
          f.write('\n')
