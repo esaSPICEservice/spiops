@@ -25,7 +25,6 @@
 spiops/test/sandbox.py
 
 # Docs
-docs/build/
 docs/make.bat
 docs/Makefile
 

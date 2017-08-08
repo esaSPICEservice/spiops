@@ -22,7 +22,7 @@ def et2cal(time, format='UTC', support_ker=False, unload=False):
     if support_ker:
         cspice.furnsh(support_ker)
 
-    if isinstance(time, float):
+    if isinstance(time, float) or isinstance(time, str):
         time = [time]
 
     for element in time:
@@ -180,3 +180,44 @@ def cov_int(object_cov, object_id, kernel, time_format='TDB',
         boundaries = et2cal([start_time, finish_time], format=time_format)
 
     return boundaries
+
+
+def mjd20002et(mjd2000, support_ker=False, unload=False):
+    """
+    Given a date in MJD2000 (Modified Julian Date 2000) returns the Ephemeris
+    time (ET which in SPICE is equivalent to TDB). Accepts a single time entry
+    or a list of times.
+
+    :param mjd2000: Date in MJD200
+    :type mjd2000: Union[float, list]
+
+    :param support_ker: Support kernels required to run the function. At least it should be a leapseconds kernel (LSK) and optionally a meta-kernel (MK)
+    :type support_ker: Union[str, list]
+    :param unload: If True it will unload the input support kernel
+    :type unload: bool
+    :return: Date in ET/TDB
+    :rtype: Union[float, list]
+    """
+    tdb = []
+
+    if support_ker:
+        cspice.furnsh(support_ker)
+
+    if not isinstance(mjd2000, list):
+        mjd2000 = [mjd2000]
+
+    for time in mjd2000:
+
+        mjd2000 = float(time)
+        mjd = mjd2000 + 51544
+        jd = mjd + 2400000.5
+        jd = str(jd) + ' JD'
+        tdb.append(cspice.str2et(jd))
+
+    if unload:
+        cspice.unload(support_ker)
+
+    if len(tdb) == 1:
+        return tdb[0]
+    else:
+        return tdb

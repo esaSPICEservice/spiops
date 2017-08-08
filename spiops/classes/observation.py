@@ -8,7 +8,7 @@ class TimeWindow(object):
     """
 
     def __init__(self, start, finish, current=False, resolution=False,
-                 format='UTC'):
+                 abcorr='NONE', format='UTC'):
         """
         This method creates a new Time Window.
 
@@ -20,26 +20,30 @@ class TimeWindow(object):
         :type current: Union[str, float]
         :param resolution: Resolution of the time window in seconds
         :type resolution: float
+        :param abcorr: Aberration Correction to be used for the Time Window
+        :type abcorr: str
         :param format: Calendar format in which we want to see times ('UTC' or 'CAL')
         :type format: str
         """
-        import spiops.utils.time as zztime
-
-
-        if isinstance(start, str):
-            start = zztime.cal2et(start, format=format)
-        if isinstance(finish, str):
-            finish = zztime.cal2et(finish, format=format)
+        self.isInit = True
+        self.res = resolution
+        self.format = format
+        self.abcorr = abcorr
 
         self.start = start
         self.finish = finish
-        self.now = current
-        self.res = resolution
-        self.format = format
-        self.time_set = []
+
+        if not current:
+            self.current = start
+        else:
+            self.current = current
 
 
-    def __buildWindow(self):
+        self.isInit = False
+        self.__buildTimeSet()
+
+
+    def __buildTimeSet(self):
         """
         Internal method to generate the time set of the time window.
         """
@@ -47,56 +51,65 @@ class TimeWindow(object):
         #
         # if no resolution is given a default ten element sample is computed
         #
-        if not self.res or self.res >= self.finish - self.start:
-            print('No resolution provided or resolution is bigger than the '
+        if self.isInit:
+            return
+
+        if not self.res or self.res >= (self.finish - self.start):
+
+            print('No resolu(tion provided or resolution is bigger than the '
                   'time interval. Setting to default')
+
             self.res = (self.finish - self.start)/10.0
 
-        self.time_set = np.arange(self.start, self.finish, self.res)
+        self.window = np.arange(self.start, self.finish, self.res)
+
+        return
+
+
+    def getTime(self, item, format=False):
+        '''
+
+        :param item: Time to get: 'start', 'finish', 'current' or 'window'
+        :type item: str
+        :param format: Format to get the time: 'UTC' or 'CAL'
+        :type format: str
+        :return: Requested time in requested format
+        :rtype: str
+        :raise: If an invalid item is provided
+        '''
+        import spiops.utils.time as zztime
+
+        if format:
+            format = format
+        else:
+            format = self.format
+
+
+        if item in ['start', 'finish', 'current', 'window']:
+            return zztime.et2cal(object.__getattribute__(self, item),
+                                 format)
+        else:
+            raise ValueError("invalid time item: {}".format(item))
 
 
     def __getattribute__(self, item):
-        """
-        Internal method to overwrite get attribute.
-        """
 
-        if item in ['time_set']:
-            self.__buildWindow()
+        if item in ['start', 'finish', 'current', 'window']:
             return object.__getattribute__(self, item)
         else:
             return object.__getattribute__(self, item)
 
 
-    def getTime(self, item):
-        """
-        Method to obtain the Start, Finish or Current time of the Time Window.
-
-        :param item: Time attribute that we want to get from the class: 'start', 'finish' or 'current'
-        :type item: str
-        :return: Requested time attribute with the specified format
-        :rtype: str
-        """
+    def __setattr__(self, key, value):
         import spiops.utils.time as zztime
 
-        if item in ['start', 'finish', 'current']:
-            return zztime.et2cal(object.__getattribute__(self, item),
-                                 self.format)
+        if key in ['start', 'finish', 'current']:
+            if isinstance(value, str):
+                value = zztime.cal2et(value, format=self.format)
+                super(TimeWindow, self).__setattr__(key, value)
 
+                if key in ['start', 'finish']:
+                    self.__buildTimeSet()
 
-    def getTimeInterval(self, format=False):
-        """
-        Method to obtain the Time Interval in a given time format.
-
-        :param format: Input format; 'UTC' or 'CAL'
-        :type format: str
-        :return: Time Interval in the provided time format
-        :rtype: list
-        """
-
-        import spiops.utils.time as zztime
-
-        if not format:
-            format = self.format
-
-        return zztime.et2cal(self.time_set, format)
-
+        else:
+            super(TimeWindow, self).__setattr__(key, value)

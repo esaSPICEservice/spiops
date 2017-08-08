@@ -22,6 +22,16 @@ def test_et2cal():
     assert time1 == '2000-01-01T11:58:55.816'
     assert time2 == '2000-01-01T12:00:00.000'
 
+
+def test_mjd20002et():
+
+
+    time = spiops.time.mjd20002et(6863.0790, support_ker='naif0012.tls',
+                                  unload=True)
+
+    assert time == 592927655.1023605
+
+
 def test_fov_illum():
 
     angle = spiops.fov_illum(mk='MEX_OPS.TM',

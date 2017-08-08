@@ -40,7 +40,7 @@ class Sensor(object):
         #
         # calculation of the boresight vector and the intersection point
         #
-        for et in self.time.time_set:
+        for et in self.time.window:
 
             mat_ins_obs = cspice.pxform(self.frame, self.host.frame, et)
 

@@ -339,7 +339,8 @@ J2000 epoch in J2000 inertial frame.</p>
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
-<li><strong>mission</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Name of the mission to use the frame</li>
+<li><strong>mission</strong> – str
+Name of the mission to use the frame</li>
 <li><strong>body</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Natural body for which the frame is defined</li>
 <li><strong>pck</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Planetary Constants Kernel to be used to extract the Pole information from</li>
 <li><strong>body_spk</strong> (<em>Union</em><em>[</em><a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a><em>, </em><em>list</em><em>]</em>) – SPK kernels that contain the ephemeris of the Natural body</li>
@@ -478,6 +479,33 @@ kernels (meta-kernel or leapseconds kernel) has been loaded.</p>
 </table>
 </dd></dl>
 
+<dl class="function">
+<dt id="spiops.utils.time.mjd20002et">
+<code class="descclassname">spiops.utils.time.</code><code class="descname">mjd20002et</code><span class="sig-paren">(</span><em>mjd2000</em>, <em>support_ker=False</em>, <em>unload=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/spiops/utils/time.html#mjd20002et"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#spiops.utils.time.mjd20002et" title="Permalink to this definition">¶</a></dt>
+<dd><p>Given a date in MJD2000 (Modified Julian Date 2000) returns the Ephemeris
+time (ET which in SPICE is equivalent to TDB). Accepts a single time entry
+or a list of times.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>mjd2000</strong> (<em>Union</em><em>[</em><a class="reference external" href="https://docs.python.org/2/library/functions.html#float" title="(in Python v2.7)"><em>float</em></a><em>, </em><em>list</em><em>]</em>) – Date in MJD200</li>
+<li><strong>support_ker</strong> (<em>Union</em><em>[</em><a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a><em>, </em><em>list</em><em>]</em>) – Support kernels required to run the function. At least it should be a leapseconds kernel (LSK) and optionally a meta-kernel (MK)</li>
+<li><strong>unload</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – If True it will unload the input support kernel</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Date in ET/TDB</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">Union[<a class="reference external" href="https://docs.python.org/2/library/functions.html#float" title="(in Python v2.7)">float</a>, list]</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
 </div>
 <div class="section" id="module-spiops.classes.observation">
 <span id="spiops-classes-observation"></span><h2>spiops.classes.observation<a class="headerlink" href="#module-spiops.classes.observation" title="Permalink to this headline">¶</a></h2>
@@ -488,42 +516,6 @@ kernels (meta-kernel or leapseconds kernel) has been loaded.</p>
 <p>This class defines a Time Window and is the lowest level time entity for
 spiops. The time window is generated with a start and finish times and it
 can also indicate a current instant.</p>
-<dl class="method">
-<dt id="spiops.classes.observation.TimeWindow.getTime">
-<code class="descname">getTime</code><span class="sig-paren">(</span><em>item</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/spiops/classes/observation.html#TimeWindow.getTime"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#spiops.classes.observation.TimeWindow.getTime" title="Permalink to this definition">¶</a></dt>
-<dd><p>Method to obtain the Start, Finish or Current time of the Time Window.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>item</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Time attribute that we want to get from the class: ‘start’, ‘finish’ or ‘current’</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Requested time attribute with the specified format</td>
-</tr>
-<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)">str</a></td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="method">
-<dt id="spiops.classes.observation.TimeWindow.getTimeInterval">
-<code class="descname">getTimeInterval</code><span class="sig-paren">(</span><em>format=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/spiops/classes/observation.html#TimeWindow.getTimeInterval"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#spiops.classes.observation.TimeWindow.getTimeInterval" title="Permalink to this definition">¶</a></dt>
-<dd><p>Method to obtain the Time Interval in a given time format.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>format</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Input format; ‘UTC’ or ‘CAL’</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Time Interval in the provided time format</td>
-</tr>
-<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">list</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
 </dd></dl>
 
 </div>

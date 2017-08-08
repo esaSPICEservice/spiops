@@ -637,8 +637,8 @@
 <span class="sd">    instantaneous orbital plane ascending node on {Body} equator at</span>
 <span class="sd">    J2000 epoch in J2000 inertial frame.</span>
 
-<span class="sd">    :param mission: Name of the mission to use the frame</span>
-<span class="sd">    :type mission: str</span>
+<span class="sd">    :param mission: str</span>
+<span class="sd">        Name of the mission to use the frame</span>
 <span class="sd">    :param body: Natural body for which the frame is defined</span>
 <span class="sd">    :type body: str</span>
 <span class="sd">    :param pck: Planetary Constants Kernel to be used to extract the Pole information from</span>
@@ -667,7 +667,7 @@
     <span class="n">cspice</span><span class="o">.</span><span class="n">furnsh</span><span class="p">(</span><span class="n">body_spk</span><span class="p">)</span>
 
     <span class="c1">#</span>
-    <span class="c1"># Get instantaneous Jupiter state at J2000 and compute instantaneous</span>
+    <span class="c1"># Get instantaneous Body state at J2000 and compute instantaneous</span>
     <span class="c1"># orbital normal.</span>
     <span class="c1">#</span>
     <span class="n">state</span><span class="p">,</span> <span class="n">lt</span> <span class="o">=</span> <span class="n">cspice</span><span class="o">.</span><span class="n">spkezr</span><span class="p">(</span><span class="n">body</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="s1">&#39;J2000&#39;</span><span class="p">,</span> <span class="s1">&#39;NONE&#39;</span><span class="p">,</span> <span class="s1">&#39;SUN&#39;</span><span class="p">)</span>
@@ -717,7 +717,7 @@
                  <span class="n">frame_id</span><span class="p">,</span> <span class="n">mission</span><span class="p">,</span> <span class="n">body</span><span class="p">))</span>
          <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;    FRAME_{}_CLASS             =  4</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">frame_id</span><span class="p">))</span>
          <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;    FRAME_{}_CLASS_ID          = {}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">frame_id</span><span class="p">,</span>
-                                                              <span class="n">body_id</span><span class="p">))</span>
+                                                              <span class="n">frame_id</span><span class="p">))</span>
          <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;    FRAME_{}_CENTER            =  {}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">frame_id</span><span class="p">,</span>
                                                                  <span class="n">body_id</span><span class="p">))</span>
          <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>

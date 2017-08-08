@@ -179,7 +179,7 @@
     <span class="k">if</span> <span class="n">support_ker</span><span class="p">:</span>
         <span class="n">cspice</span><span class="o">.</span><span class="n">furnsh</span><span class="p">(</span><span class="n">support_ker</span><span class="p">)</span>
 
-    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="nb">float</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="nb">float</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
         <span class="n">time</span> <span class="o">=</span> <span class="p">[</span><span class="n">time</span><span class="p">]</span>
 
     <span class="k">for</span> <span class="n">element</span> <span class="ow">in</span> <span class="n">time</span><span class="p">:</span>
@@ -337,6 +337,47 @@
         <span class="n">boundaries</span> <span class="o">=</span> <span class="n">et2cal</span><span class="p">([</span><span class="n">start_time</span><span class="p">,</span> <span class="n">finish_time</span><span class="p">],</span> <span class="nb">format</span><span class="o">=</span><span class="n">time_format</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">boundaries</span></div>
+
+
+<div class="viewcode-block" id="mjd20002et"><a class="viewcode-back" href="../../../documentation.html#spiops.utils.time.mjd20002et">[docs]</a><span class="k">def</span> <span class="nf">mjd20002et</span><span class="p">(</span><span class="n">mjd2000</span><span class="p">,</span> <span class="n">support_ker</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">unload</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Given a date in MJD2000 (Modified Julian Date 2000) returns the Ephemeris</span>
+<span class="sd">    time (ET which in SPICE is equivalent to TDB). Accepts a single time entry</span>
+<span class="sd">    or a list of times.</span>
+
+<span class="sd">    :param mjd2000: Date in MJD200</span>
+<span class="sd">    :type mjd2000: Union[float, list]</span>
+
+<span class="sd">    :param support_ker: Support kernels required to run the function. At least it should be a leapseconds kernel (LSK) and optionally a meta-kernel (MK)</span>
+<span class="sd">    :type support_ker: Union[str, list]</span>
+<span class="sd">    :param unload: If True it will unload the input support kernel</span>
+<span class="sd">    :type unload: bool</span>
+<span class="sd">    :return: Date in ET/TDB</span>
+<span class="sd">    :rtype: Union[float, list]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">tdb</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">if</span> <span class="n">support_ker</span><span class="p">:</span>
+        <span class="n">cspice</span><span class="o">.</span><span class="n">furnsh</span><span class="p">(</span><span class="n">support_ker</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">mjd2000</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="n">mjd2000</span> <span class="o">=</span> <span class="p">[</span><span class="n">mjd2000</span><span class="p">]</span>
+
+    <span class="k">for</span> <span class="n">time</span> <span class="ow">in</span> <span class="n">mjd2000</span><span class="p">:</span>
+
+        <span class="n">mjd2000</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">time</span><span class="p">)</span>
+        <span class="n">mjd</span> <span class="o">=</span> <span class="n">mjd2000</span> <span class="o">+</span> <span class="mi">51544</span>
+        <span class="n">jd</span> <span class="o">=</span> <span class="n">mjd</span> <span class="o">+</span> <span class="mf">2400000.5</span>
+        <span class="n">jd</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">jd</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39; JD&#39;</span>
+        <span class="n">tdb</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cspice</span><span class="o">.</span><span class="n">str2et</span><span class="p">(</span><span class="n">jd</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="n">unload</span><span class="p">:</span>
+        <span class="n">cspice</span><span class="o">.</span><span class="n">unload</span><span class="p">(</span><span class="n">support_ker</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tdb</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">tdb</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">tdb</span></div>
 </pre></div>
 
            </div>
