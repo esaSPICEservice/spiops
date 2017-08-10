@@ -4,10 +4,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np
+from bokeh.plotting import figure, output_file, show
+
 
 
 class Body(object):
-    def __init__(self, body, time=object(), target=False):
+    def __init__(self, body, time=object(), target=None):
 
         if isinstance(body, str):
             name = body
@@ -110,6 +112,7 @@ class Body(object):
             dist = cspice.vnorm(srfvec)
             distance.append(dist)
 
+
             #
             # Convert the sub-observer point's rectangular coordinates to
             # planetographic longitude, latitude and altitude.
@@ -153,23 +156,51 @@ class Body(object):
 
 
 
-    def Plot(self, yaxis, xaxis='time'):
+    def Plot(self, yaxis, xaxis='time', title='', external_data=[]):
+        import spiops.utils.utils as utils
 
         self.__Geometry()
+
+        if not title:
+            title ='{} {}'.format(self.name, yaxis).title()
+
+            html_file_name = 'plot_{}_{}_{}-{}.html'.format(xaxis, yaxis,
+                                                            self.name,
+                                                            self.target.name)
+
+            html_file_name = utils.valid_url(html_file_name)
+
+        else:
+            title=title
+
+            html_file_name = title
+            html_file_name = utils.valid_url(html_file_name)
+
 
         x = self.time.window
         y = self.__getattribute__(yaxis)
 
 
-        fig, ax = plt.subplots()
+        output_file(html_file_name + '.html')
 
+        p = figure(title=title,
+                   plot_width=1000,
+                   plot_height=1000,
+                   x_axis_label='TDB [sec]',
+                   y_axis_label='{}'.format(yaxis).title()
+                   )
 
-        ax.plot(x, y, '-')
-        ax.set_xlabel('TDB [sec]')
-        ax.set_ylabel('{}'.format(yaxis))
-        ax.set_title('Spacecraft {}'.format(yaxis))
+        if external_data:
+            x = external_data[0]
+            y = external_data[1]
+            p.cirlce(x, y, legend='External Data')
 
-        plt.show()
+        # add a line renderer with legend and line thickness
+        p.line(x, y, legend='{}'.format(yaxis).title(), line_width=2)
+
+        # show the results
+        show(p)
+
 
         return
 
@@ -191,6 +222,7 @@ class Body(object):
            y.append(element[1])
            z.append(element[2])
 
+
         mpl.rcParams['legend.fontsize'] = 10
 
         fig = plt.figure()
@@ -211,14 +243,37 @@ class Body(object):
 
         # Plot the surface
         ax.plot_surface(x, y, z, color='r')
+
         plt.show()
 
         return
 
 
 class Target(Body):
-    def __init__(self, body, time=object(), target=False, frame=False,
+
+    def __init__(self, body, time=object(),
+                 target=False, frame='',
                  method='INTERCEPT/ELLIPSOID'):
+        """
+
+        :param body:
+        :type body:
+        :param time:
+        :type time:
+        :param target: It no target is provided the default is 'SUN'
+        :type target:
+        :param frame:
+        :type frame:
+        :param method:
+        :type method:
+        """
+
+        #
+        # In the target parameter for the following if statement we need to use
+        # the class object(), which is empty, to avoid A Recursion Error.
+        #
+        if not target:
+            target = Target('SUN', time=time, target=object())
 
         super(Target, self).__init__(body, time=time, target=target)
 

@@ -1,5 +1,12 @@
 from spiops import spiops
 
+def test_valid_url():
+
+    out = spiops.utils.valid_url('67P/CG')
+
+    assert out == '67P-CG'
+
+
 def test_cal2et():
 
     time1 = spiops.time.cal2et('2000-01-01T12:00:00', format='CAL',
@@ -29,7 +36,7 @@ def test_mjd20002et():
     time = spiops.time.mjd20002et(6863.0790, support_ker='naif0012.tls',
                                   unload=True)
 
-    assert time == 592927655.1023605
+    assert time == 592926894.7823608
 
 
 def test_fov_illum():

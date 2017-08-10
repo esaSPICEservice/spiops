@@ -527,13 +527,17 @@
 
 <span class="sd">    :param ck: CK file to be used</span>
 <span class="sd">    :type mk: str</span>
-<span class="sd">    :param support_ker: Support kernels required to run the function. At least it should be a leapseconds kernel (LSK) and a Spacecraft clock kernel (SCLK) optionally a meta-kernel (MK) which is highly recommended.</span>
+<span class="sd">    :param support_ker: Support kernels required to run the function. At least</span>
+<span class="sd">       it should be a leapseconds kernel (LSK) and a Spacecraft clock kernel</span>
+<span class="sd">       (SCLK) optionally a meta-kernel (MK) which is highly recommended.</span>
 <span class="sd">    :type support_ker: Union[str, list]</span>
 <span class="sd">    :param object: Ephemeris Object to obtain the coverage from.</span>
 <span class="sd">    :type object: str</span>
-<span class="sd">    :param time_format: Output time format; it can be &#39;UTC&#39;, &#39;CAL&#39; (for TDB in calendar format) or &#39;TDB&#39;. Default is &#39;TDB&#39;.</span>
+<span class="sd">    :param time_format: Output time format; it can be &#39;UTC&#39;, &#39;CAL&#39; (for TDB</span>
+<span class="sd">       in calendar format) or &#39;TDB&#39;. Default is &#39;TDB&#39;.</span>
 <span class="sd">    :type time_format: str</span>
-<span class="sd">    :param global_boundary: Boolean to indicate whether if we want all the coverage windows or only the absolute start and finish coverage times.</span>
+<span class="sd">    :param global_boundary: Boolean to indicate whether if we want all the</span>
+<span class="sd">       coverage windows or only the absolute start and finish coverage times.</span>
 <span class="sd">    :type global_boundary: bool</span>
 <span class="sd">    :param report: If True prints the resulting coverage on the screen.</span>
 <span class="sd">    :type report: bool</span>
@@ -637,8 +641,8 @@
 <span class="sd">    instantaneous orbital plane ascending node on {Body} equator at</span>
 <span class="sd">    J2000 epoch in J2000 inertial frame.</span>
 
-<span class="sd">    :param mission: str</span>
-<span class="sd">        Name of the mission to use the frame</span>
+<span class="sd">    :param mission: Name of the mission to use the frame</span>
+<span class="sd">    :type mission: str</span>
 <span class="sd">    :param body: Natural body for which the frame is defined</span>
 <span class="sd">    :type body: str</span>
 <span class="sd">    :param pck: Planetary Constants Kernel to be used to extract the Pole information from</span>

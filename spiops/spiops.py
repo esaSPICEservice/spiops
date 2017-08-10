@@ -370,13 +370,17 @@ def cov_ck_ker(ck, support_ker, object='ALL', time_format= 'UTC',
 
     :param ck: CK file to be used
     :type mk: str
-    :param support_ker: Support kernels required to run the function. At least it should be a leapseconds kernel (LSK) and a Spacecraft clock kernel (SCLK) optionally a meta-kernel (MK) which is highly recommended.
+    :param support_ker: Support kernels required to run the function. At least
+       it should be a leapseconds kernel (LSK) and a Spacecraft clock kernel
+       (SCLK) optionally a meta-kernel (MK) which is highly recommended.
     :type support_ker: Union[str, list]
     :param object: Ephemeris Object to obtain the coverage from.
     :type object: str
-    :param time_format: Output time format; it can be 'UTC', 'CAL' (for TDB in calendar format) or 'TDB'. Default is 'TDB'.
+    :param time_format: Output time format; it can be 'UTC', 'CAL' (for TDB
+       in calendar format) or 'TDB'. Default is 'TDB'.
     :type time_format: str
-    :param global_boundary: Boolean to indicate whether if we want all the coverage windows or only the absolute start and finish coverage times.
+    :param global_boundary: Boolean to indicate whether if we want all the
+       coverage windows or only the absolute start and finish coverage times.
     :type global_boundary: bool
     :param report: If True prints the resulting coverage on the screen.
     :type report: bool

@@ -83,13 +83,16 @@ def cal2et(time, format='UTC', support_ker=False, unload=False):
 
     for element in time:
 
-        if format == 'UTC':
-            out_elm = cspice.utc2et(element)
+        try:
+            if format == 'UTC':
+                out_elm = cspice.utc2et(element)
 
-        elif format == 'CAL':
-            out_elm = cspice.str2et(element)
-        else:
-            out_elm = element
+            elif format == 'CAL':
+                out_elm = cspice.str2et(element)
+            else:
+                out_elm = element
+        except:
+                out_elm = cspice.str2et(element)
 
         out_list.append(out_elm)
 
