@@ -1,5 +1,25 @@
 from spiops import spiops
 
+
+def test_ckdiff():
+
+    resolution = 1000000
+    tolerance = 0.0001 # deg
+    spacecraft_frame = 'ROS_LANDER'
+    target_frame = 'J2000'
+    mk = 'data/SPICE/ROSETTA/mk/ROS_CKDIFF_TEST.TM'
+    ck1 = 'data/SPICE/ROSETTA/mk/ROS_CKDIFF_TEST.TM'
+    ck2 = 'data/SPICE/ROSETTA/ck/LATT_EME2LDR_SDL_SONC_V1_1.BC'
+
+    spiops.ckdiff(mk, ck1, ck2, spacecraft_frame, target_frame,
+                  resolution, tolerance)
+
+
+def test_convert_ESOCorbit2data():
+
+    print(spiops.utils.convert_ESOCorbit2data('data/ESOC/fdy/LORB_EME2000_RBD_1_V1_0.ROS'))
+
+
 def test_valid_url():
 
     out = spiops.utils.valid_url('67P/CG')

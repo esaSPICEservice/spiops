@@ -2,8 +2,14 @@
 
 import math
 import spiceypy as cspice
+import numpy as np
 from spiceypy.utils.support_types import *
 from .utils import time
+from .utils import plot
+
+# TODO: change for Bokeh. And try to generalise it. Also put the alternative of
+# not using bokeh at some point
+import matplotlib.pyplot as plt
 
 """
 The MIT License (MIT)
@@ -24,6 +30,10 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+
+def load(mk):
+    return cspice.furnsh(mk)
+
 
 def fov_illum(mk, sensor, time=None, angle='DEGREES', abcorr='LT+S',
               report=False, unload=False):
@@ -197,7 +207,7 @@ def cov_spk_obj(mk, object, time_format='TDB', global_boundary=False,
     return boundaries_list
 
 
-def cov_spk_ker(spk, support_ker, object='ALL', time_format= 'TDB',
+def cov_spk_ker(spk, object, time_format= 'TDB', support_ker = '',
                 report=False, unload=False):
     """
     Provides time coverage summary for a given object for a given SPK file.
@@ -214,7 +224,7 @@ def cov_spk_ker(spk, support_ker, object='ALL', time_format= 'TDB',
     :type support_ker: Union[str, list]
     :param object: Ephemeris Object to obtain the coverage from
     :type object: str
-    :param time_format: Output time format; it can be 'UTC', 'CAL' (for TDB in calendar format) or 'TDB'. Default is 'TDB'
+    :param time_format: Output time format; it can be 'UTC', 'CAL' or 'SPICE' (for TDB in calendar format) or 'TDB'. Default is 'TDB'
     :type time_format: str
     :param global_boundary: Boolean to indicate whether if we want all the coverage windows or only the absolute start and finish coverage times
     :type global_boundary: bool
@@ -226,37 +236,48 @@ def cov_spk_ker(spk, support_ker, object='ALL', time_format= 'TDB',
     :rtype: list
     """
     cspice.furnsh(spk)
+
+    if support_ker:
+
+        if isinstance(support_ker, str):
+            support_ker = [support_ker]
+
+        for ker in support_ker:
+            cspice.furnsh(ker)
+
+
     maxwin = 2000
 
-    cspice.furnsh(support_ker)
-
-    boundaries_list = []
-    boundaries = []
-
     spk_ids = cspice.spkobj(spk)
+    object_id = cspice.bodn2c(object)
 
-    if object == 'ALL':
-        object_id = spk_ids
+    if object_id in spk_ids:
+
+        object_cov = SPICEDOUBLE_CELL(maxwin)
+        cspice.spkcov(spk, object_id, object_cov)
+
+        boundaries = time.cov_int(object_cov=object_cov,
+                                  object_id=object_id,
+                                  kernel=spk,
+                                  time_format=time_format, report=report)
 
     else:
-        object_id = cspice.bodn2c(object)
+        print('{} with ID {} is not present in {}.'.format(object,
+                                                           object_id, spk))
+        return
 
-    for id in spk_ids:
-        if id == object_id:
-            object_cov = SPICEDOUBLE_CELL(maxwin)
-            cspice.spkcov(spk, object_id, object_cov)
+    if time_format == 'SPICE':
+        boundaries = object_cov
+    else:
+        boundaries = time.cov_int(object_cov=object_cov,
+                                  object_id=object_id,
+                                  kernel=spk,
+                                  time_format=time_format, report=report)
 
-            boundaries = time.cov_int(object_cov=object_cov,
-                                      object_id=object_id,
-                                      kernel=spk,
-                                      time_format=time_format, report=report)
+    if unload:
+        cspice.unload(spk)
 
-        boundaries_list += boundaries
-
-        if unload:
-            cspice.unload(spk)
-
-    return (boundaries_list)
+    return (boundaries)
 
 
 def cov_ck_obj(mk, object, time_format= 'UTC', global_boundary=False,
@@ -357,7 +378,7 @@ def cov_ck_obj(mk, object, time_format= 'UTC', global_boundary=False,
     return boundaries_list
 
 
-def cov_ck_ker(ck, support_ker, object='ALL', time_format= 'UTC',
+def cov_ck_ker(ck, object, support_ker=list(), time_format= 'UTC',
                report=False, unload=False):
     """
     Provides time coverage summary for a given object for a given CK file.
@@ -372,12 +393,13 @@ def cov_ck_ker(ck, support_ker, object='ALL', time_format= 'UTC',
     :type mk: str
     :param support_ker: Support kernels required to run the function. At least
        it should be a leapseconds kernel (LSK) and a Spacecraft clock kernel
-       (SCLK) optionally a meta-kernel (MK) which is highly recommended.
+       (SCLK) optionally a meta-kernel (MK) which is highly recommended. It
+       is optional since the kernels could have been already loaded.
     :type support_ker: Union[str, list]
     :param object: Ephemeris Object to obtain the coverage from.
     :type object: str
     :param time_format: Output time format; it can be 'UTC', 'CAL' (for TDB
-       in calendar format) or 'TDB'. Default is 'TDB'.
+       in calendar format), 'TDB' or 'SPICE'. Default is 'TDB'.
     :type time_format: str
     :param global_boundary: Boolean to indicate whether if we want all the
        coverage windows or only the absolute start and finish coverage times.
@@ -391,47 +413,51 @@ def cov_ck_ker(ck, support_ker, object='ALL', time_format= 'UTC',
     """
     cspice.furnsh(ck)
 
-    if isinstance(support_ker, str):
-        support_ker = [support_ker]
+    if support_ker:
 
-    for ker in support_ker:
-        cspice.furnsh(ker)
+        if isinstance(support_ker, str):
+            support_ker = [support_ker]
 
-    boundaries_list = []
-    boundaries = []
+        for ker in support_ker:
+            cspice.furnsh(ker)
+
 
     object_id = cspice.namfrm(object)
     MAXIV = 2000
     WINSIZ = 2 * MAXIV
     MAXOBJ = 10000
 
-    if object == 'ALL':
-        ck_ids = cspice.support_types.SPICEINT_CELL(MAXOBJ)
-        ck_ids = cspice.ckobj(ck, outCell=ck_ids)
-    else:
-        ck_ids = [cspice.namfrm(object)]
+    ck_ids = cspice.support_types.SPICEINT_CELL(MAXOBJ)
+    ck_ids = cspice.ckobj(ck, outCell=ck_ids)
 
-    for id in ck_ids:
-        if id == object_id:
-            object_cov = cspice.support_types.SPICEDOUBLE_CELL(WINSIZ)
-            cspice.scard, 0, object_cov
-            object_cov = cspice.ckcov(ck=ck, idcode=object_id,
-                                      needav=False, level='SEGMENT',
+    if object_id in ck_ids:
+
+        object_cov = cspice.support_types.SPICEDOUBLE_CELL(WINSIZ)
+        cspice.scard, 0, object_cov
+        object_cov = cspice.ckcov(ck=ck, idcode=object_id,
+                                      needav=False, level='INTERVAL',
                                       tol=0.0, timsys='TDB',
                                       cover=object_cov)
 
-            boundaries = time.cov_int(object_cov=object_cov,
-                                      object_id=object_id,
-                                      kernel=ck,
-                                      time_format=time_format, report=report)
+    else:
+        print('{} with ID {} is not present in {}.'.format(object,
+                                                           object_id, ck))
+        return
 
-    if boundaries != []:
-        boundaries_list += boundaries
+    if time_format == 'SPICE':
+        boundaries = object_cov
+
+    else:
+        boundaries = time.cov_int(object_cov=object_cov,
+                                  object_id=object_id,
+                                  kernel=ck,
+                                  time_format=time_format, report=report)
 
     if unload:
         cspice.unload(ck)
 
-    return (boundaries_list)
+    return (boundaries)
+
 
 
 def fk_body_ifj2000(mission, body, pck, body_spk, frame_id, report=False,
@@ -599,3 +625,451 @@ def fk_body_ifj2000(mission, body, pck, body_spk, frame_id, report=False,
 
     return
 
+
+
+def eul_angle_report(et_list, eul_ck1, eul_ck2, eul_num, tolerance, name=''):
+
+
+    eul_error = list(numpy.degrees(abs(numpy.array(eul_ck1) - numpy.array(eul_ck2))))
+
+    count = 0
+    interval_bool = False
+    eul_tol_list = []
+
+    with open('euler_angle_{}_{}_report.txt'.format(eul_num, name), 'w+') as f:
+        f.write('EULER ANGLE {} REPORT \n'.format(eul_num))
+        f.write('==================== \n')
+
+
+        for element in eul_error:
+
+            if element >= tolerance:
+                if interval_bool:
+                    eul_tol_list.append(element)
+                else:
+                    interval_bool = True
+                    eul_tol_list.append(element)
+                    utc_start = cspice.et2utc(et_list[count], 'ISOC', 2)
+
+            else:
+                if interval_bool:
+                    utc_finish = cspice.et2utc(et_list[count], 'ISOC', 2)
+
+                    f.write('TOLERANCE of ' + str(tolerance) + ' DEG exceeded from ' + utc_start + ' until ' +
+                          utc_finish + ' with an average angle of ' + str(numpy.mean(eul_tol_list)) + ' DEG \n')
+
+                interval_bool = False
+
+            count += 1
+
+        f.write('\nMAX Error:  {} DEG\n'.format(str(max(eul_error))))
+        f.write('MIN Error:   {} DEG\n'.format(str(min(eul_error))))
+        f.write('MEAN Error: {} DEG\n'.format(str(numpy.mean(eul_error))))
+
+    return
+
+
+def state_report(et_list, pos_spk1, pos_spk2, vel_spk1, vel_spk2, pos_tolerance,
+                 vel_tolerance, name=''):
+
+
+    pos_error = list(abs(numpy.array(pos_spk1) - numpy.array(pos_spk2)))
+    vel_error = list(abs(numpy.array(vel_spk1) - numpy.array(vel_spk2)))
+
+    count = 0
+    interval_bool = False
+    pos_tol_list = []
+
+    with open('state_{}_report.txt'.format(name), 'w+') as f:
+        f.write('STATE REPORT \n')
+        f.write('============ \n')
+
+        for element in pos_error:
+
+            if element >= pos_tolerance:
+                if interval_bool:
+                    pos_tol_list.append(element)
+                else:
+                    interval_bool = True
+                    pos_tol_list.append(element)
+                    utc_start = cspice.et2utc(et_list[count], 'ISOC', 2)
+
+            else:
+                if interval_bool:
+                    utc_finish = cspice.et2utc(et_list[count], 'ISOC', 2)
+
+                    f.write('TOLERANCE of ' + str(pos_tolerance) + ' KM exceeded from ' + utc_start + ' until ' +
+                          utc_finish + ' with an average distance of ' + str(numpy.mean(pos_tol_list)) + ' KM \n')
+
+                interval_bool = False
+
+            count += 1
+
+        count = 0
+        interval_bool = False
+        vel_tol_list = []
+
+
+        for element in vel_error:
+
+            if element >= vel_tolerance:
+                if interval_bool:
+                    vel_tol_list.append(element)
+                else:
+                    interval_bool = True
+                    vel_tol_list.append(element)
+                    utc_start = cspice.et2utc(et_list[count], 'ISOC', 2)
+
+            else:
+                if interval_bool:
+                    utc_finish = cspice.et2utc(et_list[count], 'ISOC', 2)
+
+                    f.write('TOLERANCE of ' + str(vel_tolerance) + ' KM/S exceeded from ' + utc_start + ' until ' +
+                          utc_finish + ' with an average velocity of ' + str(numpy.mean(vel_tol_list)) + ' KM/S \n')
+
+            count += 1
+
+        f.write('\nMAX Error:  {} KM\n'.format(str(max(pos_error))))
+        f.write('MIN Error:   {} KM\n'.format(str(min(pos_error))))
+        f.write('MEAN Error: {} KM\n'.format(str(numpy.mean(pos_error))))
+
+
+        f.write('\nMAX Error:  {} KM/S\n'.format(str(max(vel_error))))
+        f.write('MIN Error:   {} KM/S\n'.format(str(min(vel_error))))
+        f.write('MEAN Error: {} KM/S\n'.format(str(numpy.mean(vel_error))))
+
+
+    return
+
+
+def ckdiff(mk, ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance,
+           utc_start='', utc_finish='', plot_style='line', report=True,
+           notebook=False):
+    """
+    Provides time coverage summary for a given object for a given CK file.
+    Several options are available. This function is based on the following
+    SPICE API:
+
+    http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/ckcov_c.html
+
+    The NAIF utility CKBRIEF can be used for the same purpose.
+
+    :param ck: CK file to be used
+    :type mk: str
+    :param support_ker: Support kernels required to run the function. At least
+       it should be a leapseconds kernel (LSK) and a Spacecraft clock kernel
+       (SCLK) optionally a meta-kernel (MK) which is highly recommended.
+    :type support_ker: Union[str, list]
+    :param object: Ephemeris Object to obtain the coverage from.
+    :type object: str
+    :param time_format: Output time format; it can be 'UTC', 'CAL' (for TDB
+       in calendar format) or 'TDB'. Default is 'TDB'.
+    :type time_format: str
+    :param global_boundary: Boolean to indicate whether if we want all the
+       coverage windows or only the absolute start and finish coverage times.
+    :type global_boundary: bool
+    :param report: If True prints the resulting coverage on the screen.
+    :type report: bool
+    :param unload: If True it will unload the input meta-kernel.
+    :type unload: bool
+    :return: Returns a list with the coverage intervals.
+    :rtype: list
+    """
+
+    cspice.furnsh(mk)
+
+    windows_ck1 = cov_ck_ker(ck1, object=spacecraft_frame, time_format='SPICE')
+    cspice.unload(ck1)
+
+    windows_ck2 = cov_ck_ker(ck2, object=spacecraft_frame, time_format='SPICE')
+    cspice.unload(ck2)
+
+    windows_intersected = cspice.wnintd(windows_ck1, windows_ck2)
+
+    number_of_intervals = list(range(cspice.wncard(windows_intersected)))
+
+    et_boundaries_list = []
+    for element in number_of_intervals:
+        et_boundaries = cspice.wnfetd(windows_intersected, element)
+        et_boundaries_list.append(et_boundaries[0])
+        et_boundaries_list.append(et_boundaries[1])
+
+    start = True
+    for et_start, et_finish in zip(et_boundaries_list[0::2], et_boundaries_list[1::2]):
+
+        if start:
+            et_list = numpy.arange(et_start, et_finish, resolution)
+            start = False
+
+        et_list = numpy.append(et_list, numpy.arange(et_start, et_finish, resolution))
+
+
+    if utc_start:
+        et_start = cspice.utc2et(utc_start)
+
+    if utc_finish:
+        et_finish = cspice.utc2et(utc_finish)
+        et_list = numpy.arange(et_start, et_finish, resolution)
+
+
+    cspice.furnsh(ck1)
+
+    eul1_ck1 = []
+    eul2_ck1 = []
+    eul3_ck1 = []
+    for et in et_list:
+
+        rot_mat = cspice.pxform(spacecraft_frame,  target_frame,et)
+        euler = (cspice.m2eul(rot_mat, 1, 2, 3))
+        eul1_ck1.append(euler[0])
+        eul2_ck1.append(euler[1])
+        eul3_ck1.append(euler[2])
+
+    cspice.unload(ck1)
+    cspice.furnsh(ck2)
+
+    eul1_ck2 = []
+    eul2_ck2 = []
+    eul3_ck2 = []
+    for et in et_list:
+        rot_mat = cspice.pxform(spacecraft_frame, target_frame, et)
+        euler = (cspice.m2eul(rot_mat, 1, 2, 3))
+        eul1_ck2.append(euler[0])
+        eul2_ck2.append(euler[1])
+        eul3_ck2.append(euler[2])
+
+
+
+    plot(et_list, [eul1_ck1,eul1_ck2], yaxis_name=['Euler Angle 1 CK1',
+                                                   'Euler Angle 1 CK2'],
+                                                    title='Euler Angles',
+                                                    format=plot_style,
+                                                    notebook=notebook)
+
+    plot(et_list, [eul2_ck1,eul2_ck2], yaxis_name=['Euler Angle 2 CK1',
+                                                   'Euler Angle 2 CK2'],
+                                                    title='Euler Angles',
+                                                    format=plot_style,
+                                                    notebook=notebook)
+
+    plot(et_list, [eul3_ck1,eul3_ck2], yaxis_name=['Euler Angle 3 CK1',
+                                                   'Euler Angle 3 CK2'],
+                                                    title='Euler Angles',
+                                                    format=plot_style,
+                                                    notebook=notebook)
+
+
+    ck1_filename = ck1.split('/')[-1].split('.')[0]
+    ck2_filename = ck2.split('/')[-1].split('.')[0]
+
+
+    if report:
+        eul_angle_report(et_list, eul1_ck1, eul1_ck2, 1, tolerance, name='{}_{}'.format(ck1_filename, ck2_filename))
+        eul_angle_report(et_list, eul2_ck1, eul2_ck2, 2, tolerance, name='{}_{}'.format(ck1_filename, ck2_filename))
+        eul_angle_report(et_list, eul3_ck1, eul3_ck2, 3, tolerance, name='{}_{}'.format(ck1_filename, ck2_filename))
+
+    cspice.unload(ck2)
+
+    return
+
+
+def ckplot(mk, ck1, spacecraft_frame, target_frame, resolution,
+           utc_start='', utc_finish='', notebook='False'):
+    """
+    Provides time coverage summary for a given object for a given CK file.
+    Several options are available. This function is based on the following
+    SPICE API:
+
+    http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/ckcov_c.html
+
+    The NAIF utility CKBRIEF can be used for the same purpose.
+
+    :param ck: CK file to be used
+    :type mk: str
+    :param support_ker: Support kernels required to run the function. At least
+       it should be a leapseconds kernel (LSK) and a Spacecraft clock kernel
+       (SCLK) optionally a meta-kernel (MK) which is highly recommended.
+    :type support_ker: Union[str, list]
+    :param object: Ephemeris Object to obtain the coverage from.
+    :type object: str
+    :param time_format: Output time format; it can be 'UTC', 'CAL' (for TDB
+       in calendar format) or 'TDB'. Default is 'TDB'.
+    :type time_format: str
+    :param global_boundary: Boolean to indicate whether if we want all the
+       coverage windows or only the absolute start and finish coverage times.
+    :type global_boundary: bool
+    :param report: If True prints the resulting coverage on the screen.
+    :type report: bool
+    :param unload: If True it will unload the input meta-kernel.
+    :type unload: bool
+    :return: Returns a list with the coverage intervals.
+    :rtype: list
+    """
+
+    cspice.furnsh(mk)
+    cspice.furnsh(ck1)
+
+    et_boundaries_list = cov_ck_ker(ck1, support_ker=mk, object=spacecraft_frame,
+                                        time_format='TDB')
+
+
+    start = True
+    for et_start, et_finish in zip(et_boundaries_list[0::2], et_boundaries_list[1::2]):
+
+        if start:
+            et_list = numpy.arange(et_start, et_finish, resolution)
+            start = False
+
+        et_list = numpy.append(et_list, numpy.arange(et_start, et_finish, resolution))
+
+
+    # TODO: if we want to really use start and end times and intersect it with the available intervals we need to develop this
+    if utc_start:
+        et_start = cspice.utc2et(utc_start)
+
+    if utc_finish:
+        et_finish = cspice.utc2et(utc_finish)
+        et_list = numpy.arange(et_start, et_finish, resolution)
+
+
+    eul1 = []
+    eul2 = []
+    eul3 = []
+    for et in et_list:
+
+        rot_mat = cspice.pxform(spacecraft_frame,  target_frame,et)
+        euler = (cspice.m2eul(rot_mat, 1, 2, 3))
+        eul1.append(euler[0])
+        eul2.append(euler[1])
+        eul3.append(euler[2])
+
+    cspice.unload(ck1)
+
+    plot(et_list, [eul1,eul2,eul3],
+         yaxis_name=['Euler Angle 1', 'Euler Angle 1', 'Euler Angle 1'],
+         title='Euler Angles', notebook=notebook)
+
+    return
+
+
+def spkdiff(mk, spk1, spk2, spacecraft, target, resolution, pos_tolerance,
+            vel_tolerance, target_frame='', utc_start='', utc_finish='',
+            plot_style='line', report=True):
+    """
+    Provides time coverage summary for a given object for a given CK file.
+    Several options are available. This function is based on the following
+    SPICE API:
+
+    http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/ckcov_c.html
+
+    The NAIF utility CKBRIEF can be used for the same purpose.
+
+    :param ck: CK file to be used
+    :type mk: str
+    :param support_ker: Support kernels required to run the function. At least
+       it should be a leapseconds kernel (LSK) and a Spacecraft clock kernel
+       (SCLK) optionally a meta-kernel (MK) which is highly recommended.
+    :type support_ker: Union[str, list]
+    :param object: Ephemeris Object to obtain the coverage from.
+    :type object: str
+    :param time_format: Output time format; it can be 'UTC', 'CAL' (for TDB
+       in calendar format) or 'TDB'. Default is 'TDB'.
+    :type time_format: str
+    :param global_boundary: Boolean to indicate whether if we want all the
+       coverage windows or only the absolute start and finish coverage times.
+    :type global_boundary: bool
+    :param report: If True prints the resulting coverage on the screen.
+    :type report: bool
+    :param unload: If True it will unload the input meta-kernel.
+    :type unload: bool
+    :return: Returns a list with the coverage intervals.
+    :rtype: list
+    """
+
+    if not target_frame:
+        target_frame = 'IAU_{}'.format(target.upper())
+
+    cspice.furnsh(mk)
+
+    windows_spk1 = cov_spk_ker(spk1, object=spacecraft, time_format='SPICE')
+    cspice.unload(spk1)
+
+    windows_spk2 = cov_spk_ker(spk2, object=spacecraft, time_format='SPICE')
+    cspice.unload(spk2)
+
+    windows_intersected = cspice.wnintd(windows_spk1, windows_spk2)
+
+    number_of_intervals = list(range(cspice.wncard(windows_intersected)))
+
+    et_boundaries_list = []
+    for element in number_of_intervals:
+        et_boundaries = cspice.wnfetd(windows_intersected, element)
+        et_boundaries_list.append(et_boundaries[0])
+        et_boundaries_list.append(et_boundaries[1])
+
+    start = True
+    for et_start, et_finish in zip(et_boundaries_list[0::2], et_boundaries_list[1::2]):
+
+        if start:
+            et_list = np.arange(et_start, et_finish, resolution)
+            start = False
+
+        et_list = numpy.append(et_list, numpy.arange(et_start, et_finish, resolution))
+
+    if utc_start:
+        et_start = cspice.utc2et(utc_start)
+
+    if utc_finish:
+        et_finish = cspice.utc2et(utc_finish)
+        et_list = numpy.arange(et_start, et_finish, resolution)
+
+    cspice.furnsh(spk1)
+
+    state_spk1 = []
+    state_spk2 = []
+    pos_spk1 = []
+    pos_spk2 = []
+    vel_spk1 = []
+    vel_spk2 = []
+
+    for et in et_list:
+        state = cspice.spkezr(target, et, target_frame, 'NONE', spacecraft)[0]
+
+        state_spk1.append(state)
+        pos_spk1.append(np.sqrt(state[0]*state[0] +
+                                state[1]*state[1] +
+                                state[2]*state[2]))
+        vel_spk1.append(np.sqrt(state[3]*state[3] +
+                                state[4]*state[4] +
+                                state[5]*state[5]))
+
+    cspice.unload(spk1)
+    cspice.furnsh(spk2)
+    for et in et_list:
+        state = cspice.spkezr(target, et, target_frame, 'NONE', spacecraft)[0]
+
+        state_spk2.append(state)
+        pos_spk2.append(np.sqrt(state[0]*state[0] +
+                                state[1]*state[1] +
+                                state[2]*state[2]))
+        vel_spk2.append(np.sqrt(state[3]*state[3] +
+                                state[4]*state[4] +
+                                state[5]*state[5]))
+
+
+    plot(et_list, [pos_spk1, pos_spk2], yaxis_name=['Position SPK1',
+                                                    'Position SPK2'],
+         title='Position of {} w.r.t {} ({})'.format(spacecraft, target, target_frame),
+         format=plot_style)
+
+    cspice.unload(spk2)
+    if report:
+
+        spk1_filename = spk1.split('/')[-1].split('.')[0]
+        spk2_filename = spk2.split('/')[-1].split('.')[0]
+
+        state_report(et_list, pos_spk1, pos_spk2, vel_spk1, vel_spk2, pos_tolerance, vel_tolerance,
+                     name='{}_{}'.format(spk1_filename, spk2_filename))
+
+
+    return

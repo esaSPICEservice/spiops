@@ -1,4 +1,23 @@
 import spiceypy as cspice
+from datetime import datetime
+
+
+#TODO: Function extracted from pyops, need to re-write because of out of date bokeh
+def et_to_datetime(et, scale='TDB'):
+    """
+    convert a SPICE ephemerides epoch (TBD seconds) to a python datetime
+    object. The default time scale returned will be TDB but can be set
+    to any of the accepted SPICE time scales.
+
+    Args:
+        et (float): SPICE ephemerides sceonds (TBD)
+        scale (str, optional): time scale of output time (default: TDB)
+
+    Returns:
+        datetime: python datetime
+    """
+    t = cspice.timout(et, 'YYYY-MON-DD HR:MN:SC.### ::{}'.format(scale), 41)
+    return datetime.strptime(t, '%Y-%b-%d %H:%M:%S.%f')
 
 
 def et2cal(time, format='UTC', support_ker=False, unload=False):
@@ -148,28 +167,35 @@ def cov_int(object_cov, object_id, kernel, time_format='TDB',
         print("Coverage for {} in {} [{}]:".format(body_name, kernel,
                                                    time_format))
 
-    index = 0
-    number_of_intervals = range(cspice.wncard(object_cov))
-    interval_start = []
-    interval_finish = []
+    number_of_intervals = list(range(cspice.wncard(object_cov)))
+    interval_start_list = []
+    interval_finish_list = []
+    coverage = []
 
     for element in number_of_intervals:
-        et_boundaries = cspice.wnfetd(object_cov, index)
+        et_boundaries = cspice.wnfetd(object_cov, element)
 
-        interval_start.append(et_boundaries[0])
-        interval_finish.append(et_boundaries[1])
+        if time_format == 'CAL':
+            boundaries = et2cal(et_boundaries, format=time_format)
 
-        index += 1
+        else:
+            boundaries = et_boundaries
 
-        boundaries = et2cal(et_boundaries, format=time_format)
+        interval_start = boundaries[0]
+        interval_finish = boundaries[1]
 
-        interval_start.append(et_boundaries[0])
-        interval_finish.append(et_boundaries[1])
 
         if report and not global_boundary:
-            print("Interval {}: {} - {}\n".format(index,
+
+            print("Interval {}: {} - {}\n".format(element,
                                                   boundaries[0],
                                                   boundaries[1]))
+
+        coverage.append(interval_start)
+        coverage.append(interval_finish)
+        interval_start_list.append(interval_start)
+        interval_finish_list.append(interval_finish)
+
 
     #
     # If the global_boundary parameter is set the only output is the global
@@ -180,9 +206,9 @@ def cov_int(object_cov, object_id, kernel, time_format='TDB',
         start_time = min(interval_start)
         finish_time = max(interval_finish)
 
-        boundaries = et2cal([start_time, finish_time], format=time_format)
+        coverage = et2cal([start_time, finish_time], format=time_format)
 
-    return boundaries
+    return coverage
 
 
 def mjd20002et(mjd2000, support_ker=False, unload=False):

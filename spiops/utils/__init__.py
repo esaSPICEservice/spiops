@@ -3,3 +3,5 @@ from .time import et2cal
 from .time import mjd20002et
 
 from .utils import valid_url
+from .utils import convert_ESOCorbit2data
+from .utils import plot

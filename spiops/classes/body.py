@@ -4,7 +4,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np
-from bokeh.plotting import figure, output_file, show
+from bokeh.plotting import figure, output_file, output_notebook, show
+from bokeh.models import HoverTool
+from bokeh.models import DatetimeTickFormatter
+#from pyops import time as pytime
 
 
 
@@ -34,7 +37,7 @@ class Body(object):
 
     def __getattribute__(self, item):
 
-        if item in ['altitude', 'distance']:
+        if item in ['altitude', 'distance', 'zaxis_target_angle']:
             self.__Geometry()
             return object.__getattribute__(self, item)
         else:
@@ -69,6 +72,45 @@ class Body(object):
         return state
 
 
+    def Orientation(self, frame='', target_frame='', current=False,
+                    format='msop quaternions'):
+
+        if self.target and not target_frame:
+            target_frame = self.target.frame
+
+        if not self.target and not target_frame:
+            target_frame = 'J2000'
+
+        if not frame:
+            frame = self.frame
+
+        if not current:
+            current = self.time.current
+        else:
+            #TODO: need to add a time conversion here
+            current = current
+
+        rot_mat = cspice.pxform(target_frame, frame, current)
+
+        if format == 'spice quaternions':
+            orientation = cspice.m2q(rot_mat)
+
+        if format == 'msop quaternions':
+            quaternions = cspice.m2q(rot_mat)
+            orientation = [-quaternions[1],
+                           -quaternions[2],
+                           -quaternions[3],
+                            quaternions[0]]
+
+        elif format == 'euler angles':
+            orientation = (cspice.m2eul(rot_mat, 3, 2, 1))
+
+        elif format == 'rotation matrix':
+            orientation = rot_mat
+
+        return orientation
+
+
     def __StateInWindow(self, target=False, reference_frame=False, start=False,
                      finish=False):
 
@@ -92,11 +134,20 @@ class Body(object):
         subpoint_xyz = []
         subpoint_pgc = []
         subpoint_pcc = []
+        zaxis_target_angle = []
 
         tar = self.target
         time = self.time
 
         for et in time.window:
+
+            #
+            # Compute the distance
+            #
+            ptarg, lt = cspice.spkpos(tar.name, et, tar.frame, time.abcorr,
+                                      self.name)
+            vout, vmag = cspice.unorm(ptarg)
+            distance.append(vmag)
 
             #
             # Compute the geometric sub-observer point.
@@ -107,10 +158,10 @@ class Body(object):
             subpoint_xyz.append(spoint)
 
             #
-            # Compute the observer's distance from SPOINT.
+            # Compute the observer's altitude from SPOINT.
             #
             dist = cspice.vnorm(srfvec)
-            distance.append(dist)
+            altitude.append(dist)
 
 
             #
@@ -142,22 +193,38 @@ class Body(object):
 
             subpoint_pcc.append([spcrad, spclon, spclat])
 
-            altitude.append(dist - spcrad)
+            #
+            # Compute the angle between the observer's Z axis and the geometric
+            # sub-observer point
+            #
+            obs_tar, ltime = cspice.spkpos(tar.name, et,
+                                                   'J2000', time.abcorr,
+                                                   self.name)
+            obs_zaxis = [0,0,1]
+            matrix = cspice.pxform(self.frame, 'J2000', et)
+            vecout = cspice.mxv(matrix, obs_zaxis)
+
+            zax_target_angle = cspice.vsep(vecout, obs_tar)
+            zax_target_angle *= cspice.dpr()
+            zaxis_target_angle.append(zax_target_angle)
 
 
-        self.altitude = altitude
         self.distance = distance
+        self.altitude = altitude
         self.subpoint_xyz = subpoint_xyz
         self.subpoint_pgc = subpoint_pgc
         self.subpoint_pcc = subpoint_pcc
+        self.zaxis_target_angle = zaxis_target_angle
 
         self.geometry_flag = True
         self.previous_tw = self.time.window
 
 
 
-    def Plot(self, yaxis, xaxis='time', title='', external_data=[]):
+    def Plot(self, yaxis, xaxis='time', title='', external_data=[],
+             notebook=False):
         import spiops.utils.utils as utils
+        import spiops.utils.time as utime
 
         self.__Geometry()
 
@@ -176,24 +243,66 @@ class Body(object):
             html_file_name = title
             html_file_name = utils.valid_url(html_file_name)
 
+        #TODO: Move this to the time object (convert to datatime)
+        # Function needs to be vectorised
+        #x = self.time.window
+        window_dt = []
+        window = self.time.window
+        for element in window:
+            window_dt.append(utime.et_to_datetime(element, 'TDB'))
 
-        x = self.time.window
+        x = window_dt
         y = self.__getattribute__(yaxis)
 
-
-        output_file(html_file_name + '.html')
+        if notebook:
+            output_notebook()
+            plot_width = 975
+            plot_height = 500
+        else:
+            output_file(html_file_name + '.html')
+            plot_width = 1000
+            plot_height = 1000
 
         p = figure(title=title,
-                   plot_width=1000,
-                   plot_height=1000,
-                   x_axis_label='TDB [sec]',
-                   y_axis_label='{}'.format(yaxis).title()
-                   )
+                   plot_width=plot_width,
+                   plot_height=plot_height,
+                   x_axis_label='Date in TBD',
+                   y_axis_label='{}'.format(yaxis).title(),
+                   x_axis_type="datetime")
+
+        p.xaxis.formatter = DatetimeTickFormatter(
+                seconds=["%Y-%m-%d %H:%M:%S"],
+                minsec=["%Y-%m-%d %H:%M:%S"],
+                minutes=["%Y-%m-%d %H:%M:%S"],
+                hourmin=["%Y-%m-%d %H:%M:%S"],
+                hours=["%Y-%m-%d %H:%M:%S"],
+                days=["%Y-%m-%d %H:%M:%S"],
+                months=["%Y-%m-%d %H:%M:%S"],
+                years=["%Y-%m-%d %H:%M:%S"],
+        )
+
+        hover = HoverTool(
+                    tooltips=[ ('Date', '@x{0.000}'),
+                               ('{}'.format(yaxis).title(), '@y{0.000}'),
+                             ],
+                    formatters={'Date': 'numeral',
+                                '{}'.format(yaxis).title(): 'numeral',
+                               })
+
+        p.add_tools(hover)
 
         if external_data:
-            x = external_data[0]
-            y = external_data[1]
-            p.cirlce(x, y, legend='External Data')
+
+            window_dt = []
+            window = external_data[0]
+            for element in window:
+                window_dt.append(utime.et_to_datetime(element, 'TDB'))
+
+            x_ext = window_dt
+
+            #x_ext = external_data[0]
+            y_ext = external_data[1]
+            p.circle(x_ext, y_ext, legend='External Data', size=5, color='red')
 
         # add a line renderer with legend and line thickness
         p.line(x, y, legend='{}'.format(yaxis).title(), line_width=2)
@@ -203,6 +312,7 @@ class Body(object):
 
 
         return
+
 
 
     def Plot3D(self, data='trajectory', reference_frame=False):
@@ -230,8 +340,8 @@ class Body(object):
         theta = np.linspace(-4 * np.pi, 4 * np.pi, 100)
 
         ax.plot(x, y, z, label= self.name + ' w.r.t. ' + self.target.name +
-                                ' on ' + self.trajectory_reference_frame +
-                                ' [km]')
+                ' on ' + self.trajectory_reference_frame + ' [km]')
+
         ax.legend()
 
         # Make data
@@ -295,8 +405,17 @@ class Target(Body):
 
 
 class Observer(Body):
-    def __init__(self, body, time=object(), target=False):
+    def __init__(self, body, time=object(), target=False, frame=''):
 
         super(Observer, self).__init__(body, time=time, target=target)
 
-        self.frame = '{}_SPACECRAFT'.format(self.name)
+        if not frame:
+            self.frame = '{}_SPACECRAFT'.format(self.name)
+            if cspice.namfrm(self.frame) == 0:
+                self.frame = self.name
+            if cspice.namfrm(self.frame) == 0:
+                print('The frame name has not been able to be built; please introduce it manually')
+        else:
+            self.frame = frame
+
+
