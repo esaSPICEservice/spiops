@@ -87,7 +87,11 @@ def plot(time_list, yaxis, yaxis_name='', title='', format='circle',
 
         title=title
 
-        html_file_name = title
+        if ' ' in title:
+            html_file_name = title.replace(' ', '_').lower()
+        else:
+            html_file_name = title
+
         html_file_name = valid_url(html_file_name)
 
     window_dt = []

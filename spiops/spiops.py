@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 
 import math
+import numpy as np
 import spiceypy as cspice
+import logging
+import os
 import numpy as np
 from spiceypy.utils.support_types import *
 from .utils import time
@@ -33,6 +36,228 @@ SOFTWARE.
 
 def load(mk):
     return cspice.furnsh(mk)
+
+
+def adcsng_fill_template(template,
+                  file,
+                  replacements,
+                  cleanup=False):
+
+
+   #
+   # If the temp   late file is equal to the output file then we need to create a temporary template - which will be
+   # a duplicate - in order to write in the file. A situation where we would like to have them be the same is
+   # for example if we call this function several times in a row, replacing keywords in the template in steps
+   #
+   if template == file:
+       with open(file, "r") as f:
+           with open('fill_template.temp', "w+") as t:
+               for line in f:
+                   t.write(line)
+
+       template = 'fill_template.temp'
+
+   with open(file, "w+") as f:
+       #
+       # Items are replaced as per correspondance in between the replacements dictionary
+       #
+       with open(template, "r+") as t:
+           for line in t:
+               if '{' in line:
+                   for k, v in replacements.items():
+                       if '{' + k + '}' in line: line = line.replace('{' + k + '}', v)
+               f.write(line)
+
+               #
+               # If the option cleanup is set as true, we remove the keyword assignments in the filled templated which are
+               # unfilled (they should be optional)
+               #
+   if cleanup:
+
+       with open(file, "r") as f:
+           with open('fill_template.temp', "w+") as t:
+               for line in f:
+                   t.write(line)
+
+       template = 'fill_template.temp'
+
+       with open(file, "w+") as f:
+           with open('fill_template.temp', "r") as t:
+               for line in t:
+                   if '{' not in line:
+                       f.write(line)
+
+                       #
+                       # The temporary files are removed
+                       #
+   if os.path.isfile('fill_template.temp'):
+       os.remove('fill_template.temp')
+
+
+# Originally an adcsng funtion, needs to be re-arranged in adcsng to be made
+# more generic
+def adcsng_hk_quaternions2ck_reader(tm_file,
+                                    input_time_format='UTC',
+                                    input_time_field_number='1',
+                                    delimiter=',',
+                                    input_processing=False,
+                                    qs_col=1, qx_col=2, qy_col=3, qz_col=4):
+
+    #
+    # We obtain the number of data fields and its correspondance
+    #
+    input_data_field_numbers = [qx_col, qy_col, qz_col, qs_col]
+
+    tm_list = []
+    previous_row_time = ''
+
+    sclk_partition = '1'
+    sclk_delimiter = '.'
+
+
+    filter_flag = False
+    index = 0
+    row_prev = []
+    sclk_fraction_prev = ''
+    with open(tm_file, 'r') as t:
+
+        for line in t:
+
+            #
+            # TODO: Main difference from fucntion from adcsng
+            #
+            if '#' not in line and 'Date' not in line and input_time_format not in line:
+                index += 1
+
+                row_data = []
+
+                # We need to remove the end of line character:
+                line = line.split('\n')[0]
+
+                try:
+                    if ',' in delimiter:
+
+                        if input_time_format == 'SCLK':
+                            if ',' in input_time_field_number:
+                                row_time = sclk_partition + '/' + str(line.split(delimiter)[
+                                                   int(input_time_field_number[0]) - 1]) + \
+                                           sclk_delimiter + str(line.split(delimiter)[
+                                                   int(input_time_field_number[2]) - 1])
+
+                            else:
+                                input_time_field_number = int(input_time_field_number)
+                                row_time = str(line.split(delimiter)[
+                                                input_time_field_number - 1])
+
+                        else:
+                            row_time = str(line.split(delimiter)[input_time_field_number-1])
+
+                        if (' ' in row_time):
+                            if input_time_format == 'SCLK':
+                                row_time = row_time.replace(' ','')
+                            else:
+                                row_time = row_time.replace(' ','T')
+
+                        for data_element_field_number in input_data_field_numbers:
+                            row_data.append(float(line.split(',')[data_element_field_number-1]))
+
+                    else:
+
+                        proc_line = line.strip()
+
+                        row_time = str(proc_line.split(delimiter)[input_time_field_number - 1])
+
+                        for data_element_field_number in input_data_field_numbers:
+                            #
+                            # We need to check that
+                            #
+                            row_data.append(float(line.split()[data_element_field_number-1]))
+                except:
+                    logging.info('   HM TM Processing: Found incomplete data line in line {}:'.format(index))
+                    logging.info('   {}'.format(line))
+                    continue
+
+                row = row_time + ' '
+
+                # As indicated by Boris Semenov in an e-mail "ROS and MEX "measured" CKs"
+                # sometimes the scalar value is negative and the sign of the rest of the
+                # components of the quaternions needs to be changed!
+                if row_data[-1] < 0:
+                    neg_data = [-x for x in row_data]
+
+                    logging.info('   HM TM Processing: Found negative QS on input line {}:'.format(row_data))
+                    logging.info('   ' + neg_data)
+                    row_data = neg_data
+
+                for element in row_data:
+
+                    row += str(element) + ' '
+
+                # We filter out "bad quaternions"
+
+                row += '\n'
+
+                # We remove the latest entry if a time is duplicated
+                if row_time == previous_row_time:
+                    logging.info(
+                        '   HM TM Processing: Found duplicate time at {}'.format(
+                                row_time))
+                else:
+                    # We do not include the entry if one element equals 1 or gt 1
+                    append_bool = True
+                    for quaternion in row_data:
+                        if quaternion >= 1.0:
+                            append_bool = False
+                            logging.info(
+                                '   HM TM Processing: Found quaternion GT 1 on input line {}:'.format(
+                                    row_data))
+                            logging.info('   ' + str(row))
+
+                    # This is a special filter that has been set for ExoMars2016
+                    # More explanations in [1]
+                    if input_processing:
+                        sclk_fraction = line.split(':')[-1].split(' ')[0]
+
+                        if filter_flag:
+                            if sclk_fraction == sclk_fraction_prev:
+                                row_prev.append(row)
+                            elif len(row_prev) <= 5 and sclk_fraction == sclk_initial:
+
+                                logging.info(
+                                    '   HM TM Processing: Coarse quaternion: Spurious SCLK fractions before input line {}:'.format(
+                                            index))
+
+                                for element in row_prev:
+
+                                    logging.info('   ' + str(element).split('\n')[0])
+                                    tm_list.remove(element)
+
+                                filter_flag = False
+                                tm_list = []
+                                row_prev = []
+                                sclk_fraction_prev = sclk_fraction
+                            else:
+                                row_prev = []
+                                filter_flag = False
+
+                        if sclk_fraction_prev and sclk_fraction != sclk_fraction_prev and not filter_flag:
+                                filter_flag = True
+                                row_prev.append(row)
+                                sclk_initial = sclk_fraction_prev
+
+                        sclk_fraction_prev = sclk_fraction
+
+                    if append_bool:
+                        tm_list.append(row)
+
+                previous_row_time = row_time
+
+    # We remove the carriage return from the last line
+    last_line = tm_list[-1].split('\n')[0]
+    tm_list = tm_list[:-1]
+    tm_list.append(last_line)
+
+    return(tm_list)
 
 
 def fov_illum(mk, sensor, time=None, angle='DEGREES', abcorr='LT+S',
@@ -207,7 +432,7 @@ def cov_spk_obj(mk, object, time_format='TDB', global_boundary=False,
     return boundaries_list
 
 
-def cov_spk_ker(spk, object, time_format= 'TDB', support_ker = '',
+def cov_spk_ker(spk, object=False, time_format='TDB', support_ker ='',
                 report=False, unload=False):
     """
     Provides time coverage summary for a given object for a given SPK file.
@@ -222,7 +447,7 @@ def cov_spk_ker(spk, object, time_format= 'TDB', support_ker = '',
     :type mk: str
     :param support_ker: Support kernels required to run the function. At least it should be a leapseconds kernel (LSK) and optionally a meta-kernel (MK)
     :type support_ker: Union[str, list]
-    :param object: Ephemeris Object to obtain the coverage from
+    :param object: Ephemeris Object or list of objects to obtain the coverage from
     :type object: str
     :param time_format: Output time format; it can be 'UTC', 'CAL' or 'SPICE' (for TDB in calendar format) or 'TDB'. Default is 'TDB'
     :type time_format: str
@@ -236,6 +461,11 @@ def cov_spk_ker(spk, object, time_format= 'TDB', support_ker = '',
     :rtype: list
     """
     cspice.furnsh(spk)
+    object_id = []
+    boundaries = []
+
+    if object and not isinstance(object, list):
+        object = [object]
 
     if support_ker:
 
@@ -245,39 +475,46 @@ def cov_spk_ker(spk, object, time_format= 'TDB', support_ker = '',
         for ker in support_ker:
             cspice.furnsh(ker)
 
-
     maxwin = 2000
 
     spk_ids = cspice.spkobj(spk)
-    object_id = cspice.bodn2c(object)
 
-    if object_id in spk_ids:
-
-        object_cov = SPICEDOUBLE_CELL(maxwin)
-        cspice.spkcov(spk, object_id, object_cov)
-
-        boundaries = time.cov_int(object_cov=object_cov,
-                                  object_id=object_id,
-                                  kernel=spk,
-                                  time_format=time_format, report=report)
-
+    if not object:
+        object_id = spk_ids
+        object = []
+        for id in spk_ids:
+            object.append(cspice.bodc2n(id))
     else:
-        print('{} with ID {} is not present in {}.'.format(object,
-                                                           object_id, spk))
-        return
+        for element in object:
+            object_id.append(cspice.bodn2c(element))
 
-    if time_format == 'SPICE':
-        boundaries = object_cov
-    else:
-        boundaries = time.cov_int(object_cov=object_cov,
-                                  object_id=object_id,
-                                  kernel=spk,
-                                  time_format=time_format, report=report)
+    for id in object_id:
+
+        if id in spk_ids:
+
+            object_cov = SPICEDOUBLE_CELL(maxwin)
+            cspice.spkcov(spk, id, object_cov)
+
+            cov = time.cov_int(object_cov=object_cov,
+                                      object_id=id,
+                                      kernel=spk,
+                                      time_format=time_format,
+                                      report=report)
+
+        else:
+            print('{} with ID {} is not present in {}.'.format(object,
+                                                             id, spk))
+            return
+
+        if time_format == 'SPICE':
+            boundaries.append(object_cov)
+        else:
+            boundaries.append(cov)
 
     if unload:
         cspice.unload(spk)
 
-    return (boundaries)
+    return (boundaries, object)
 
 
 def cov_ck_obj(mk, object, time_format= 'UTC', global_boundary=False,
@@ -513,7 +750,7 @@ def fk_body_ifj2000(mission, body, pck, body_spk, frame_id, report=False,
     :param mission: Name of the mission to use the frame
     :type mission: str
     :param body: Natural body for which the frame is defined
-    :type body: str
+    :type body: str§
     :param pck: Planetary Constants Kernel to be used to extract the Pole information from
     :type pck: str
     :param body_spk: SPK kernels that contain the ephemeris of the Natural body
@@ -742,6 +979,138 @@ def state_report(et_list, pos_spk1, pos_spk2, vel_spk1, vel_spk2, pos_tolerance,
     return
 
 
+def ckdiff_euler(mk, ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance,
+           utc_start='', utc_finish='', plot_style='line', report=True,
+           notebook=False):
+    """
+    Provides time coverage summary for a given object for a given CK file.
+    Several options are available. This function is based on the following
+    SPICE API:
+
+    http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/ckcov_c.html
+
+    The NAIF utility CKBRIEF can be used for the same purpose.
+
+    :param ck: CK file to be used
+    :type mk: str
+    :param support_ker: Support kernels required to run the function. At least
+       it should be a leapseconds kernel (LSK) and a Spacecraft clock kernel
+       (SCLK) optionally a meta-kernel (MK) which is highly recommended.
+    :type support_ker: Union[str, list]
+    :param object: Ephemeris Object to obtain the coverage from.
+    :type object: str
+    :param time_format: Output time format; it can be 'UTC', 'CAL' (for TDB
+       in calendar format) or 'TDB'. Default is 'TDB'.
+    :type time_format: str
+    :param global_boundary: Boolean to indicate whether if we want all the
+       coverage windows or only the absolute start and finish coverage times.
+    :type global_boundary: bool
+    :param report: If True prints the resulting coverage on the screen.
+    :type report: bool
+    :param unload: If True it will unload the input meta-kernel.
+    :type unload: bool
+    :return: Returns a list with the coverage intervals.
+    :rtype: list
+    """
+
+    cspice.furnsh(mk)
+
+    windows_ck1 = cov_ck_ker(ck1, object=spacecraft_frame, time_format='SPICE')
+    cspice.unload(ck1)
+
+    windows_ck2 = cov_ck_ker(ck2, object=spacecraft_frame, time_format='SPICE')
+    cspice.unload(ck2)
+
+    windows_intersected = cspice.wnintd(windows_ck1, windows_ck2)
+
+    number_of_intervals = list(range(cspice.wncard(windows_intersected)))
+
+    et_boundaries_list = []
+    for element in number_of_intervals:
+        et_boundaries = cspice.wnfetd(windows_intersected, element)
+        et_boundaries_list.append(et_boundaries[0])
+        et_boundaries_list.append(et_boundaries[1])
+
+    start = True
+    for et_start, et_finish in zip(et_boundaries_list[0::2], et_boundaries_list[1::2]):
+
+        if start:
+            et_list = numpy.arange(et_start, et_finish, resolution)
+            start = False
+
+        et_list = numpy.append(et_list, numpy.arange(et_start, et_finish, resolution))
+
+
+    if utc_start:
+        et_start = cspice.utc2et(utc_start)
+
+    if utc_finish:
+        et_finish = cspice.utc2et(utc_finish)
+        et_list = numpy.arange(et_start, et_finish, resolution)
+
+
+    cspice.furnsh(ck1)
+
+    eul1_ck1 = []
+    eul2_ck1 = []
+    eul3_ck1 = []
+    for et in et_list:
+
+        rot_mat = cspice.pxform(spacecraft_frame,  target_frame,et)
+        euler = (cspice.m2eul(rot_mat, 1, 2, 3))
+        eul1_ck1.append(math.degrees(euler[0]))
+        eul2_ck1.append(math.degrees(euler[1]))
+        eul3_ck1.append(math.degrees(euler[2]))
+
+    cspice.unload(ck1)
+    cspice.furnsh(ck2)
+
+    eul1_ck2 = []
+    eul2_ck2 = []
+    eul3_ck2 = []
+    for et in et_list:
+        rot_mat = cspice.pxform(spacecraft_frame, target_frame, et)
+        euler = (cspice.m2eul(rot_mat, 1, 2, 3))
+        eul1_ck2.append(math.degrees(euler[0]))
+        eul2_ck2.append(math.degrees(euler[1]))
+        eul3_ck2.append(math.degrees(euler[2]))
+
+
+    ck1_filename = ck1.split('/')[-1].split('.')[0]
+    ck2_filename = ck2.split('/')[-1].split('.')[0]
+
+    eul1_name = '{}_{}'.format(ck1_filename, ck2_filename)
+    eul2_name = '{}_{}'.format(ck1_filename, ck2_filename)
+    eul3_name = '{}_{}'.format(ck1_filename, ck2_filename)
+
+    plot(et_list, [eul1_ck1,eul1_ck2], yaxis_name=['Euler Angle 1 CK1',
+                                                   'Euler Angle 1 CK2'],
+                                                    title='Euler Angle 1 {}'.format(eul1_name),
+                                                    format=plot_style,
+                                                    notebook=notebook)
+
+    plot(et_list, [eul2_ck1,eul2_ck2], yaxis_name=['Euler Angle 2 CK1',
+                                                   'Euler Angle 2 CK2'],
+                                                    title='Euler Angle 2 {}'.format(eul2_name),
+                                                    format=plot_style,
+                                                    notebook=notebook)
+
+    plot(et_list, [eul3_ck1,eul3_ck2], yaxis_name=['Euler Angle 3 CK1',
+                                                   'Euler Angle 3 CK2'],
+                                                    title='Euler Angle 3 {}'.format(eul3_name),
+                                                    format=plot_style,
+                                                    notebook=notebook)
+
+    if report:
+        eul_angle_report(et_list, eul1_ck1, eul1_ck2, 1, tolerance, name=eul1_name)
+        eul_angle_report(et_list, eul2_ck1, eul2_ck2, 2, tolerance, name=eul2_name)
+        eul_angle_report(et_list, eul3_ck1, eul3_ck2, 3, tolerance, name=eul3_name)
+
+    cspice.unload(ck2)
+
+    return
+
+
 def ckdiff(mk, ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance,
            utc_start='', utc_finish='', plot_style='line', report=True,
            notebook=False):
@@ -821,9 +1190,9 @@ def ckdiff(mk, ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance,
 
         rot_mat = cspice.pxform(spacecraft_frame,  target_frame,et)
         euler = (cspice.m2eul(rot_mat, 1, 2, 3))
-        eul1_ck1.append(euler[0])
-        eul2_ck1.append(euler[1])
-        eul3_ck1.append(euler[2])
+        eul1_ck1.append(math.degrees(euler[0]))
+        eul2_ck1.append(math.degrees(euler[1]))
+        eul3_ck1.append(math.degrees(euler[2]))
 
     cspice.unload(ck1)
     cspice.furnsh(ck2)
@@ -834,39 +1203,40 @@ def ckdiff(mk, ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance,
     for et in et_list:
         rot_mat = cspice.pxform(spacecraft_frame, target_frame, et)
         euler = (cspice.m2eul(rot_mat, 1, 2, 3))
-        eul1_ck2.append(euler[0])
-        eul2_ck2.append(euler[1])
-        eul3_ck2.append(euler[2])
+        eul1_ck2.append(math.degrees(euler[0]))
+        eul2_ck2.append(math.degrees(euler[1]))
+        eul3_ck2.append(math.degrees(euler[2]))
 
-
-
-    plot(et_list, [eul1_ck1,eul1_ck2], yaxis_name=['Euler Angle 1 CK1',
-                                                   'Euler Angle 1 CK2'],
-                                                    title='Euler Angles',
-                                                    format=plot_style,
-                                                    notebook=notebook)
-
-    plot(et_list, [eul2_ck1,eul2_ck2], yaxis_name=['Euler Angle 2 CK1',
-                                                   'Euler Angle 2 CK2'],
-                                                    title='Euler Angles',
-                                                    format=plot_style,
-                                                    notebook=notebook)
-
-    plot(et_list, [eul3_ck1,eul3_ck2], yaxis_name=['Euler Angle 3 CK1',
-                                                   'Euler Angle 3 CK2'],
-                                                    title='Euler Angles',
-                                                    format=plot_style,
-                                                    notebook=notebook)
-
+    eul1_diff = [i - j for i, j in zip(eul1_ck1, eul1_ck2)]
+    eul2_diff = [i - j for i, j in zip(eul2_ck1, eul2_ck2)]
+    eul3_diff = [i - j for i, j in zip(eul3_ck1, eul3_ck2)]
 
     ck1_filename = ck1.split('/')[-1].split('.')[0]
     ck2_filename = ck2.split('/')[-1].split('.')[0]
 
+    eul1_name = '{}_{}'.format(ck1_filename, ck2_filename)
+    eul2_name = '{}_{}'.format(ck1_filename, ck2_filename)
+    eul3_name = '{}_{}'.format(ck1_filename, ck2_filename)
+
+    plot(et_list, [eul1_diff], yaxis_name=['Euler Angle 1 Diff'],
+                                                    title='Euler Angle 1 {}'.format(eul1_name),
+                                                    format=plot_style,
+                                                    notebook=notebook)
+
+    plot(et_list, [eul2_diff], yaxis_name=['Euler Angle 1 Diff'],
+                                                    title='Euler Angle 2 {}'.format(eul2_name),
+                                                    format=plot_style,
+                                                    notebook=notebook)
+
+    plot(et_list, [eul3_diff], yaxis_name=['Euler Angle 1 Diff'],
+                                                    title='Euler Angle 3 {}'.format(eul3_name),
+                                                    format=plot_style,
+                                                    notebook=notebook)
 
     if report:
-        eul_angle_report(et_list, eul1_ck1, eul1_ck2, 1, tolerance, name='{}_{}'.format(ck1_filename, ck2_filename))
-        eul_angle_report(et_list, eul2_ck1, eul2_ck2, 2, tolerance, name='{}_{}'.format(ck1_filename, ck2_filename))
-        eul_angle_report(et_list, eul3_ck1, eul3_ck2, 3, tolerance, name='{}_{}'.format(ck1_filename, ck2_filename))
+        eul_angle_report(et_list, eul1_ck1, eul1_ck2, 1, tolerance, name=eul1_name)
+        eul_angle_report(et_list, eul2_ck1, eul2_ck2, 2, tolerance, name=eul2_name)
+        eul_angle_report(et_list, eul3_ck1, eul3_ck2, 3, tolerance, name=eul3_name)
 
     cspice.unload(ck2)
 
@@ -874,7 +1244,7 @@ def ckdiff(mk, ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance,
 
 
 def ckplot(mk, ck1, spacecraft_frame, target_frame, resolution,
-           utc_start='', utc_finish='', notebook='False'):
+           utc_start='', utc_finish='', notebook=False, plot_style='circle'):
     """
     Provides time coverage summary for a given object for a given CK file.
     Several options are available. This function is based on the following
@@ -938,16 +1308,16 @@ def ckplot(mk, ck1, spacecraft_frame, target_frame, resolution,
     for et in et_list:
 
         rot_mat = cspice.pxform(spacecraft_frame,  target_frame,et)
-        euler = (cspice.m2eul(rot_mat, 1, 2, 3))
-        eul1.append(euler[0])
-        eul2.append(euler[1])
-        eul3.append(euler[2])
+        euler = cspice.m2eul(rot_mat, 1, 2, 3)
+        eul1.append(math.degrees(euler[0]))
+        eul2.append(math.degrees(euler[1]))
+        eul3.append(math.degrees(euler[2]))
 
     cspice.unload(ck1)
 
     plot(et_list, [eul1,eul2,eul3],
          yaxis_name=['Euler Angle 1', 'Euler Angle 1', 'Euler Angle 1'],
-         title='Euler Angles', notebook=notebook)
+         title='Euler Angles for {}'.format(ck1.split('/')[-1]), notebook=notebook, format=plot_style)
 
     return
 
@@ -1073,3 +1443,514 @@ def spkdiff(mk, spk1, spk2, spacecraft, target, resolution, pos_tolerance,
 
 
     return
+
+
+def pck_body_placeholder(bodies):
+
+
+    with open('update_to_pck.tpc', 'w+') as f:
+
+        pl_id = 517
+        for body in bodies:
+
+            #
+            # Get body NAIF ID.
+            #
+            try:
+                id =  cspice.bodn2c(str(body.upper))
+            except:
+                id = pl_id
+                pl_id += 1
+
+            f.write('       {0}  {1}        1       1       1       -    Placeholder radii\n'.format(id, body[:1].upper() + body[1:].lower()))
+
+        f.write('\n\n')
+        pl_id = 517
+        for body in bodies:
+
+            #
+            # Get body NAIF ID.
+            #
+            try:
+                id =  cspice.bodn2c(str(body.upper))
+            except:
+                id = pl_id
+                pl_id += 1
+
+            f.write('BODY{}_RADII = (1        1       1   )\n'.format(id))
+
+        f.write('\n\n')
+        pl_id = 517
+        for body in bodies:
+
+            #
+            # Get body NAIF ID.
+            #
+            try:
+                id =  cspice.bodn2c(str(body.upper))
+            except:
+                id = pl_id
+                pl_id += 1
+
+            f.write("        FRAME_IAU_{0} = {1}\n".format(body.upper(), id))
+            f.write("        FRAME_{0}_NAME = 'IAU_{1}'\n".format(id, body.upper()))
+            f.write("        FRAME_{}_CLASS = 2\n".format(id))
+            f.write("        FRAME_{0}_CLASS_ID = {0}\n".format(id))
+            f.write("        FRAME_{0}_CENTER = {0}\n".format(id))
+            f.write("        BODY{}_POLE_RA       = (    0.        0.         0.  )\n".format(id))
+            f.write("        BODY{}_POLE_DEC      = (   90.        0.         0.  )\n".format(id))
+            f.write("        BODY{}_PM            = (  -90.        0.         0.  )\n".format(id))
+            f.write("        BODY{}_LONG_AXIS     = (    0.                       )\n\n".format(id))
+
+    return
+
+
+def read_ik_with_sectors(sensor_name):
+
+    #
+    # Since all IK variable names contain NAIF ID of the instrument,
+    # the input sensor acronym, NNN, needs to be expanded into its
+    # full name, ROS_RPC_NNN, which then can be used to find the
+    # sensor's NAIF ID code.
+    #
+    sensnm = sensor_name
+
+    secsiz = 0
+    secsis = 0
+
+    try:
+        sensid = cspice.bodn2c(sensnm)
+    except:
+        print('Cannot determine NAIF ID for {}'.format(sensnm))
+        return sensnm, 0, 0, secsiz, secsis, '', []
+
+    #
+    # No IK routines can be used to retrieve loaded data.  First,
+    # retrieve the number of sectors provided in the
+    # INS-NNNNNN_NUMBER_OF_SECTORS keyword (here -NNNNNN is the NAIF ID
+    # of the sensor.)
+    #
+    ikkwd = 'INS#_NUMBER_OF_SECTORS'
+    ikkwd = cspice.repmi(ikkwd, "#", sensid)
+
+    try:
+        secnum = cspice.gipool(ikkwd, 0, 2)
+    except:
+        print('Loaded IK does not contain {}.'.format(ikkwd))
+        return sensnm, sensid, 0, secsiz, secsis, '', []
+
+    #
+    # Second, retrieve the sector size provided in the
+    # INS-NNNNNN_SECTOR_SIZE or INS-NNNNNN_SECTOR_SIZES keyword.
+    #
+    ikkwd = 'INS#_SECTOR_SIZES'
+    ikkwd = cspice.repmi(ikkwd, '#', sensid)
+
+    try:
+        secsis = cspice.gdpool(ikkwd, 0, 2)
+
+        #
+        # We need to search for INS-NNNNNN_SECTOR_SIZE in the second place
+        # for it would also be found by INS-NNNNNN_SECTOR_SIZES
+        #
+    except:
+
+        ikkwd = 'INS#_SECTOR_SIZE'
+        ikkwd = cspice.repmi(ikkwd, '#', sensid)
+
+        try:
+            room = int(secnum[0]*secnum[1]*2)
+            secsiz = cspice.gdpool(ikkwd, 0, room)
+        except:
+            print('Loaded IK does not contain {}.'.format(ikkwd))
+            return sensnm, sensid, secnum, secsiz, secsis, '', []
+
+    #
+    # Third, retrieve the frame in which sector view direction are
+    # defined. It is provided in the INS-NNNNNN_FRAME keyword.
+    #
+    ikkwd = 'INS#_FRAME'
+    ikkwd = cspice.repmi(ikkwd, '#', sensid)
+
+    try:
+        secfrm = cspice.gcpool(ikkwd, 0, 1)
+    except:
+        print('Loaded IK does not contain {}.'.format(ikkwd))
+        return sensnm, sensid, secnum, secsiz, secsis, secfrm, []
+
+    #
+    # Last, retrieve the sector view directions provided in the
+    # INS-NNNNNN_SECTOR_DIRECTIONS keyword.
+    #
+    ikkwd = 'INS#_SECTOR_DIRECTIONS'
+    ikkwd = cspice.repmi(ikkwd, '#', sensid)
+
+    try:
+        room = int(secnum[0]*secnum[1]*3)
+        secdir = cspice.gdpool(ikkwd, 0, room)
+
+
+        #
+        # Re-arrange the secdir list into a list of lists in which each
+        # individual list is a sector direction vector
+        #
+        secdir_list = []
+        secdir_line = []
+        count = 0
+        for element in secdir:  # Start counting from 1
+            secdir_line.append(element)
+            count += 1
+            if count % 3 == 0:
+                secdir_list.append(secdir_line)
+                secdir_line = []
+                count = 0
+        secdir = secdir_list
+
+    except:
+        print('Loaded IK does not contain {}.'.format(ikkwd))
+        return sensnm, sensid, secnum, secsiz, secsis, secfrm, []
+
+    return sensnm, sensid, secnum, secsiz, secsis, secfrm, secdir
+
+
+def sensor_with_sectors(sensor, mk, fk=''):
+
+    #
+    # Load ROS FK and RPC IK files.
+    #
+    cspice.furnsh(mk)
+    if fk:
+        cspice.furnsh(fk)
+
+    #
+    # Get ELS IK data.
+    #
+    sensnm, sensid, secnum, secsiz, secsis, secfrm, secdir = read_ik_with_sectors(sensor)
+
+    #
+    # Report ELS IK data.
+    #
+    print('SENSOR NAIF NAME:  {}'.format(sensnm))
+    print('SENSOR NAIF ID:    {}'.format(sensid))
+    print('NUMBER OF SECTORS: {}'.format(secnum))
+
+    #if secsiz != 0:
+    #    print('SECTOR SIZE:       {}'.format(secsiz))
+    #else:
+    #    print('SECTOR SIZES:      {}'.format(secsis))
+
+
+    print('REFERENCE FRAME:   {}'.format(secfrm))
+    print('SECTOR DIRECTIONS: {}'.format(secdir))
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+
+    for element in secdir:
+
+        x = element[0]
+        y = element[1]
+        z = element[2]
+
+        ax.scatter(x, y, z, c='r', marker='o')
+
+    ax.set_xlabel('X Axis')
+    ax.set_ylabel('Y Axis')
+    ax.set_zlabel('Z Axis')
+
+    ax.autoscale(tight=True)
+
+    plt.show()
+
+    return
+
+def hga_angles(sc, time):
+
+
+    hga_zero_frame = sc + '_HGA_ZERO'
+    hga_el_frame = sc + '_HGA_EL'
+    hga_az_frame = sc + '_HGA_AZ'
+
+    sc_id = cspice.bodn2c(sc)
+
+    try:
+
+
+        cmat = cspice.pxform(hga_zero_frame, hga_el_frame, time )
+
+        # Computing the angular separation between two vectors results
+        # into a positive value. Because of that we use the sign of the
+        # third component of the vector (z component) to determine whether
+        # if the SA. That sign is used in the factor variable
+        #
+        #        ^ - - ^  SA+/-Y (vec)
+        #        |    /
+        # vec[0] |   /
+        #  (>0)  |  /
+        #        | /)
+        #        |-----------------------> SA+/-Y_ZERO
+        #        | \)
+        # vec'[0]|  \
+        #  (<0)  |   \
+        #        |    \
+        #        v - - v  SA+/-Y' (vec')
+
+        vec = cspice.mxv(cmat,[1,0,0])
+
+        (sun_vec, lt) = cspice.spkezp(sc_id, time, sa_frame, 'NONE', 10)
+
+        saa = np.rad2deg(cspice.vsep(vec, sun_vec))
+
+    except:
+
+        #print('No CK information for {}'.format(time))
+        saa = 0
+
+    return(hga_az, hga_el)
+
+
+def solar_aspect_angle(sc, sa_frame, time):
+
+
+    sa_zero_frame = sa_frame + '_ZERO'
+    sc_id = cspice.bodn2c(sc)
+
+    try:
+
+        # cmat is a rotation matrix that transforms the components of a
+        # vector expressed in the frame specified by `ref' (Solar Array
+        # Zero reference frame) to components expressed in the frame tied
+        # to the instrument (Solar Array frame) at a given time.
+        #
+        # Thus, if a vector v has components x,y,z in the `ref'
+        # reference frame, then v has components x',y',z' in the
+        # instrument fixed frame at time `clkout':
+        #
+        #      [ x' ]     [          ] [ x ]
+        #      | y' |  =  |   cmat   | | y |
+        #      [ z' ]     [          ] [ z ]
+
+        cmat = cspice.pxform(sa_zero_frame, sa_frame, time )
+
+        # Computing the angular separation between two vectors results
+        # into a positive value. Because of that we use the sign of the
+        # third component of the vector (z component) to determine whether
+        # if the SA. That sign is used in the factor variable
+        #
+        #        ^ - - ^  SA+/-Y (vec)
+        #        |    /
+        # vec[0] |   /
+        #  (>0)  |  /
+        #        | /)
+        #        |-----------------------> SA+/-Y_ZERO
+        #        | \)
+        # vec'[0]|  \
+        #  (<0)  |   \
+        #        |    \
+        #        v - - v  SA+/-Y' (vec')
+
+        vec = cspice.mxv(cmat,[1,0,0])
+
+        (sun_vec, lt) = cspice.spkezp(sc_id, time, sa_frame, 'NONE', 10)
+
+        saa = np.rad2deg(cspice.vsep(vec, sun_vec))
+
+    except:
+
+        #print('No CK information for {}'.format(time))
+        saa = 0
+
+    return(saa)
+
+
+def solar_array_angle(sa_frame, time):
+
+
+    sa_zero_frame = sa_frame + '_ZERO'
+
+    try:
+
+        # cmat is a rotation matrix that transforms the components of a
+        # vector expressed in the frame specified by `ref' (Solar Array
+        # Zero reference frame) to components expressed in the frame tied
+        # to the instrument (Solar Array frame) at a given time.
+        #
+        # Thus, if a vector v has components x,y,z in the `ref'
+        # reference frame, then v has components x',y',z' in the
+        # instrument fixed frame at time `clkout':
+        #
+        #      [ x' ]     [          ] [ x ]
+        #      | y' |  =  |   cmat   | | y |
+        #      [ z' ]     [          ] [ z ]
+
+        cmat = cspice.pxform(sa_zero_frame, sa_frame, time )
+
+        # Computing the angular separation between two vectors results
+        # into a positive value. Because of that we use the sign of the
+        # third component of the vector (z component) to determine whether
+        # if the SA. That sign is used in the factor variable
+        #
+        #        ^ - - ^  SA+/-Y (vec)
+        #        |    /
+        # vec[0] |   /
+        #  (>0)  |  /
+        #        | /)
+        #        |-----------------------> SA+/-Y_ZERO
+        #        | \)
+        # vec'[0]|  \
+        #  (<0)  |   \
+        #        |    \
+        #        v - - v  SA+/-Y' (vec')
+
+        factor = 1
+
+        vec = cspice.mxv(cmat,[1,0,0])
+        if vec[2] > 0:
+            factor = -1.
+
+        sa_ang = np.rad2deg(cspice.vsep( vec,[1,0,0])) * factor
+
+    except:
+
+        #print('No CK information for {}'.format(time))
+        sa_ang = 0
+
+    return(sa_ang)
+
+
+#def sakerval(mission, metakernel, sa_kernel, csv_telemetry_file, tolerance):
+#        ck_minus_y = []
+#        sa_dataframe = pd.DataFrame(index=time_set, columns=('UTC','HK +Y','HK -Y', 'CK +Y', 'CK -Y', 'DIFF +Y', 'DIFF -Y'))
+#
+#        cspice.furnsh(metakernel)
+#        cspice.furnsh(sa_kernel)
+#
+#        with open(csv_telemetry_file, 'r') as csvfile:
+#
+#            sa_dataframe = pd.read_csv(csvfile, sep=',', names=['UTC','HK +Y','HK -Y'], header=None)
+#
+#            for date in list(sa_dataframe['UTC']):
+#                time_set.append(spice.utc2et(date))
+#
+#            sa_dataframe.index = time_set
+#
+#
+#        sa_frame = mission + '_SA+Y'
+#        sa_dataframe['CK +Y'] = solar_array_angle(mission=mission, sa_frame=sa_frame, time_set=time_set)
+#
+#        sa_frame = mission + '_SA-Y'
+#        sa_dataframe['CK -Y'] = solar_array_angle(mission=mission, sa_frame=sa_frame, time_set=time_set)
+#
+#        sa_dataframe['DIFF +Y'] = abs(sa_dataframe['CK +Y']-sa_dataframe['HK +Y'])
+#        sa_dataframe['DIFF -Y'] = abs(sa_dataframe['CK -Y']-sa_dataframe['HK -Y'])
+#
+#        sa_dataframe[['DIFF +Y', 'DIFF -Y']].plot();
+#        # TODO: find a consistent way to do such heavy plots
+#        plt.show()
+#        #print(sa_dataframe[['DIFF +Y', 'DIFF -Y']])
+#
+#        sa_plus_y_coarse_points = list()
+#        sa_minus_y_coarse_points = list()
+#
+#        sa_plus_y_invalid_periods = list()
+#        sa_minus_y_invalid_periods = list()
+#        sa_minus_y_invalid_time = list()
+#        sa_plus_y_invalid_time = list()
+#
+#        # This boolean is used as the result of the function
+#        validated = 1
+#
+#        # The validity boolean is created to define the time windows for the invalid period
+#        val_bool_my = 1
+#        val_bool_py = 1
+#
+#        for element in sa_dataframe.index:
+#
+#            if val_bool_py == 0:
+#                #sa_plus_y_coarse_points.append([sa_dataframe['UTC'].loc[element],sa_dataframe['DIFF +Y'].loc[element]])
+#
+#                if sa_dataframe['DIFF +Y'].loc[element] < tolerance:
+#
+#                    inval_py_finish = sa_dataframe['UTC'].loc[element]
+#                    et_inval_py_finish = element
+#
+#                    sa_plus_y_invalid_periods.append([inval_py_start,inval_py_finish])
+#                    sa_plus_y_invalid_time.append(et_inval_py_finish-et_inval_py_start)
+#
+#                    val_bool_py = 1
+#
+#            else:
+#                # loc method is used to sort the dataframe using the index
+#                if sa_dataframe['DIFF +Y'].loc[element] > tolerance:
+#
+#                    #sa_plus_y_coarse_points.append([sa_dataframe['UTC'].loc[element],sa_dataframe['DIFF +Y'].loc[element]])
+#
+#                    validated = 0
+#                    val_bool_py = 0
+#                    inval_py_start = sa_dataframe['UTC'].loc[element]
+#                    et_inval_py_start = element
+#
+#            if val_bool_my == 0:
+#                #sa_minus_y_coarse_points.append([sa_dataframe['UTC'].loc[element],sa_dataframe['DIFF -Y'].loc[element]])
+#
+#                if sa_dataframe['DIFF -Y'].loc[element] < tolerance:
+#
+#                    inval_my_finish = sa_dataframe['UTC'].loc[element]
+#                    et_inval_my_finish = element
+#
+#                    sa_minus_y_invalid_periods.append([inval_my_start,inval_my_finish])
+#                    sa_minus_y_invalid_time.append(et_inval_my_finish-et_inval_my_start)
+#
+#
+#                    val_bool_my = 1
+#
+#            else:
+#                # loc method is used to sort the dataframe using the index
+#                if sa_dataframe['DIFF -Y'].loc[element] > tolerance:
+#
+#                    #sa_minus_y_coarse_points.append([sa_dataframe['UTC'].loc[element],sa_dataframe['DIFF -Y'].loc[element]])
+#
+#                    validated = 0
+#                    val_bool_my = 0
+#                    inval_my_start = sa_dataframe['UTC'].loc[element]
+#                    et_inval_my_start = element
+#
+#        print(validated)
+#
+#        if validated == 0:
+#
+#            print('SA ck kernel validation failed with tolerance '+str(tolerance))
+#            print('SA+Y Ang diff')
+#            print(len(sa_plus_y_invalid_periods))
+#            print(sum(sa_minus_y_invalid_time)/(60.*60.))
+#            print('SA-Y Ang diff')
+#            print(len(sa_minus_y_invalid_periods))
+#            print(sum(sa_minus_y_invalid_time)/(60.*60.))
+#
+#            print('The maximum DIFF -Y error is '+str(sa_dataframe['DIFF -Y'].max()))
+#            print('The mean DIFF -Y error is '+str(sa_dataframe['DIFF -Y'].mean()))
+#
+#            print('The maximum DIFF +Y error is '+str(sa_dataframe['DIFF +Y'].max()))
+#            print('The mean DIFF +Y error is '+str(sa_dataframe['DIFF +Y'].mean()))
+#
+#
+#            #TODO: We could also create a subset of the median of the coarse points. Out of the scope
+#
+#            #print('SA ck kernel validation failed with tolerance '+str(tolerance))
+#            #print('Check the following datapoints:')
+#            #print('-----------------------------------------------')
+#            #print('| UTC                       |   SA+Y Ang diff |')
+#            #print('-----------------------------------------------')
+#            #for element in sa_plus_y_coarse_points:
+#            #    print(str(element[0])+'   '+str(element[1]))
+#            #print('-----------------------------------------------')
+#            #print('| UTC                       |   SA-Y Ang diff  |')
+#            #print('-----------------------------------------------')
+#            #for element in sa_plus_y_coarse_points:
+#            #    print(str(element[0])+'   '+str(element[1]))
+#
+#        else:
+#            print('SA ck kernel validation successful')
+#
+#        return(validated)

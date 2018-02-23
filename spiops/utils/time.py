@@ -175,9 +175,8 @@ def cov_int(object_cov, object_id, kernel, time_format='TDB',
     for element in number_of_intervals:
         et_boundaries = cspice.wnfetd(object_cov, element)
 
-        if time_format == 'CAL':
+        if time_format == 'CAL' or time_format == 'UTC':
             boundaries = et2cal(et_boundaries, format=time_format)
-
         else:
             boundaries = et_boundaries
 

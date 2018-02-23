@@ -40,6 +40,9 @@ class Body(object):
         if item in ['altitude', 'distance', 'zaxis_target_angle']:
             self.__Geometry()
             return object.__getattribute__(self, item)
+        elif item in ['sa_ang_p', 'sa_ang_n', 'saa']:
+            self.__Structures()
+            return object.__getattribute__(self, item)
         else:
             return object.__getattribute__(self, item)
 
@@ -123,6 +126,55 @@ class Body(object):
         return
 
 
+    def __Structures(self):
+
+        #if self.geometry_flag is True and \
+        #                self.time.window.all() == self.previous_tw.all():
+        #    return
+
+        time = self.time
+        import spiops as spiops
+
+        #
+        # Solar Arrays
+        #
+        sa_ang_p_list = []
+        sa_ang_n_list = []
+        saa_list = []
+
+
+
+        for et in time.window:
+
+            #
+            # Of course we need to include all possible cases including only one
+            # Solar Array
+            #
+            sa_ang_p = spiops.solar_array_angle('TGO_SA+Z', et)
+            sa_ang_n = spiops.solar_array_angle('TGO_SA+Z', et)
+            saa = spiops.solar_aspect_angle('TGO','TGO_SA+Z', et)
+
+            sa_ang_p_list.append(sa_ang_p)
+            sa_ang_n_list.append(sa_ang_n)
+            saa_list.append(saa)
+
+            #
+            # HGA mechanisms
+            #
+
+
+
+        self.sa_ang_p = sa_ang_p_list
+        self.sa_ang_n = sa_ang_n_list
+        self.saa = saa_list
+
+
+        self.structures_flag = True
+        self.previous_tw = self.time.window
+
+        return
+
+
     def __Geometry(self):
 
         #if self.geometry_flag is True and \
@@ -201,12 +253,22 @@ class Body(object):
                                                    'J2000', time.abcorr,
                                                    self.name)
             obs_zaxis = [0,0,1]
-            matrix = cspice.pxform(self.frame, 'J2000', et)
-            vecout = cspice.mxv(matrix, obs_zaxis)
 
-            zax_target_angle = cspice.vsep(vecout, obs_tar)
-            zax_target_angle *= cspice.dpr()
-            zaxis_target_angle.append(zax_target_angle)
+            #
+            # We need to account for when there is no CK attitude available.
+            #
+            try:
+                matrix = cspice.pxform(self.frame, 'J2000', et)
+                vecout = cspice.mxv(matrix, obs_zaxis)
+
+                zax_target_angle = cspice.vsep(vecout, obs_tar)
+                zax_target_angle *= cspice.dpr()
+                zaxis_target_angle.append(zax_target_angle)
+            #
+            # TODO: Include a thorough error message here
+            #
+            except:
+                zaxis_target_angle.append(0.0)
 
 
         self.distance = distance
@@ -227,6 +289,7 @@ class Body(object):
         import spiops.utils.time as utime
 
         self.__Geometry()
+        self.__Structures()
 
         if not title:
             title ='{} {}'.format(self.name, yaxis).title()
