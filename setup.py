@@ -55,6 +55,5 @@ setup(
     include_package_data=False,
 
     # Dependent packages (distributions)
-    install_requires=['spiceypy'],
     python_requires='>=3',
 )

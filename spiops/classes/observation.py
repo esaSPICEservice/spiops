@@ -54,9 +54,12 @@ class TimeWindow(object):
         if self.isInit:
             return
 
+        if self.start >= self.finish:
+            return
+
         if not self.res or self.res >= (self.finish - self.start):
 
-            print('No resolu(tion provided or resolution is bigger than the '
+            print('No resolution provided or resolution is bigger than the '
                   'time interval. Setting to default')
 
             self.res = (self.finish - self.start)/10.0

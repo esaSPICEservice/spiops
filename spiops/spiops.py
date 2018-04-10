@@ -1668,105 +1668,107 @@ def sensor_with_sectors(sensor, mk, fk=''):
 def hga_angles(sc, time):
 
 
-    hga_zero_frame = sc + '_HGA_ZERO'
+    hga_zero_frame = sc+ '_SPACECRAFT'
     hga_el_frame = sc + '_HGA_EL'
     hga_az_frame = sc + '_HGA_AZ'
+    hga_frame = sc + '_HGA'
 
     sc_id = cspice.bodn2c(sc)
 
     try:
 
+        cmat = cspice.pxform(hga_zero_frame, hga_el_frame, time)
+        vec = cspice.mxv(cmat,[0,1,0])
 
-        cmat = cspice.pxform(hga_zero_frame, hga_el_frame, time )
+        factor = 1
+        vec = cspice.mxv(cmat,[0,1,0])
+        if vec[2] > 0:
+            factor = -1.
 
-        # Computing the angular separation between two vectors results
-        # into a positive value. Because of that we use the sign of the
-        # third component of the vector (z component) to determine whether
-        # if the SA. That sign is used in the factor variable
-        #
-        #        ^ - - ^  SA+/-Y (vec)
-        #        |    /
-        # vec[0] |   /
-        #  (>0)  |  /
-        #        | /)
-        #        |-----------------------> SA+/-Y_ZERO
-        #        | \)
-        # vec'[0]|  \
-        #  (<0)  |   \
-        #        |    \
-        #        v - - v  SA+/-Y' (vec')
+        hga_el = np.rad2deg(cspice.vsep(vec,[0,1,0])) * factor
 
+
+        cmat = cspice.pxform(hga_az_frame, hga_el_frame, time)
         vec = cspice.mxv(cmat,[1,0,0])
 
-        (sun_vec, lt) = cspice.spkezp(sc_id, time, sa_frame, 'NONE', 10)
+        factor = 1
+        vec = cspice.mxv(cmat,[1,0,0])
+        if vec[2] > 0:
+            factor = -1.
 
-        saa = np.rad2deg(cspice.vsep(vec, sun_vec))
+        hga_az = np.rad2deg(cspice.vsep(vec,[1,0,0])) * factor
+
+
+        (earth_vec, lt) = cspice.spkezp(399, time, hga_frame, 'NONE', sc_id)
+        hga_earth = np.rad2deg(cspice.vsep([0,0,1], earth_vec))
+
 
     except:
+        hga_earth = 0
+        hga_az = 0
+        hga_el = 0
 
-        #print('No CK information for {}'.format(time))
-        saa = 0
-
-    return(hga_az, hga_el)
-
-
-def solar_aspect_angle(sc, sa_frame, time):
+    return([hga_el, hga_az], hga_earth)
 
 
-    sa_zero_frame = sa_frame + '_ZERO'
+def solar_aspect_angles(sc, time):
+
+    sa_frame = ''
+
+    if sc == 'TGO':
+
+        sa_p_frame = sc+'_SA+Z'
+        sa_n_frame = sc+'_SA-Z'
+
+    elif sc == 'MPO':
+
+        sa_frame = sc+'_SA'
+
+    else:
+
+        sa_p_frame = sc+'_SA+Y'
+        sa_n_frame = sc+'_SA-Y'
+
+
     sc_id = cspice.bodn2c(sc)
 
     try:
 
-        # cmat is a rotation matrix that transforms the components of a
-        # vector expressed in the frame specified by `ref' (Solar Array
-        # Zero reference frame) to components expressed in the frame tied
-        # to the instrument (Solar Array frame) at a given time.
-        #
-        # Thus, if a vector v has components x,y,z in the `ref'
-        # reference frame, then v has components x',y',z' in the
-        # instrument fixed frame at time `clkout':
-        #
-        #      [ x' ]     [          ] [ x ]
-        #      | y' |  =  |   cmat   | | y |
-        #      [ z' ]     [          ] [ z ]
+        # If there is only one Solar Array e.g.: BEPICOLOMBO MPO
+        if sa_frame:
 
-        cmat = cspice.pxform(sa_zero_frame, sa_frame, time )
+            (sun_vec, lt) = cspice.spkezp(10, time, sa_frame, 'NONE', sc_id)
+            saa_sa = np.rad2deg(cspice.vsep([1, 0, 0], sun_vec))
 
-        # Computing the angular separation between two vectors results
-        # into a positive value. Because of that we use the sign of the
-        # third component of the vector (z component) to determine whether
-        # if the SA. That sign is used in the factor variable
-        #
-        #        ^ - - ^  SA+/-Y (vec)
-        #        |    /
-        # vec[0] |   /
-        #  (>0)  |  /
-        #        | /)
-        #        |-----------------------> SA+/-Y_ZERO
-        #        | \)
-        # vec'[0]|  \
-        #  (<0)  |   \
-        #        |    \
-        #        v - - v  SA+/-Y' (vec')
+        else:
 
-        vec = cspice.mxv(cmat,[1,0,0])
+            (sun_vec, lt) = cspice.spkezp(10, time, sa_p_frame, 'NONE', sc_id)
+            saa_sa_p = np.rad2deg(cspice.vsep([1, 0, 0], sun_vec))
 
-        (sun_vec, lt) = cspice.spkezp(sc_id, time, sa_frame, 'NONE', 10)
+            (sun_vec, lt) = cspice.spkezp(10, time, sa_n_frame, 'NONE', sc_id)
+            saa_sa_n = np.rad2deg(cspice.vsep([1, 0, 0], sun_vec))
 
-        saa = np.rad2deg(cspice.vsep(vec, sun_vec))
+        (sun_vec, lt) = cspice.spkezp(10, time, sc+'_SPACECRAFT', 'NONE', sc_id)
+        saa_sc_x = np.rad2deg(cspice.vsep([1, 0, 0], sun_vec))
+        saa_sc_y = np.rad2deg(cspice.vsep([0, 1, 0], sun_vec))
+        saa_sc_z = np.rad2deg(cspice.vsep([0, 0, 1], sun_vec))
 
     except:
 
         #print('No CK information for {}'.format(time))
-        saa = 0
+        saa_sa, saa_sa_p, saa_sa_n, saa_sc_x, saa_sc_y, saa_sc_z = 0,0,0,0,0,0
 
-    return(saa)
+    if sa_frame:
+
+        return([saa_sa], [saa_sc_x, saa_sc_y, saa_sc_z])
+
+    else:
+
+        return ([saa_sa_p, saa_sa_n], [saa_sc_x, saa_sc_y, saa_sc_z])
 
 
 def solar_array_angle(sa_frame, time):
 
-
     sa_zero_frame = sa_frame + '_ZERO'
 
     try:
@@ -1784,7 +1786,8 @@ def solar_array_angle(sa_frame, time):
         #      | y' |  =  |   cmat   | | y |
         #      [ z' ]     [          ] [ z ]
 
-        cmat = cspice.pxform(sa_zero_frame, sa_frame, time )
+        # We used the inverse transform matrix
+        cmat = cspice.pxform(sa_frame, sa_zero_frame, time)
 
         # Computing the angular separation between two vectors results
         # into a positive value. Because of that we use the sign of the
@@ -1803,154 +1806,33 @@ def solar_array_angle(sa_frame, time):
         #        |    \
         #        v - - v  SA+/-Y' (vec')
 
+        #sa_ang = cspice.m2eul(cmat, 3, 2, 1)
+        #sa_ang = sa_ang[1] * 180.0/math.pi
         factor = 1
 
         vec = cspice.mxv(cmat,[1,0,0])
         if vec[2] > 0:
             factor = -1.
-
-        sa_ang = np.rad2deg(cspice.vsep( vec,[1,0,0])) * factor
+        #
+        sa_ang = np.rad2deg(cspice.vsep([1,0,0], vec,)) * factor
 
     except:
 
-        #print('No CK information for {}'.format(time))
+        print('No CK information for {}'.format(time))
         sa_ang = 0
 
     return(sa_ang)
 
 
-#def sakerval(mission, metakernel, sa_kernel, csv_telemetry_file, tolerance):
-#        ck_minus_y = []
-#        sa_dataframe = pd.DataFrame(index=time_set, columns=('UTC','HK +Y','HK -Y', 'CK +Y', 'CK -Y', 'DIFF +Y', 'DIFF -Y'))
+def structures_position(sc_frame, kernel, time):
+
+    return
+
+
+
+#    except:
 #
-#        cspice.furnsh(metakernel)
-#        cspice.furnsh(sa_kernel)
+#        print('No CK information for {}'.format(time))
+#        sa_ang = 0
 #
-#        with open(csv_telemetry_file, 'r') as csvfile:
-#
-#            sa_dataframe = pd.read_csv(csvfile, sep=',', names=['UTC','HK +Y','HK -Y'], header=None)
-#
-#            for date in list(sa_dataframe['UTC']):
-#                time_set.append(spice.utc2et(date))
-#
-#            sa_dataframe.index = time_set
-#
-#
-#        sa_frame = mission + '_SA+Y'
-#        sa_dataframe['CK +Y'] = solar_array_angle(mission=mission, sa_frame=sa_frame, time_set=time_set)
-#
-#        sa_frame = mission + '_SA-Y'
-#        sa_dataframe['CK -Y'] = solar_array_angle(mission=mission, sa_frame=sa_frame, time_set=time_set)
-#
-#        sa_dataframe['DIFF +Y'] = abs(sa_dataframe['CK +Y']-sa_dataframe['HK +Y'])
-#        sa_dataframe['DIFF -Y'] = abs(sa_dataframe['CK -Y']-sa_dataframe['HK -Y'])
-#
-#        sa_dataframe[['DIFF +Y', 'DIFF -Y']].plot();
-#        # TODO: find a consistent way to do such heavy plots
-#        plt.show()
-#        #print(sa_dataframe[['DIFF +Y', 'DIFF -Y']])
-#
-#        sa_plus_y_coarse_points = list()
-#        sa_minus_y_coarse_points = list()
-#
-#        sa_plus_y_invalid_periods = list()
-#        sa_minus_y_invalid_periods = list()
-#        sa_minus_y_invalid_time = list()
-#        sa_plus_y_invalid_time = list()
-#
-#        # This boolean is used as the result of the function
-#        validated = 1
-#
-#        # The validity boolean is created to define the time windows for the invalid period
-#        val_bool_my = 1
-#        val_bool_py = 1
-#
-#        for element in sa_dataframe.index:
-#
-#            if val_bool_py == 0:
-#                #sa_plus_y_coarse_points.append([sa_dataframe['UTC'].loc[element],sa_dataframe['DIFF +Y'].loc[element]])
-#
-#                if sa_dataframe['DIFF +Y'].loc[element] < tolerance:
-#
-#                    inval_py_finish = sa_dataframe['UTC'].loc[element]
-#                    et_inval_py_finish = element
-#
-#                    sa_plus_y_invalid_periods.append([inval_py_start,inval_py_finish])
-#                    sa_plus_y_invalid_time.append(et_inval_py_finish-et_inval_py_start)
-#
-#                    val_bool_py = 1
-#
-#            else:
-#                # loc method is used to sort the dataframe using the index
-#                if sa_dataframe['DIFF +Y'].loc[element] > tolerance:
-#
-#                    #sa_plus_y_coarse_points.append([sa_dataframe['UTC'].loc[element],sa_dataframe['DIFF +Y'].loc[element]])
-#
-#                    validated = 0
-#                    val_bool_py = 0
-#                    inval_py_start = sa_dataframe['UTC'].loc[element]
-#                    et_inval_py_start = element
-#
-#            if val_bool_my == 0:
-#                #sa_minus_y_coarse_points.append([sa_dataframe['UTC'].loc[element],sa_dataframe['DIFF -Y'].loc[element]])
-#
-#                if sa_dataframe['DIFF -Y'].loc[element] < tolerance:
-#
-#                    inval_my_finish = sa_dataframe['UTC'].loc[element]
-#                    et_inval_my_finish = element
-#
-#                    sa_minus_y_invalid_periods.append([inval_my_start,inval_my_finish])
-#                    sa_minus_y_invalid_time.append(et_inval_my_finish-et_inval_my_start)
-#
-#
-#                    val_bool_my = 1
-#
-#            else:
-#                # loc method is used to sort the dataframe using the index
-#                if sa_dataframe['DIFF -Y'].loc[element] > tolerance:
-#
-#                    #sa_minus_y_coarse_points.append([sa_dataframe['UTC'].loc[element],sa_dataframe['DIFF -Y'].loc[element]])
-#
-#                    validated = 0
-#                    val_bool_my = 0
-#                    inval_my_start = sa_dataframe['UTC'].loc[element]
-#                    et_inval_my_start = element
-#
-#        print(validated)
-#
-#        if validated == 0:
-#
-#            print('SA ck kernel validation failed with tolerance '+str(tolerance))
-#            print('SA+Y Ang diff')
-#            print(len(sa_plus_y_invalid_periods))
-#            print(sum(sa_minus_y_invalid_time)/(60.*60.))
-#            print('SA-Y Ang diff')
-#            print(len(sa_minus_y_invalid_periods))
-#            print(sum(sa_minus_y_invalid_time)/(60.*60.))
-#
-#            print('The maximum DIFF -Y error is '+str(sa_dataframe['DIFF -Y'].max()))
-#            print('The mean DIFF -Y error is '+str(sa_dataframe['DIFF -Y'].mean()))
-#
-#            print('The maximum DIFF +Y error is '+str(sa_dataframe['DIFF +Y'].max()))
-#            print('The mean DIFF +Y error is '+str(sa_dataframe['DIFF +Y'].mean()))
-#
-#
-#            #TODO: We could also create a subset of the median of the coarse points. Out of the scope
-#
-#            #print('SA ck kernel validation failed with tolerance '+str(tolerance))
-#            #print('Check the following datapoints:')
-#            #print('-----------------------------------------------')
-#            #print('| UTC                       |   SA+Y Ang diff |')
-#            #print('-----------------------------------------------')
-#            #for element in sa_plus_y_coarse_points:
-#            #    print(str(element[0])+'   '+str(element[1]))
-#            #print('-----------------------------------------------')
-#            #print('| UTC                       |   SA-Y Ang diff  |')
-#            #print('-----------------------------------------------')
-#            #for element in sa_plus_y_coarse_points:
-#            #    print(str(element[0])+'   '+str(element[1]))
-#
-#        else:
-#            print('SA ck kernel validation successful')
-#
-#        return(validated)
+#    return(sa_ang)

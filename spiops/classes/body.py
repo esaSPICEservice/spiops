@@ -1,13 +1,6 @@
 import spiceypy as cspice
-from mpl_toolkits.mplot3d import Axes3D
-import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib as mpl
 import numpy as np
-from bokeh.plotting import figure, output_file, output_notebook, show
-from bokeh.models import HoverTool
-from bokeh.models import DatetimeTickFormatter
-#from pyops import time as pytime
+from spiops.utils import utils
 
 
 
@@ -37,10 +30,11 @@ class Body(object):
 
     def __getattribute__(self, item):
 
-        if item in ['altitude', 'distance', 'zaxis_target_angle']:
+        if item in ['altitude', 'distance', 'zaxis_target_angle', 'zaxis_earth_angle']:
             self.__Geometry()
             return object.__getattribute__(self, item)
-        elif item in ['sa_ang_p', 'sa_ang_n', 'saa']:
+        elif item in ['sa_ang_p', 'sa_ang_n', 'saa_sa', 'saa_sc', 'hga_earth',
+                      'hga_el_az']:
             self.__Structures()
             return object.__getattribute__(self, item)
         else:
@@ -143,7 +137,6 @@ class Body(object):
         saa_list = []
 
 
-
         for et in time.window:
 
             #
@@ -152,7 +145,7 @@ class Body(object):
             #
             sa_ang_p = spiops.solar_array_angle('TGO_SA+Z', et)
             sa_ang_n = spiops.solar_array_angle('TGO_SA+Z', et)
-            saa = spiops.solar_aspect_angle('TGO','TGO_SA+Z', et)
+            saa = spiops.solar_aspect_angles('TGO','TGO_SA+Z', et)
 
             sa_ang_p_list.append(sa_ang_p)
             sa_ang_n_list.append(sa_ang_n)
@@ -281,98 +274,30 @@ class Body(object):
         self.geometry_flag = True
         self.previous_tw = self.time.window
 
+        return
 
 
-    def Plot(self, yaxis, xaxis='time', title='', external_data=[],
+    def Plot(self, yaxis = 'distance', date_format='TDB', external_data=[],
              notebook=False):
-        import spiops.utils.utils as utils
-        import spiops.utils.time as utime
 
         self.__Geometry()
-        self.__Structures()
+        #self.__Structures()
 
-        if not title:
-            title ='{} {}'.format(self.name, yaxis).title()
-
-            html_file_name = 'plot_{}_{}_{}-{}.html'.format(xaxis, yaxis,
-                                                            self.name,
-                                                            self.target.name)
-
-            html_file_name = utils.valid_url(html_file_name)
-
+        if yaxis == 'sa_ang':
+            yaxis_name = ['sa_ang_p', 'sa_ang_n']
+        elif yaxis == 'saa_sc':
+            yaxis_name = ['saa_sc_x', 'saa_sc_y', 'saa_sc_z']
+        elif yaxis == 'saa_sa':
+            yaxis_name = ['saa_sa_p', 'saa_sa_n']
+        elif yaxis == 'hga_el_az':
+            yaxis_name = ['hga_el', 'hga_az']
         else:
-            title=title
+            yaxis_name = yaxis
 
-            html_file_name = title
-            html_file_name = utils.valid_url(html_file_name)
-
-        #TODO: Move this to the time object (convert to datatime)
-        # Function needs to be vectorised
-        #x = self.time.window
-        window_dt = []
-        window = self.time.window
-        for element in window:
-            window_dt.append(utime.et_to_datetime(element, 'TDB'))
-
-        x = window_dt
-        y = self.__getattribute__(yaxis)
-
-        if notebook:
-            output_notebook()
-            plot_width = 975
-            plot_height = 500
-        else:
-            output_file(html_file_name + '.html')
-            plot_width = 1000
-            plot_height = 1000
-
-        p = figure(title=title,
-                   plot_width=plot_width,
-                   plot_height=plot_height,
-                   x_axis_label='Date in TBD',
-                   y_axis_label='{}'.format(yaxis).title(),
-                   x_axis_type="datetime")
-
-        p.xaxis.formatter = DatetimeTickFormatter(
-                seconds=["%Y-%m-%d %H:%M:%S"],
-                minsec=["%Y-%m-%d %H:%M:%S"],
-                minutes=["%Y-%m-%d %H:%M:%S"],
-                hourmin=["%Y-%m-%d %H:%M:%S"],
-                hours=["%Y-%m-%d %H:%M:%S"],
-                days=["%Y-%m-%d %H:%M:%S"],
-                months=["%Y-%m-%d %H:%M:%S"],
-                years=["%Y-%m-%d %H:%M:%S"],
-        )
-
-        hover = HoverTool(
-                    tooltips=[ ('Date', '@x{0.000}'),
-                               ('{}'.format(yaxis).title(), '@y{0.000}'),
-                             ],
-                    formatters={'Date': 'numeral',
-                                '{}'.format(yaxis).title(): 'numeral',
-                               })
-
-        p.add_tools(hover)
-
-        if external_data:
-
-            window_dt = []
-            window = external_data[0]
-            for element in window:
-                window_dt.append(utime.et_to_datetime(element, 'TDB'))
-
-            x_ext = window_dt
-
-            #x_ext = external_data[0]
-            y_ext = external_data[1]
-            p.circle(x_ext, y_ext, legend='External Data', size=5, color='red')
-
-        # add a line renderer with legend and line thickness
-        p.line(x, y, legend='{}'.format(yaxis).title(), line_width=2)
-
-        # show the results
-        show(p)
-
+        utils.plot(self.time.window, self.__getattribute__(yaxis), notebook=notebook,
+                   external_data=external_data, yaxis_name=yaxis_name,
+                   mission = self.name, target = self.target.name,
+                   date_format=date_format)
 
         return
 
@@ -388,36 +313,7 @@ class Body(object):
 
         data = self.state_in_window
 
-        x, y, z, = [], [], []
-
-        for element in data:
-           x.append(element[0])
-           y.append(element[1])
-           z.append(element[2])
-
-
-        mpl.rcParams['legend.fontsize'] = 10
-
-        fig = plt.figure()
-        ax = fig.gca(projection='3d')
-        theta = np.linspace(-4 * np.pi, 4 * np.pi, 100)
-
-        ax.plot(x, y, z, label= self.name + ' w.r.t. ' + self.target.name +
-                ' on ' + self.trajectory_reference_frame + ' [km]')
-
-        ax.legend()
-
-        # Make data
-        u = np.linspace(0, 2 * np.pi, 360)
-        v = np.linspace(0, np.pi, 360)
-        x = self.target.radii[0] * np.outer(np.cos(u), np.sin(v))
-        y = self.target.radii[1] * np.outer(np.sin(u), np.sin(v))
-        z = self.target.radii[2] * np.outer(np.ones(np.size(u)), np.cos(v))
-
-        # Plot the surface
-        ax.plot_surface(x, y, z, color='r')
-
-        plt.show()
+        utils.plot3d(data, self, self.target)
 
         return
 

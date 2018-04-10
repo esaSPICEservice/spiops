@@ -1,6 +1,9 @@
 #from spiops import data as data
 from .time import cal2et
 from .time import et_to_datetime
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 from bokeh.plotting import figure, output_file, output_notebook, show
 from bokeh.models import HoverTool
@@ -74,35 +77,44 @@ def convert_OEM2data():
     return
 
 
-def plot(time_list, yaxis, yaxis_name='', title='', format='circle',
-         external_data=[], notebook=False):
+def plot(time_list, yaxis, yaxis_name='', title='', format='line',
+         external_data=[], notebook=False, mission='', target='',
+         date_format='TDB'):
+
+    if not isinstance(yaxis_name, list):
+        yaxis_name = [yaxis_name]
+        yaxis = [yaxis]
+
+
 
     if not title:
-        title ='{}'.format(yaxis).title()
+        title = '{} {}'.format(mission, yaxis_name).title()
 
-        html_file_name = 'plot_{}.html'.format(yaxis)
+        html_file_name = 'plot_{}_{}_{}-{}.html'.format('Time', yaxis_name,
+                                                        mission,
+                                                        target)
+
         html_file_name = valid_url(html_file_name)
 
     else:
-
-        title=title
+        title = title
 
         if ' ' in title:
             html_file_name = title.replace(' ', '_').lower()
         else:
             html_file_name = title
-
         html_file_name = valid_url(html_file_name)
 
+        # TODO: Move this to the time object (convert to datatime)
+        # Function needs to be vectorised
+        # x = self.time.window
     window_dt = []
     window = time_list
     for element in window:
-        window_dt.append(et_to_datetime(element, 'TDB'))
+        window_dt.append(et_to_datetime(element, date_format))
 
     x = window_dt
     y = yaxis
-    if not isinstance(y, list):
-        y = [y]
 
     if notebook:
         output_notebook()
@@ -116,19 +128,19 @@ def plot(time_list, yaxis, yaxis_name='', title='', format='circle',
     p = figure(title=title,
                 plot_width=plot_width,
                 plot_height=plot_height,
-                x_axis_label='Date in TBD',
+                x_axis_label='Date in {}'.format(date_format),
                 y_axis_label=title,
                 x_axis_type="datetime")
 
     p.xaxis.formatter = DatetimeTickFormatter(
-             seconds=["%Y-%m-%d %H:%M:%S"],
-             minsec=["%Y-%m-%d %H:%M:%S"],
-             minutes=["%Y-%m-%d %H:%M:%S"],
-             hourmin=["%Y-%m-%d %H:%M:%S"],
-             hours=["%Y-%m-%d %H:%M:%S"],
-             days=["%Y-%m-%d %H:%M:%S"],
-             months=["%Y-%m-%d %H:%M:%S"],
-             years=["%Y-%m-%d %H:%M:%S"],
+            seconds=["%Y-%m-%d %H:%M:%S"],
+            minsec=["%Y-%m-%d %H:%M:%S"],
+            minutes=["%Y-%m-%d %H:%M:%S"],
+            hourmin=["%Y-%m-%d %H:%M:%S"],
+            hours=["%Y-%m-%d %H:%M:%S"],
+            days=["%Y-%m-%d %H:%M:%S"],
+            months=["%Y-%m-%d %H:%M:%S"],
+            years=["%Y-%m-%d %H:%M:%S"],
     )
 
     hover = HoverTool(
@@ -148,14 +160,14 @@ def plot(time_list, yaxis, yaxis_name='', title='', format='circle',
         for element in window:
             window_dt.append(et_to_datetime(element, 'TDB'))
 
-
         x_ext = window_dt
         y_ext = external_data[1]
 
         if format == 'circle':
             p.circle(x_ext, y_ext, legend='External Data', size=5, color='red')
         elif format == 'line':
-            p.line(x_ext, y_ext, legend='External Data', line_width=2, color='red')
+            p.line(x_ext, y_ext, legend='External Data', line_width=2,
+                   color='red')
 
     # add a line renderer with legend and line thickness
     color_list = ['red', 'blue', 'green']
@@ -167,10 +179,46 @@ def plot(time_list, yaxis, yaxis_name='', title='', format='circle',
 
         elif format == 'line':
             p.line(x, element, legend=yaxis_name[index],
-                     line_width=2, color=color_list[index])
+                   line_width=2, color=color_list[index])
         index += 1
 
     # show the results
     show(p)
+
+    return
+
+
+def plot3d(data, observer, target):
+
+    x, y, z, = [], [], []
+
+    for element in data:
+       x.append(element[0])
+       y.append(element[1])
+       z.append(element[2])
+
+
+    mpl.rcParams['legend.fontsize'] = 10
+
+    fig = plt.figure()
+    ax = fig.gca(projection='3d')
+    theta = np.linspace(-4 * np.pi, 4 * np.pi, 100)
+
+    ax.plot(x, y, z, label= observer.name + ' w.r.t. ' + target +
+            ' on ' + observer.trajectory_reference_frame + ' [km]')
+
+    ax.legend()
+
+    # Make data
+    u = np.linspace(0, 2 * np.pi, 360)
+    v = np.linspace(0, np.pi, 360)
+    x = target.radii[0] * np.outer(np.cos(u), np.sin(v))
+    y = target.radii[1] * np.outer(np.sin(u), np.sin(v))
+    z = target.radii[2] * np.outer(np.ones(np.size(u)), np.cos(v))
+
+    # Plot the surface
+    ax.plot_surface(x, y, z, color='r')
+
+    plt.show()
 
     return
