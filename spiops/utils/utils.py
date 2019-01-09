@@ -8,6 +8,12 @@ import numpy as np
 from bokeh.plotting import figure, output_file, output_notebook, show
 from bokeh.models import HoverTool
 from bokeh.models import DatetimeTickFormatter
+from tempfile import mkstemp
+from shutil import move
+import os
+import glob
+from os import fdopen, remove, chmod, path
+
 
 def valid_url(html_file_name):
     """
@@ -77,14 +83,15 @@ def convert_OEM2data():
     return
 
 
-def plot(time_list, yaxis, yaxis_name='', title='', format='line',
+def plot(xaxis, yaxis, xaxis_name = 'Date', yaxis_name='', title='', format='line',
          external_data=[], notebook=False, mission='', target='',
-         date_format='TDB'):
+         date_format='TDB', plot_width=1000, plot_height=1000,
+         fill_color=[], fill_alpha=0, background_image=False,
+         line_width=2):
 
     if not isinstance(yaxis_name, list):
         yaxis_name = [yaxis_name]
         yaxis = [yaxis]
-
 
 
     if not title:
@@ -108,12 +115,17 @@ def plot(time_list, yaxis, yaxis_name='', title='', format='line',
         # TODO: Move this to the time object (convert to datatime)
         # Function needs to be vectorised
         # x = self.time.window
-    window_dt = []
-    window = time_list
-    for element in window:
-        window_dt.append(et_to_datetime(element, date_format))
 
-    x = window_dt
+    if xaxis_name == 'Date':
+        window_dt = []
+        window = xaxis
+        for element in window:
+            window_dt.append(et_to_datetime(element, date_format))
+
+        x = window_dt
+    else:
+        x = xaxis
+
     y = yaxis
 
     if notebook:
@@ -122,17 +134,24 @@ def plot(time_list, yaxis, yaxis_name='', title='', format='line',
         plot_height = 500
     else:
         output_file(html_file_name + '.html')
-        plot_width = 1000
-        plot_height = 1000
+        plot_width = plot_width
+        plot_height = plot_height
+
+    if xaxis_name == 'Date':
+        x_axis_type = "datetime"
+    else:
+        x_axis_type = "auto"
 
     p = figure(title=title,
                 plot_width=plot_width,
                 plot_height=plot_height,
-                x_axis_label='Date in {}'.format(date_format),
-                y_axis_label=title,
-                x_axis_type="datetime")
+                x_axis_label=xaxis_name,
+                y_axis_label=yaxis_name[0],
+                x_axis_type=x_axis_type)
 
-    p.xaxis.formatter = DatetimeTickFormatter(
+    if xaxis_name == 'Date':
+
+        p.xaxis.formatter = DatetimeTickFormatter(
             seconds=["%Y-%m-%d %H:%M:%S"],
             minsec=["%Y-%m-%d %H:%M:%S"],
             minutes=["%Y-%m-%d %H:%M:%S"],
@@ -144,10 +163,10 @@ def plot(time_list, yaxis, yaxis_name='', title='', format='line',
     )
 
     hover = HoverTool(
-                 tooltips=[ ('Date', '@x{0.000}'),
+                 tooltips=[ (xaxis_name, '@x{0.000}'),
                             (title, '@y{0.000}'),
                           ],
-                 formatters={'Date': 'numeral',
+                 formatters={xaxis_name: 'numeral',
                              title: 'numeral',
                             })
 
@@ -170,17 +189,23 @@ def plot(time_list, yaxis, yaxis_name='', title='', format='line',
                    color='red')
 
     # add a line renderer with legend and line thickness
-    color_list = ['red', 'blue', 'green']
+    color_list = ['red', 'green', 'blue']
     index = 0
+
+    if background_image:
+        p.image_url(url=['Mars_Viking_MDIM21_ClrMosaic_global_1024.jpg'], x=0, y=-90,
+                w=360, h=180, anchor="bottom_left", global_alpha=0.4)
+
     for element in y:
         if format == 'circle':
-            p.circle(x, element, legend=yaxis_name[index],
-                     size=2, color=color_list[index])
+            p.line(x, element, line_width=line_width, color=color_list[index])
+            p.circle(x, element, fill_color="white", size=8)
 
         elif format == 'line':
             p.line(x, element, legend=yaxis_name[index],
-                   line_width=2, color=color_list[index])
+                   line_width=line_width, color=color_list[index])
         index += 1
+
 
     # show the results
     show(p)
@@ -204,7 +229,7 @@ def plot3d(data, observer, target):
     ax = fig.gca(projection='3d')
     theta = np.linspace(-4 * np.pi, 4 * np.pi, 100)
 
-    ax.plot(x, y, z, label= observer.name + ' w.r.t. ' + target +
+    ax.plot(x, y, z, label= observer.name + ' w.r.t. ' + target.name +
             ' on ' + observer.trajectory_reference_frame + ' [km]')
 
     ax.legend()
@@ -222,3 +247,116 @@ def plot3d(data, observer, target):
     plt.show()
 
     return
+
+
+def replace(file_path, pattern, subst):
+
+    replaced = False
+
+    #Create temp file
+    fh, abs_path = mkstemp()
+    with fdopen(fh,'w') as new_file:
+        with open(file_path) as old_file:
+            for line in old_file:
+
+                updated_line = line.replace(pattern, subst)
+                new_file.write(updated_line)
+                #flag for replacing having happened
+                if updated_line != line:
+                    replaced = True
+
+    if replaced:
+        # Update the permissions
+        chmod(abs_path, 0o644)
+        #Move new file
+        if file_path.isupper():
+            move(abs_path, file_path.split('.')[0]+'_LOCAL.TM')
+        else:
+            move(abs_path, file_path.split('.')[0] + '_local.tm')
+
+        return True
+
+    return False
+
+
+def get_latest_kernel(kernel_type, path, pattern, dates=False,
+                      excluded_kernels=False):
+
+    kernels = []
+    kernel_path = os.path.join(path, kernel_type)
+
+    #
+    # Get the kernels of type ``type`` from the ``path``/``type`` directory.
+    #
+    kernels_with_path = glob.glob(kernel_path + '/' + pattern)
+
+    #
+    # Include kernels in former_versions if the directory exists except for
+    # meta-kernel generation
+    #
+    if os.path.isdir(kernel_path + '/former_versions'):
+        kernels_with_path += glob.glob(kernel_path + '/former_versions/' + pattern )
+
+
+    for kernel in kernels_with_path:
+        kernels.append(kernel.split('/')[-1])
+
+    #
+    # Put the kernels in order
+    #
+    kernels.sort()
+
+    #
+    # We remove the kernel if it is included in the excluded kernels list
+    #
+    if excluded_kernels:
+        for kernel in excluded_kernels:
+           if kernel in kernels:
+                kernels.remove(kernel)
+
+    if not dates:
+        #
+        # Return the latest kernel
+        #
+        return kernels.pop()
+    else:
+        #
+        # Return all the kernels with a given date
+        #
+        previous_kernel = ''
+        kernels_date = []
+        for kernel in kernels:
+            if previous_kernel and previous_kernel.upper().split('_V')[0] == kernel.upper().split('_V')[0]:
+                kernels_date.remove(previous_kernel)
+
+            previous_kernel = kernel
+            kernels_date.append(kernel)
+
+        return kernels_date
+
+def get_sc(kernel):
+    if 'ROSETTA' in kernel.upper():
+        return 'ROS'
+    if 'VENUS-EXPRESS' in kernel.upper():
+        return 'VEX'
+    if 'MARS-EXPRESS' in kernel.upper():
+        return 'MEX'
+    if 'EXOMARS2016' in kernel.upper():
+        if 'edm' in kernel:
+            return 'em16_edm'
+        else:
+            return 'em16_tgo'
+    if 'BEPICOLOMBO' in kernel.upper():
+        if 'mmo' in kernel:
+            return 'bc_mmo'
+        else:
+            return 'bc_mpo'
+    if 'JUICE' in kernel.upper():
+        return 'juice'
+    if 'SOLAR-ORBITER' in kernel.upper():
+        return 'solo'
+    if 'EXOMARSRSP' in kernel.upper():
+        if '_sp_' in kernel:
+            return 'emrsp_sp'
+        else:
+            return 'emrsp_rm'

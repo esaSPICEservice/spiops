@@ -1111,8 +1111,9 @@ def ckdiff_euler(mk, ck1, ck2, spacecraft_frame, target_frame, resolution, toler
     return
 
 
-def ckdiff(mk, ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance,
-           utc_start='', utc_finish='', plot_style='line', report=True,
+def ckdiff(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance,
+           utc_start='', utc_finish='', mk='', output='boresight', boresight = [0,0,1],
+           plot_style='line', report=True,
            notebook=False):
     """
     Provides time coverage summary for a given object for a given CK file.
@@ -1145,7 +1146,8 @@ def ckdiff(mk, ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance,
     :rtype: list
     """
 
-    cspice.furnsh(mk)
+    if mk:
+        cspice.furnsh(mk)
 
     windows_ck1 = cov_ck_ker(ck1, object=spacecraft_frame, time_format='SPICE')
     cspice.unload(ck1)
@@ -1186,6 +1188,155 @@ def ckdiff(mk, ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance,
     eul1_ck1 = []
     eul2_ck1 = []
     eul3_ck1 = []
+    bsight_ck1 = []
+    for et in et_list:
+
+        rot_mat = cspice.pxform(spacecraft_frame, target_frame, et)
+        euler = (cspice.m2eul(rot_mat, 1, 2, 3))
+        eul1_ck1.append(math.degrees(euler[0]))
+        eul2_ck1.append(math.degrees(euler[1]))
+        eul3_ck1.append(math.degrees(euler[2]))
+
+        bsight = cspice.mxv(rot_mat, boresight)
+        bsight_ang = cspice.vsep(bsight, boresight)
+        bsight_ck1.append(bsight_ang*cspice.dpr())
+
+
+    cspice.unload(ck1)
+    cspice.furnsh(ck2)
+
+    eul1_ck2 = []
+    eul2_ck2 = []
+    eul3_ck2 = []
+    bsight_ck2 = []
+    for et in et_list:
+        rot_mat = cspice.pxform(spacecraft_frame, target_frame, et)
+        euler = (cspice.m2eul(rot_mat, 1, 2, 3))
+        eul1_ck2.append(math.degrees(euler[0]))
+        eul2_ck2.append(math.degrees(euler[1]))
+        eul3_ck2.append(math.degrees(euler[2]))
+
+        bsight = cspice.mxv(rot_mat, boresight)
+        bsight_ang = cspice.vsep(bsight, boresight)
+        bsight_ck2.append(bsight_ang*cspice.dpr())
+
+
+    ck1_filename = ck1.split('/')[-1].split('.')[0]
+    ck2_filename = ck2.split('/')[-1].split('.')[0]
+
+    title_name = '{}_{}'.format(ck1_filename, ck2_filename)
+
+    if output == 'euler_angles':
+
+        plot(et_list, [eul1_ck1,eul1_ck2], yaxis_name=['Degrees', 'Degrees'],
+                                                        title='Euler Angle 1 {}'.format(title_name),
+                                                        format=plot_style,
+                                                        notebook=notebook)
+
+        plot(et_list, [eul2_ck1,eul2_ck2], yaxis_name=['Degrees', 'Degrees'],
+                                                        title='Euler Angle 2 {}'.format(title_name),
+                                                        format=plot_style,
+                                                        notebook=notebook)
+
+        plot(et_list, [eul3_ck1,eul3_ck2], yaxis_name=['Degrees', 'Degrees'],
+                                                        title='Euler Angle 3 {}'.format(title_name),
+                                                        format=plot_style,
+                                                        notebook=notebook)
+    else:
+        plot(et_list, [bsight_ck], yaxis_name=['Degrees', 'Degrees'],
+             title='+Z Axis Angle Difference {}'.format(title_name),
+             format=plot_style,
+             notebook=notebook)
+
+
+    if report:
+        eul_angle_report(et_list, eul1_ck1, eul1_ck2, 1, tolerance, name=title_name)
+        eul_angle_report(et_list, eul2_ck1, eul2_ck2, 2, tolerance, name=title_name)
+        eul_angle_report(et_list, eul3_ck1, eul3_ck2, 3, tolerance, name=title_name)
+
+    cspice.unload(ck2)
+
+    return
+
+
+def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance,
+           mk='', utc_start='', utc_finish='', output='', boresight=[0,0,1],
+                 plot_style='line', report=True,
+           notebook=False):
+    """
+    Provides time coverage summary for a given object for a given CK file.
+    Several options are available. This function is based on the following
+    SPICE API:
+
+    http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/ckcov_c.html
+
+    The NAIF utility CKBRIEF can be used for the same purpose.
+
+    :param ck: CK file to be used
+    :type mk: str
+    :param support_ker: Support kernels required to run the function. At least
+       it should be a leapseconds kernel (LSK) and a Spacecraft clock kernel
+       (SCLK) optionally a meta-kernel (MK) which is highly recommended.
+    :type support_ker: Union[str, list]
+    :param object: Ephemeris Object to obtain the coverage from.
+    :type object: str
+    :param time_format: Output time format; it can be 'UTC', 'CAL' (for TDB
+       in calendar format) or 'TDB'. Default is 'TDB'.
+    :type time_format: str
+    :param global_boundary: Boolean to indicate whether if we want all the
+       coverage windows or only the absolute start and finish coverage times.
+    :type global_boundary: bool
+    :param report: If True prints the resulting coverage on the screen.
+    :type report: bool
+    :param unload: If True it will unload the input meta-kernel.
+    :type unload: bool
+    :return: Returns a list with the coverage intervals.
+    :rtype: list
+    """
+    if mk:
+        cspice.furnsh(mk)
+
+    windows_ck1 = cov_ck_ker(ck1, object=spacecraft_frame, time_format='SPICE')
+    cspice.unload(ck1)
+
+    windows_ck2 = cov_ck_ker(ck2, object=spacecraft_frame, time_format='SPICE')
+    cspice.unload(ck2)
+
+    windows_intersected = cspice.wnintd(windows_ck1, windows_ck2)
+
+    number_of_intervals = list(range(cspice.wncard(windows_intersected)))
+
+    et_boundaries_list = []
+    for element in number_of_intervals:
+        et_boundaries = cspice.wnfetd(windows_intersected, element)
+        et_boundaries_list.append(et_boundaries[0])
+        et_boundaries_list.append(et_boundaries[1])
+
+    start = True
+    for et_start, et_finish in zip(et_boundaries_list[0::2], et_boundaries_list[1::2]):
+
+        if start:
+            et_list = numpy.arange(et_start, et_finish, resolution)
+            start = False
+
+        et_list = numpy.append(et_list, numpy.arange(et_start, et_finish, resolution))
+
+
+    if utc_start:
+        et_start = cspice.utc2et(utc_start)
+
+    if utc_finish:
+        et_finish = cspice.utc2et(utc_finish)
+        et_list = numpy.arange(et_start, et_finish, resolution)
+
+
+    cspice.furnsh(ck1)
+
+    eul1_ck1 = []
+    eul2_ck1 = []
+    eul3_ck1 = []
+    bsight_ck1 = []
+    angle_ck1 = []
     for et in et_list:
 
         rot_mat = cspice.pxform(spacecraft_frame,  target_frame,et)
@@ -1194,22 +1345,43 @@ def ckdiff(mk, ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance,
         eul2_ck1.append(math.degrees(euler[1]))
         eul3_ck1.append(math.degrees(euler[2]))
 
+        bsight = cspice.mxv(rot_mat, boresight)
+        bsight_ang = cspice.vsep(bsight, boresight)
+        bsight_ck1.append(bsight_ang*cspice.dpr())
+
+        (rot_axis, rot_angle) = cspice.raxisa(rot_mat)
+        angle_ck1.append(rot_angle*cspice.dpr()*1000)
+
     cspice.unload(ck1)
     cspice.furnsh(ck2)
 
     eul1_ck2 = []
     eul2_ck2 = []
     eul3_ck2 = []
+    bsight_ck2 = []
+    angle_ck2 = []
     for et in et_list:
+
         rot_mat = cspice.pxform(spacecraft_frame, target_frame, et)
         euler = (cspice.m2eul(rot_mat, 1, 2, 3))
         eul1_ck2.append(math.degrees(euler[0]))
         eul2_ck2.append(math.degrees(euler[1]))
         eul3_ck2.append(math.degrees(euler[2]))
 
+        bsight = cspice.mxv(rot_mat, boresight)
+        bsight_ang = cspice.vsep(bsight, boresight)
+        bsight_ck2.append(bsight_ang*cspice.dpr())
+
+        (rot_axis, rot_angle) = cspice.raxisa(rot_mat)
+        angle_ck2.append(rot_angle*cspice.dpr()*1000)
+
     eul1_diff = [i - j for i, j in zip(eul1_ck1, eul1_ck2)]
     eul2_diff = [i - j for i, j in zip(eul2_ck1, eul2_ck2)]
     eul3_diff = [i - j for i, j in zip(eul3_ck1, eul3_ck2)]
+
+    bsight_diff = [i - j for i, j in zip(bsight_ck1, bsight_ck2)]
+
+    angle_diff = [abs(i - j) for i, j in zip(angle_ck1, angle_ck2)]
 
     ck1_filename = ck1.split('/')[-1].split('.')[0]
     ck2_filename = ck2.split('/')[-1].split('.')[0]
@@ -1218,20 +1390,26 @@ def ckdiff(mk, ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance,
     eul2_name = '{}_{}'.format(ck1_filename, ck2_filename)
     eul3_name = '{}_{}'.format(ck1_filename, ck2_filename)
 
-    plot(et_list, [eul1_diff], yaxis_name=['Euler Angle 1 Diff'],
-                                                    title='Euler Angle 1 {}'.format(eul1_name),
-                                                    format=plot_style,
-                                                    notebook=notebook)
+    if output == 'euler_angles':
 
-    plot(et_list, [eul2_diff], yaxis_name=['Euler Angle 1 Diff'],
-                                                    title='Euler Angle 2 {}'.format(eul2_name),
-                                                    format=plot_style,
-                                                    notebook=notebook)
 
-    plot(et_list, [eul3_diff], yaxis_name=['Euler Angle 1 Diff'],
-                                                    title='Euler Angle 3 {}'.format(eul3_name),
-                                                    format=plot_style,
-                                                    notebook=notebook)
+        plot(et_list, [eul1_diff, eul2_diff, eul3_diff], yaxis_name=['Degrees','Degrees','Degrees'],
+                                                        title='Euler Angle Differences',
+                                                        format=plot_style,
+                                                        notebook=notebook)
+
+    elif output == 'boresight':
+        plot(et_list, bsight_diff, yaxis_name='Degrees',
+             title='Boresight Angle Difference',
+             format=plot_style,
+             notebook=notebook)
+
+    # Attitude Error
+    else:
+        plot(et_list, angle_diff, yaxis_name='Milidegrees',
+             title='Atittude Error',
+             format=plot_style,
+             notebook=notebook)
 
     if report:
         eul_angle_report(et_list, eul1_ck1, eul1_ck2, 1, tolerance, name=eul1_name)
@@ -1243,8 +1421,8 @@ def ckdiff(mk, ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance,
     return
 
 
-def ckplot(mk, ck1, spacecraft_frame, target_frame, resolution,
-           utc_start='', utc_finish='', notebook=False, plot_style='circle'):
+def ckplot(ck1, spacecraft_frame, target_frame, resolution,
+           mk = '', utc_start='', utc_finish='', notebook=False, plot_style='circle'):
     """
     Provides time coverage summary for a given object for a given CK file.
     Several options are available. This function is based on the following
@@ -1276,7 +1454,8 @@ def ckplot(mk, ck1, spacecraft_frame, target_frame, resolution,
     :rtype: list
     """
 
-    cspice.furnsh(mk)
+    if mk:
+        cspice.furnsh(mk)
     cspice.furnsh(ck1)
 
     et_boundaries_list = cov_ck_ker(ck1, support_ker=mk, object=spacecraft_frame,
@@ -1316,7 +1495,7 @@ def ckplot(mk, ck1, spacecraft_frame, target_frame, resolution,
     cspice.unload(ck1)
 
     plot(et_list, [eul1,eul2,eul3],
-         yaxis_name=['Euler Angle 1', 'Euler Angle 1', 'Euler Angle 1'],
+         yaxis_name=['Euler Angle 1', 'Euler Angle 2', 'Euler Angle 3'],
          title='Euler Angles for {}'.format(ck1.split('/')[-1]), notebook=notebook, format=plot_style)
 
     return
@@ -1446,7 +1625,13 @@ def spkdiff(mk, spk1, spk2, spacecraft, target, resolution, pos_tolerance,
 
 
 def pck_body_placeholder(bodies):
+    """
 
+    :param bodies:
+    :type bodies:
+    :return:
+    :rtype:
+    """
 
     with open('update_to_pck.tpc', 'w+') as f:
 
@@ -1668,7 +1853,7 @@ def sensor_with_sectors(sensor, mk, fk=''):
 def hga_angles(sc, time):
 
 
-    hga_zero_frame = sc+ '_SPACECRAFT'
+    hga_zero_frame = 'MPO_HGA_APM'
     hga_el_frame = sc + '_HGA_EL'
     hga_az_frame = sc + '_HGA_AZ'
     hga_frame = sc + '_HGA'
@@ -1818,7 +2003,7 @@ def solar_array_angle(sa_frame, time):
 
     except:
 
-        print('No CK information for {}'.format(time))
+        #print('No CK information for {}'.format(time))
         sa_ang = 0
 
     return(sa_ang)
@@ -1829,10 +2014,93 @@ def structures_position(sc_frame, kernel, time):
     return
 
 
+def body_distance_to_plane(body_distance, body_plane, time):
 
-#    except:
-#
-#        print('No CK information for {}'.format(time))
-#        sa_ang = 0
-#
-#    return(sa_ang)
+    body_1 = body_plane
+    body_2 = body_distance
+
+    if isinstance(time, str):
+        time = cspice.utc2et(time)
+
+    id_1 = cspice.bodn2c(body_1)
+    id_2 = cspice.bodn2c(body_2)
+
+
+    mat = cspice.pxform('MEX_SIDING_SPRING_PLANE','IAU_MARS', time)
+    vec1_1 = cspice.mxv(mat, [1,0,0])
+    vec2_1 = cspice.mxv(mat, [0,1,0])
+
+    state_1 = cspice.spkgeo(id_2, time, 'IAU_MARS', id_1)[0]
+
+    pos_1 = state_1[0:3]
+    vel_1 = state_1[2:5]
+
+    pos_2 = [0,0,0]
+
+    norm_1 = np.cross(vec1_1,vec2_1)
+    norm_1 = norm_1/np.linalg.norm(norm_1)
+
+    # https://mathinsight.org/distance_point_plane
+
+    a1, b1, c1 = norm_1[0], norm_1[1], norm_1[2]
+    d1 = -1*norm_1[0]*pos_1[0] - norm_1[1]*pos_1[1] - norm_1[2]*pos_1[2]
+
+    dist_1 = abs(a1 * pos_2[0] + b1 * pos_2[1] + c1 * pos_2[2] + d1) / np.sqrt(
+        np.square(a1) + np.square(b1) + np.square(c1))
+
+    dist_real = np.linalg.norm(pos_1)
+
+    return dist_1, dist_real
+
+
+def angle_between_planes(body_1, body_2, time):
+
+    if isinstance(time, str):
+        time = cspice.utc2et(time)
+
+    mat = cspice.pxform('MEX_SIDING_SPRING_PLANE', 'HEE', time)
+    norm_1 = cspice.mxv(mat, [0,0,1])
+
+    norm_1 = norm_1 / np.linalg.norm(norm_1)
+
+    angle = 180 - cspice.dpr()*cspice.vsep(norm_1,[0,0,1])
+
+    return angle
+
+
+def plane_ellipsoid(body_1, body_2, time):
+
+
+    id_1 = cspice.bodn2c(body_1)
+    id_2 = cspice.bodn2c(body_2)
+
+    mat = cspice.pxform('MEX_SIDING_SPRING_PLANE','IAU_MARS', time)
+    vec1 = cspice.mxv(mat, [1,0,0])
+    vec2 = cspice.mxv(mat, [0,1,0])
+
+    state1 = cspice.spkgeo(id_2, time, 'IAU_'+body_2, id_1)[0]
+    pos1 = state1[0:3]
+
+    plane = cspice.psv2pl(pos1, vec1, vec2)
+
+    # Get the body semi-axis lenght
+    (num, semi_axis) = cspice.bodvcd(id_2, "RADII", 3)
+
+    a = semi_axis[0]
+    b = semi_axis[1]
+    c = semi_axis[2]
+
+    try:
+        ellipse = cspice.inedpl(a, b, c, plane)
+    except:
+        ellipse = 0
+
+    return ellipse
+
+
+
+
+
+
+
+

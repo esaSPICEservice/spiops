@@ -1,0 +1,19 @@
+#!/usr/bin/env python3
+
+import os
+import glob
+from spiops.utils import replace
+
+cwd = os.getcwd()
+local_mks = []
+mks_in_dir = glob.glob('*.tm')
+mks_in_dir += glob.glob('*.TM')
+
+for mk_in_dir in mks_in_dir:
+
+    replace(mk_in_dir, "( '..' )", "( '"+cwd.split('/kernels')[0]+"/kernels' )")
+    local_mks.append(mk_in_dir)
+
+print('spiops meta-kernel update utility\nThe following meta-kernels have been generated/replaced to local:\n')
+for mk in local_mks:
+    print(mk)

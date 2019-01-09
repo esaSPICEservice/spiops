@@ -25,6 +25,9 @@ class TimeWindow(object):
         :param format: Calendar format in which we want to see times ('UTC' or 'CAL')
         :type format: str
         """
+
+        #TODO: Write exception if times are equal or not well defined.
+
         self.isInit = True
         self.res = resolution
         self.format = format
@@ -54,7 +57,11 @@ class TimeWindow(object):
         if self.isInit:
             return
 
-        if self.start >= self.finish:
+        if self.start > self.finish:
+            return
+
+        if  self.start == self.finish:
+            self.window = [self.start]
             return
 
         if not self.res or self.res >= (self.finish - self.start):

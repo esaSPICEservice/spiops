@@ -30,10 +30,18 @@ class Body(object):
 
     def __getattribute__(self, item):
 
-        if item in ['altitude', 'distance', 'zaxis_target_angle', 'zaxis_earth_angle']:
+        if item in ['altitude',
+                    'distance',
+                    'zaxis_target_angle',
+                    'zaxis_earth_angle']:
             self.__Geometry()
             return object.__getattribute__(self, item)
-        elif item in ['sa_ang_p', 'sa_ang_n', 'saa_sa', 'saa_sc', 'hga_earth',
+        elif item in ['sa_ang_p',
+                      'sa_ang_n',
+                      'sa_ang',
+                      'saa_sa',
+                      'saa_sc',
+                      'hga_earth',
                       'hga_el_az']:
             self.__Structures()
             return object.__getattribute__(self, item)
@@ -122,9 +130,9 @@ class Body(object):
 
     def __Structures(self):
 
-        #if self.geometry_flag is True and \
-        #                self.time.window.all() == self.previous_tw.all():
-        #    return
+        if self.structures_flag is True and \
+                        self.time.window.all() == self.previous_tw.all():
+            return
 
         time = self.time
         import spiops as spiops
@@ -134,7 +142,14 @@ class Body(object):
         #
         sa_ang_p_list = []
         sa_ang_n_list = []
-        saa_list = []
+        saa_sa_list = []
+        saa_sc_list = []
+        hga_earth = []
+        hga_angles = []
+
+        #
+        # High Gain Antennas
+        #
 
 
         for et in time.window:
@@ -145,22 +160,27 @@ class Body(object):
             #
             sa_ang_p = spiops.solar_array_angle('TGO_SA+Z', et)
             sa_ang_n = spiops.solar_array_angle('TGO_SA+Z', et)
-            saa = spiops.solar_aspect_angles('TGO','TGO_SA+Z', et)
+            saa = spiops.solar_aspect_angles('TGO', et)
 
             sa_ang_p_list.append(sa_ang_p)
             sa_ang_n_list.append(sa_ang_n)
-            saa_list.append(saa)
+            saa_sa_list.append(saa[0])
+            saa_sc_list.append(saa[1])
 
             #
             # HGA mechanisms
             #
-
+            (hga_angles, hga_earth) = spiops.hga_angles('MPO', et)
 
 
         self.sa_ang_p = sa_ang_p_list
         self.sa_ang_n = sa_ang_n_list
-        self.saa = saa_list
+        self.sa_ang = [sa_ang_p_list, sa_ang_n_list]
+        self.saa_sa = saa_sa_list
+        self.saa_sc = saa_sc_list
 
+        self.hga_earth = hga_earth
+        self.hga_angles = hga_angles
 
         self.structures_flag = True
         self.previous_tw = self.time.window
@@ -230,6 +250,7 @@ class Body(object):
             #
             spcrad, spclon, spclat = cspice.reclat(spoint)
 
+
             #
             # Convert radians to degrees.
             #
@@ -271,6 +292,7 @@ class Body(object):
         self.subpoint_pcc = subpoint_pcc
         self.zaxis_target_angle = zaxis_target_angle
 
+
         self.geometry_flag = True
         self.previous_tw = self.time.window
 
@@ -281,15 +303,18 @@ class Body(object):
              notebook=False):
 
         self.__Geometry()
-        #self.__Structures()
+        self.__Structures()
 
         if yaxis == 'sa_ang':
             yaxis_name = ['sa_ang_p', 'sa_ang_n']
         elif yaxis == 'saa_sc':
             yaxis_name = ['saa_sc_x', 'saa_sc_y', 'saa_sc_z']
         elif yaxis == 'saa_sa':
-            yaxis_name = ['saa_sa_p', 'saa_sa_n']
-        elif yaxis == 'hga_el_az':
+            if self.name != 'MPO':
+                yaxis_name = ['saa_sa_p', 'saa_sa_n']
+            else:
+                yaxis_name = ['saa_sa']
+        elif yaxis == 'hga_angles':
             yaxis_name = ['hga_el', 'hga_az']
         else:
             yaxis_name = yaxis
@@ -353,14 +378,24 @@ class Target(Body):
 
         self.method = method
 
+
         self.__getRadii()
 
+
     def __getRadii(self):
-        self.radii = cspice.bodvar(self.id, 'RADII', 3)
+
+        try:
+            self.radii = cspice.bodvar(self.id, 'RADII', 3)
+
+        except:
+            print("Ephemeris object has no radii")
+            return
 
         self.radii_equ = self.radii[0]
         self.radii_pol = self.radii[2]
         self.flat = (self.radii_equ - self.radii_pol) / self.radii_equ
+
+        return
 
 
 class Observer(Body):
@@ -373,6 +408,8 @@ class Observer(Body):
             if cspice.namfrm(self.frame) == 0:
                 self.frame = self.name
             if cspice.namfrm(self.frame) == 0:
+                #TODO: Fix this shit
+                self.frame = '{}_LANDER'.format(self.name)
                 print('The frame name has not been able to be built; please introduce it manually')
         else:
             self.frame = frame

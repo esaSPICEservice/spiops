@@ -50,8 +50,7 @@ def et2cal(time, format='UTC', support_ker=False, unload=False):
             out_elm = cspice.et2utc(element, 'ISOC', 3)
 
         elif format == 'CAL':
-            out_elm = cspice.timout(element,
-                                    "YYYY-MM-DDTHR:MN:SC.###::TDB", timlen)
+            out_elm = cspice.timout(element, "YYYY-MM-DDTHR:MN:SC.###::TDB", timlen)
         else:
             out_elm = element
 

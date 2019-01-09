@@ -56,4 +56,8 @@ setup(
 
     # Dependent packages (distributions)
     python_requires='>=3',
+
+    # Scripts
+    scripts=['bin/spiops-mk']
+
 )
