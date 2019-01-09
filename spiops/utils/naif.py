@@ -8,8 +8,10 @@ def brief(kernel, utc=False):
     option = '-c'
 
     skd_path = '/'.join(kernel.split('/')[:-2])
-    lsk = get_latest_kernel('lsk', skd_path, 'naif????.tls')
-    if not lsk:
+
+    try:
+        lsk = get_latest_kernel('lsk', skd_path, 'naif????.tls')
+    except:
         lsk = get_latest_kernel('lsk', skd_path, 'NAIF????.TLS')
 
     if utc:
@@ -33,14 +35,19 @@ def ckbrief(kernel, utc=False):
     skd_path = '/'.join(kernel.split('/')[:-2])
     sc = get_sc(kernel)
 
-    lsk = get_latest_kernel('lsk', skd_path, 'naif????.tls')
-    if not lsk:
+    try:
+        lsk = get_latest_kernel('lsk', skd_path, 'naif????.tls')
+    except:
         lsk = get_latest_kernel('lsk', skd_path, 'NAIF????.TLS')
-    sclk = get_latest_kernel('sclk', skd_path, '{}_step_????????.tsc'.format(sc))
-    if not sclk:
+
+    try:
+        sclk = get_latest_kernel('sclk', skd_path, '{}_step_????????.tsc'.format(sc))
+    except:
         sclk = get_latest_kernel('lsk', skd_path, '{}_STEP_????????.TSC'.format(sc.upper()))
-    fk = get_latest_kernel('fk', skd_path, '{}_v??.tf'.format(sc))
-    if not fk:
+
+    try:
+        fk = get_latest_kernel('fk', skd_path, '{}_v??.tf'.format(sc))
+    except:
         fk = get_latest_kernel('fk', skd_path, '{}_V??.TF'.format(sc.upper()))
 
 
