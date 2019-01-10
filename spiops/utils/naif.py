@@ -65,6 +65,3 @@ def ckbrief(kernel, utc=False):
     process_output, _ = command_line_process.communicate()
 
     return process_output.decode("utf-8")
-
-#print(brief('/Users/mcosta/ExoMars2016/kernels/spk/em16_tgo_fsp_054_01_20180904_20190211_v01.bsp'))
-#print(ckbrief('/Users/mcosta/ExoMars2016/kernels/ck/em16_tgo_sc_fsp_054_01_20180222_20190119_s20181121_v01.bc'))
