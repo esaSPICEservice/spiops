@@ -65,3 +65,37 @@ def ckbrief(kernel, utc=False):
     process_output, _ = command_line_process.communicate()
 
     return process_output.decode("utf-8")
+
+
+def optiks(mkernel, utc=False):
+
+    if 'MEX' in mkernel:
+        mission = 'MEX'
+    elif 'VEX' in mkernel:
+        mission = 'VEX'
+    elif 'ROS' in mkernel:
+        mission = 'ROS'
+    elif 'em16' in mkernel:
+        mission = 'TGO'
+    elif 'bc' in mkernel:
+        mission = 'MPO'
+    elif 'JUICE' in mkernel:
+        mission = 'JUICE'
+    else:
+        raise ValueError('OPTIKS utility could not run')
+
+    utility = 'optiks'
+    option = '-half -units degrees -frame {}_SPACECRAFT ' \
+             '-showfovframes'.format(mission)
+
+    if utc:
+        option += ' -epoch {}'.format(utc)
+    print(option)
+
+    command_line_process = subprocess.Popen([utility, option, mkernel],
+                                             stdout=subprocess.PIPE,
+                                             stderr=subprocess.STDOUT)
+
+    process_output, _ = command_line_process.communicate()
+
+    return process_output.decode("utf-8")

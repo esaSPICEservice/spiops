@@ -18,7 +18,7 @@ setup(
     name="spiops",
 
     # Version number (initial):
-    version="0.2.0",
+    version="0.2.1",
 
     description="Extension of SPICE functionalities for ESA Planetary Missons",
     long_description=open('README.md').read(),
@@ -26,9 +26,9 @@ setup(
     data_files = [('', ['LICENSE'])],
 
     # Application author details:
-    author="Marc Costa Sitja, ESAC/ESA",
-    #author_email="marc.costa@esa.int",
-    url="https://mcosta@repos.cosmos.esa.int/socci/scm/spice/spiops.git",
+    author="Marc Costa Sitja",
+    author_email="marc.costa@esa.int",
+    url="https://github.com/esaSPICEservice/spiops",
 
 
     # Classifiers
@@ -50,9 +50,12 @@ setup(
 
     # Packages
     packages=find_packages(),
+    install_requires=['spiceypy>=2.0.0', 'bokeh>=0.12.15', 'numpy>=1.14.2', 'matplotlib>=2.2.2'],
 
     # Include additional files into the package
     include_package_data=False,
+
+
 
     # Dependent packages (distributions)
     python_requires='>=3',

@@ -11,3 +11,4 @@ from .utils import get_sc
 
 from .naif import brief
 from .naif import ckbrief
+from .naif import optiks

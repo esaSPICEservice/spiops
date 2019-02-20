@@ -1113,8 +1113,7 @@ def ckdiff_euler(mk, ck1, ck2, spacecraft_frame, target_frame, resolution, toler
 
 def ckdiff(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance,
            utc_start='', utc_finish='', mk='', output='boresight', boresight = [0,0,1],
-           plot_style='line', report=True,
-           notebook=False):
+           plot_style='line', report=False, notebook=False):
     """
     Provides time coverage summary for a given object for a given CK file.
     Several options are available. This function is based on the following
@@ -1260,9 +1259,9 @@ def ckdiff(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance,
 
 
 def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance,
-           mk='', utc_start='', utc_finish='', output='', boresight=[0,0,1],
-                 plot_style='line', report=True,
-           notebook=False):
+                 mk='', utc_start='', utc_finish='', output='',
+                 boresight=[0,0,1], plot_style='line', report=False,
+                 notebook=False):
     """
     Provides time coverage summary for a given object for a given CK file.
     Several options are available. This function is based on the following
@@ -1422,7 +1421,8 @@ def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance
 
 
 def ckplot(ck1, spacecraft_frame, target_frame, resolution,
-           mk = '', utc_start='', utc_finish='', notebook=False, plot_style='circle'):
+           mk = '', utc_start='', utc_finish='', notebook=False,
+           plot_style='circle'):
     """
     Provides time coverage summary for a given object for a given CK file.
     Several options are available. This function is based on the following
@@ -1852,8 +1852,14 @@ def sensor_with_sectors(sensor, mk, fk=''):
 
 def hga_angles(sc, time):
 
+    if sc == 'MPO':
+        hga_zero_frame = sc + '_HGA_APM'
+    elif sc == 'MTM':
+        return []
+    else:
+        hga_zero_frame = sc + '_SPACECRAFT'
 
-    hga_zero_frame = 'MPO_HGA_APM'
+
     hga_el_frame = sc + '_HGA_EL'
     hga_az_frame = sc + '_HGA_AZ'
     hga_frame = sc + '_HGA'
@@ -1862,26 +1868,17 @@ def hga_angles(sc, time):
 
     try:
 
+        # Get the rotation matrix between two frames
         cmat = cspice.pxform(hga_zero_frame, hga_el_frame, time)
-        vec = cspice.mxv(cmat,[0,1,0])
 
-        factor = 1
-        vec = cspice.mxv(cmat,[0,1,0])
-        if vec[2] > 0:
-            factor = -1.
-
-        hga_el = np.rad2deg(cspice.vsep(vec,[0,1,0])) * factor
+        # Get the quaternion elements from the rotation matrix
+        quat = cspice.m2q(cmat)
+        hga_el = np.rad2deg(2. * np.arccos(quat[0]))  # in radians
 
 
-        cmat = cspice.pxform(hga_az_frame, hga_el_frame, time)
-        vec = cspice.mxv(cmat,[1,0,0])
-
-        factor = 1
-        vec = cspice.mxv(cmat,[1,0,0])
-        if vec[2] > 0:
-            factor = -1.
-
-        hga_az = np.rad2deg(cspice.vsep(vec,[1,0,0])) * factor
+        cmat = cspice.pxform(hga_el_frame, hga_az_frame, time)
+        quat = cspice.m2q(cmat)
+        hga_az = np.rad2deg(2. * np.arccos(quat[0]))  # in radians
 
 
         (earth_vec, lt) = cspice.spkezp(399, time, hga_frame, 'NONE', sc_id)
@@ -1908,6 +1905,10 @@ def solar_aspect_angles(sc, time):
     elif sc == 'MPO':
 
         sa_frame = sc+'_SA'
+
+    elif sc == 'MTM':
+        sa_p_frame = sc + '_SA+X'
+        sa_n_frame = sc + '_SA-X'
 
     else:
 
@@ -1958,48 +1959,12 @@ def solar_array_angle(sa_frame, time):
 
     try:
 
-        # cmat is a rotation matrix that transforms the components of a
-        # vector expressed in the frame specified by `ref' (Solar Array
-        # Zero reference frame) to components expressed in the frame tied
-        # to the instrument (Solar Array frame) at a given time.
-        #
-        # Thus, if a vector v has components x,y,z in the `ref'
-        # reference frame, then v has components x',y',z' in the
-        # instrument fixed frame at time `clkout':
-        #
-        #      [ x' ]     [          ] [ x ]
-        #      | y' |  =  |   cmat   | | y |
-        #      [ z' ]     [          ] [ z ]
-
-        # We used the inverse transform matrix
+        # Get the rotation matrix between two frames
         cmat = cspice.pxform(sa_frame, sa_zero_frame, time)
 
-        # Computing the angular separation between two vectors results
-        # into a positive value. Because of that we use the sign of the
-        # third component of the vector (z component) to determine whether
-        # if the SA. That sign is used in the factor variable
-        #
-        #        ^ - - ^  SA+/-Y (vec)
-        #        |    /
-        # vec[0] |   /
-        #  (>0)  |  /
-        #        | /)
-        #        |-----------------------> SA+/-Y_ZERO
-        #        | \)
-        # vec'[0]|  \
-        #  (<0)  |   \
-        #        |    \
-        #        v - - v  SA+/-Y' (vec')
-
-        #sa_ang = cspice.m2eul(cmat, 3, 2, 1)
-        #sa_ang = sa_ang[1] * 180.0/math.pi
-        factor = 1
-
-        vec = cspice.mxv(cmat,[1,0,0])
-        if vec[2] > 0:
-            factor = -1.
-        #
-        sa_ang = np.rad2deg(cspice.vsep([1,0,0], vec,)) * factor
+        # Get the quaternion elements from the rotation matrix
+        quat = cspice.m2q(cmat)
+        sa_ang = np.rad2deg(2. * np.arccos(quat[0]))  # in radians
 
     except:
 

@@ -193,8 +193,9 @@ def plot(xaxis, yaxis, xaxis_name = 'Date', yaxis_name='', title='', format='lin
     index = 0
 
     if background_image:
-        p.image_url(url=['Mars_Viking_MDIM21_ClrMosaic_global_1024.jpg'], x=0, y=-90,
-                w=360, h=180, anchor="bottom_left", global_alpha=0.4)
+        p.image_url(url=[os.path.join(os.path.dirname(__file__),
+                         '../data/Mars_Viking_MDIM21_ClrMosaic_global_1024.py')], x=-180, y=-90,
+                w=360, h=180, anchor="bottom_left", global_alpha=0.6)
 
     for element in y:
         if format == 'circle':

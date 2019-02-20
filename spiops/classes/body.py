@@ -32,8 +32,9 @@ class Body(object):
 
         if item in ['altitude',
                     'distance',
-                    'zaxis_target_angle',
-                    'zaxis_earth_angle']:
+                    'zaxis_target_angle'
+                    'myaxis_target_angle',
+                    'groundtrack']:
             self.__Geometry()
             return object.__getattribute__(self, item)
         elif item in ['sa_ang_p',
@@ -138,14 +139,32 @@ class Body(object):
         import spiops as spiops
 
         #
+        # We determine the mission
+        #
+        if self.name == 'TGO':
+            plus_array = 'TGO_SA+Z'
+            minus_array = 'TGO_SA-Z'
+        elif self.name == 'MPO':
+            plus_array = 'MPO_SA'
+            minus_array = ''
+        elif self.name == 'MTM':
+            plus_array = 'MTM_SA+X'
+            minus_array = 'MTM_SA-X'
+
+
+        #
         # Solar Arrays
         #
         sa_ang_p_list = []
         sa_ang_n_list = []
-        saa_sa_list = []
-        saa_sc_list = []
+        saa_sa_p_list = []
+        saa_sa_n_list = []
+        saa_sc_x_list = []
+        saa_sc_y_list = []
+        saa_sc_z_list = []
         hga_earth = []
-        hga_angles = []
+        hga_angles_el = []
+        hga_angles_az = []
 
         #
         # High Gain Antennas
@@ -158,29 +177,37 @@ class Body(object):
             # Of course we need to include all possible cases including only one
             # Solar Array
             #
-            sa_ang_p = spiops.solar_array_angle('TGO_SA+Z', et)
-            sa_ang_n = spiops.solar_array_angle('TGO_SA+Z', et)
-            saa = spiops.solar_aspect_angles('TGO', et)
+            sa_ang_p = spiops.solar_array_angle(plus_array, et)
+            if minus_array:
+                sa_ang_n = spiops.solar_array_angle(minus_array, et)
+            saa = spiops.solar_aspect_angles(self.name, et)
 
             sa_ang_p_list.append(sa_ang_p)
-            sa_ang_n_list.append(sa_ang_n)
-            saa_sa_list.append(saa[0])
-            saa_sc_list.append(saa[1])
+            if minus_array:
+                sa_ang_n_list.append(sa_ang_n)
+            saa_sa_p_list.append(saa[0][0])
+            saa_sa_n_list.append(saa[0][1])
+            saa_sc_x_list.append(saa[1][0])
+            saa_sc_y_list.append(saa[1][1])
+            saa_sc_z_list.append(saa[1][2])
 
             #
             # HGA mechanisms
             #
-            (hga_angles, hga_earth) = spiops.hga_angles('MPO', et)
-
+            if self.name != 'MTM':
+                (hga_angles_ang, hga_earth_ang) = spiops.hga_angles(self.name, et)
+                hga_earth.append(hga_earth_ang)
+                hga_angles_el.append(hga_angles_ang[0])
+                hga_angles_az.append(hga_angles_ang[1])
 
         self.sa_ang_p = sa_ang_p_list
         self.sa_ang_n = sa_ang_n_list
         self.sa_ang = [sa_ang_p_list, sa_ang_n_list]
-        self.saa_sa = saa_sa_list
-        self.saa_sc = saa_sc_list
+        self.saa_sa = [saa_sa_p_list, saa_sa_n_list]
+        self.saa_sc = [saa_sc_x_list, saa_sc_y_list, saa_sc_z_list]
 
         self.hga_earth = hga_earth
-        self.hga_angles = hga_angles
+        self.hga_angles = [hga_angles_el, hga_angles_az]
 
         self.structures_flag = True
         self.previous_tw = self.time.window
@@ -196,10 +223,13 @@ class Body(object):
 
         distance = []
         altitude = []
+        latitude = []
+        longitude = []
         subpoint_xyz = []
         subpoint_pgc = []
         subpoint_pcc = []
         zaxis_target_angle = []
+        myaxis_target_angle = []
 
         tar = self.target
         time = self.time
@@ -257,40 +287,54 @@ class Body(object):
             spclon *= cspice.dpr()
             spclat *= cspice.dpr()
 
-            subpoint_pcc.append([spcrad, spclon, spclat])
+            subpoint_pcc.append([spclon, spclat, spcrad])
+            latitude.append(spclat) #TODO: Remove with list extraction
+            longitude.append(spclon)  # TODO: Remove with list extraction
 
             #
-            # Compute the angle between the observer's Z axis and the geometric
-            # sub-observer point
+            # Compute the angle between the observer's S/C axis and the
+            # geometric sub-observer point
             #
             obs_tar, ltime = cspice.spkpos(tar.name, et,
                                                    'J2000', time.abcorr,
                                                    self.name)
-            obs_zaxis = [0,0,1]
+            obs_zaxis  = [0,  0, 1]
+            obs_myaxis = [0, -1, 0]
 
             #
             # We need to account for when there is no CK attitude available.
             #
             try:
                 matrix = cspice.pxform(self.frame, 'J2000', et)
-                vecout = cspice.mxv(matrix, obs_zaxis)
 
-                zax_target_angle = cspice.vsep(vecout, obs_tar)
+                z_vecout = cspice.mxv(matrix, obs_zaxis)
+                zax_target_angle = cspice.vsep(z_vecout, obs_tar)
                 zax_target_angle *= cspice.dpr()
                 zaxis_target_angle.append(zax_target_angle)
+
+                my_vecout = cspice.mxv(matrix, obs_myaxis)
+                myax_target_angle = cspice.vsep(my_vecout, obs_tar)
+                myax_target_angle *= cspice.dpr()
+                myaxis_target_angle.append(myax_target_angle)
             #
             # TODO: Include a thorough error message here
             #
             except:
                 zaxis_target_angle.append(0.0)
+                myaxis_target_angle.append(0.0)
 
 
         self.distance = distance
         self.altitude = altitude
+        #self.latitude = [for subpoint in subpoint_pcc]
+        self.latitude = latitude
+        self.longitude = longitude
+        #self.longitude = [subpoint_pcc ]
         self.subpoint_xyz = subpoint_xyz
         self.subpoint_pgc = subpoint_pgc
         self.subpoint_pcc = subpoint_pcc
         self.zaxis_target_angle = zaxis_target_angle
+        self.myaxis_target_angle = myaxis_target_angle
 
 
         self.geometry_flag = True
@@ -305,6 +349,21 @@ class Body(object):
         self.__Geometry()
         self.__Structures()
 
+        #
+        # Not Time in X axis
+        #
+        if yaxis == 'groundtrack':
+            utils.plot(self.__getattribute__('longitude'),
+                       self.__getattribute__('latitude'),
+                       notebook=notebook, xaxis_name = 'Longitude',
+                       yaxis_name='Latitude', mission=self.name,
+                       target=self.target.name, background_image=True)
+
+            return
+
+        #
+        # Time in X axis
+        #
         if yaxis == 'sa_ang':
             yaxis_name = ['sa_ang_p', 'sa_ang_n']
         elif yaxis == 'saa_sc':
@@ -316,6 +375,8 @@ class Body(object):
                 yaxis_name = ['saa_sa']
         elif yaxis == 'hga_angles':
             yaxis_name = ['hga_el', 'hga_az']
+        elif yaxis == 'hga_earth':
+            yaxis_name = 'hga_earth'
         else:
             yaxis_name = yaxis
 
