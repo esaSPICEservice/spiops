@@ -95,7 +95,7 @@ def plot(xaxis, yaxis, xaxis_name = 'Date', yaxis_name='', title='', format='lin
 
 
     if not title:
-        title = '{} {}'.format(mission, yaxis_name).title()
+        title = '{} {}'.format(mission, yaxis_name).title().upper()
 
         html_file_name = 'plot_{}_{}_{}-{}.html'.format('Time', yaxis_name,
                                                         mission,
@@ -104,10 +104,10 @@ def plot(xaxis, yaxis, xaxis_name = 'Date', yaxis_name='', title='', format='lin
         html_file_name = valid_url(html_file_name)
 
     else:
-        title = title
+        title = title.upper()
 
         if ' ' in title:
-            html_file_name = title.replace(' ', '_').lower()
+            html_file_name = title.replace(' ', '_').upper()
         else:
             html_file_name = title
         html_file_name = valid_url(html_file_name)
@@ -131,7 +131,7 @@ def plot(xaxis, yaxis, xaxis_name = 'Date', yaxis_name='', title='', format='lin
     if notebook:
         output_notebook()
         plot_width = 975
-        plot_height = 500
+        plot_height = 400
     else:
         output_file(html_file_name + '.html')
         plot_width = plot_width
@@ -145,8 +145,8 @@ def plot(xaxis, yaxis, xaxis_name = 'Date', yaxis_name='', title='', format='lin
     p = figure(title=title,
                 plot_width=plot_width,
                 plot_height=plot_height,
-                x_axis_label=xaxis_name,
-                y_axis_label=yaxis_name[0],
+                x_axis_label=xaxis_name.upper(),
+                y_axis_label='',
                 x_axis_type=x_axis_type)
 
     if xaxis_name == 'Date':
@@ -189,7 +189,7 @@ def plot(xaxis, yaxis, xaxis_name = 'Date', yaxis_name='', title='', format='lin
                    color='red')
 
     # add a line renderer with legend and line thickness
-    color_list = ['red', 'green', 'blue']
+    color_list = ['red', 'green', 'blue','orange']
     index = 0
 
     if background_image:
@@ -202,8 +202,11 @@ def plot(xaxis, yaxis, xaxis_name = 'Date', yaxis_name='', title='', format='lin
             p.line(x, element, line_width=line_width, color=color_list[index])
             p.circle(x, element, fill_color="white", size=8)
 
+        if format == 'circle_only':
+            p.circle(x, element, size=3, color='red')
+
         elif format == 'line':
-            p.line(x, element, legend=yaxis_name[index],
+            p.line(x, element, legend=yaxis_name[index].upper(),
                    line_width=line_width, color=color_list[index])
         index += 1
 

@@ -2,13 +2,21 @@
 
 import math
 import numpy as np
-import spiceypy as cspice
+import spiceypy as spiceypy
 import logging
 import os
 import numpy as np
 from spiceypy.utils.support_types import *
 from .utils import time
 from .utils import plot
+
+from bokeh.io import output_file, show
+from bokeh.plotting import figure, output_file, output_notebook, show
+from bokeh.models import ColumnDataSource, DatetimeTickFormatter, LabelSet
+from math import pi
+
+import spiops
+from .utils.time import et_to_datetime
 
 # TODO: change for Bokeh. And try to generalise it. Also put the alternative of
 # not using bokeh at some point
@@ -35,7 +43,7 @@ SOFTWARE.
 """
 
 def load(mk):
-    return cspice.furnsh(mk)
+    return spiceypy.furnsh(mk)
 
 
 def adcsng_fill_template(template,
@@ -266,8 +274,8 @@ def fov_illum(mk, sensor, time=None, angle='DEGREES', abcorr='LT+S',
     Determine the Illumination of a given FoV (for light scattering computations
     for example). This function is based on  the following SPICE APIs:
 
-    http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/getfov_c.html
-    http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/spkezp_c.html
+    http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/spiceypy/getfov_c.html
+    http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/spiceypy/spkezp_c.html
 
 
     :param mk: Meta-kernel to load the computation scenario
@@ -292,27 +300,27 @@ def fov_illum(mk, sensor, time=None, angle='DEGREES', abcorr='LT+S',
     framelen = 1000
     angle = angle.upper()
 
-    cspice.furnsh(mk)
+    spiceypy.furnsh(mk)
 
     if time:
-        time = cspice.utc2et(time)
+        time = spiceypy.utc2et(time)
     else:
-        time = cspice.utc2et('2016-08-10T00:00:00')
+        time = spiceypy.utc2et('2016-08-10T00:00:00')
 
     if angle != 'DEGREES' and angle != 'RADIANS':
         print('angle should be either degrees or radians')
 
     if isinstance(sensor, str):
-        instid = cspice.bodn2c(sensor)
+        instid = spiceypy.bodn2c(sensor)
     else:
         instid = sensor
 
-    shape, frame, bsight, n, bounds = cspice.getfov(instid, room, shapelen,
+    shape, frame, bsight, n, bounds = spiceypy.getfov(instid, room, shapelen,
                                                     framelen)
 
-    rotation = cspice.pxform(frame, 'J2000', time)
+    rotation = spiceypy.pxform(frame, 'J2000', time)
 
-    bsight = cspice.mxv(rotation, bsight)
+    bsight = spiceypy.mxv(rotation, bsight)
 
     # The following assumes that the IDs of the given S/C FK have been defined
     # according to the NAIF/ESS standards:
@@ -324,12 +332,12 @@ def fov_illum(mk, sensor, time=None, angle='DEGREES', abcorr='LT+S',
     #          XXX are three digits that identify the sensor
     sc_id = int(str(instid)[:-3])
 
-    ptarg, lt = cspice.spkezp(10, time, 'J2000', abcorr, sc_id)
+    ptarg, lt = spiceypy.spkezp(10, time, 'J2000', abcorr, sc_id)
 
-    fov_illumination = cspice.vsep(bsight, ptarg)
+    fov_illumination = spiceypy.vsep(bsight, ptarg)
 
     if unload:
-        cspice.unload(mk)
+        spiceypy.unload(mk)
 
     if angle == 'DEGREES':
         fov_illumination = math.degrees(fov_illumination)
@@ -349,7 +357,7 @@ def cov_spk_obj(mk, object, time_format='TDB', global_boundary=False,
     binary SPK files provided in a meta-kernel. Several options are
     available. This function is based on the following SPICE API:
 
-    http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/spkcov_c.html
+    http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/spiceypy/spkcov_c.html
 
     The NAIF utility BRIEF can be used for the same purpose.
 
@@ -368,26 +376,26 @@ def cov_spk_obj(mk, object, time_format='TDB', global_boundary=False,
     :return: Returns a list with the coverage intervals
     :rtype: list
     """
-    cspice.furnsh(mk)
+    spiceypy.furnsh(mk)
     boundaries_list = []
     et_boundaries_list = []
 
-    object_id = cspice.bodn2c(object)
+    object_id = spiceypy.bodn2c(object)
     maxwin = 2000
-    spk_count = cspice.ktotal('SPK') - 1
+    spk_count = spiceypy.ktotal('SPK') - 1
 
     while spk_count >= 0:
 
-        spk_kernel = cspice.kdata(spk_count, 'SPK', 155, 155, 155)
+        spk_kernel = spiceypy.kdata(spk_count, 'SPK', 155, 155, 155)
 
-        spk_ids = cspice.spkobj(spk_kernel[0])
+        spk_ids = spiceypy.spkobj(spk_kernel[0])
 
         for id in spk_ids:
 
             if id == object_id:
 
                 object_cov = SPICEDOUBLE_CELL(maxwin)
-                cspice.spkcov(spk_kernel[0], object_id, object_cov)
+                spiceypy.spkcov(spk_kernel[0], object_id, object_cov)
 
                 boundaries = time.cov_int(object_cov=object_cov,
                                           object_id=object_id,
@@ -422,24 +430,24 @@ def cov_spk_obj(mk, object, time_format='TDB', global_boundary=False,
 
         if report:
             print("Global Coverage for {} [{}]: {} - {}".format(
-                str(cspice.bodc2n(object_id)), time_format, boundaries_list[0],
+                str(spiceypy.bodc2n(object_id)), time_format, boundaries_list[0],
                 boundaries_list[1]))
 
 
     if unload:
-        cspice.unload(mk)
+        spiceypy.unload(mk)
 
     return boundaries_list
 
 
 def cov_spk_ker(spk, object=False, time_format='TDB', support_ker ='',
-                report=False, unload=False):
+                report=False, unload=True):
     """
     Provides time coverage summary for a given object for a given SPK file.
     Several options are available. This function is based on the following
     SPICE API:
 
-    http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/spkcov_c.html
+    http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/spiceypy/spkcov_c.html
 
     The NAIF utility BRIEF can be used for the same purpose.
 
@@ -460,7 +468,7 @@ def cov_spk_ker(spk, object=False, time_format='TDB', support_ker ='',
     :return: Returns a list with the coverage intervals
     :rtype: list
     """
-    cspice.furnsh(spk)
+    spiceypy.furnsh(spk)
     object_id = []
     boundaries = []
 
@@ -473,27 +481,27 @@ def cov_spk_ker(spk, object=False, time_format='TDB', support_ker ='',
             support_ker = [support_ker]
 
         for ker in support_ker:
-            cspice.furnsh(ker)
+            spiceypy.furnsh(ker)
 
     maxwin = 2000
 
-    spk_ids = cspice.spkobj(spk)
+    spk_ids = spiceypy.spkobj(spk)
 
     if not object:
         object_id = spk_ids
         object = []
         for id in spk_ids:
-            object.append(cspice.bodc2n(id))
+            object.append(spiceypy.bodc2n(id))
     else:
         for element in object:
-            object_id.append(cspice.bodn2c(element))
+            object_id.append(spiceypy.bodn2c(element))
 
     for id in object_id:
 
         if id in spk_ids:
 
             object_cov = SPICEDOUBLE_CELL(maxwin)
-            cspice.spkcov(spk, id, object_cov)
+            spiceypy.spkcov(spk, id, object_cov)
 
             cov = time.cov_int(object_cov=object_cov,
                                       object_id=id,
@@ -502,9 +510,10 @@ def cov_spk_ker(spk, object=False, time_format='TDB', support_ker ='',
                                       report=report)
 
         else:
-            print('{} with ID {} is not present in {}.'.format(object,
+            if report:
+                print('{} with ID {} is not present in {}.'.format(object,
                                                              id, spk))
-            return
+            return False
 
         if time_format == 'SPICE':
             boundaries.append(object_cov)
@@ -512,9 +521,16 @@ def cov_spk_ker(spk, object=False, time_format='TDB', support_ker ='',
             boundaries.append(cov)
 
     if unload:
-        cspice.unload(spk)
+        spiceypy.unload(spk)
+        if support_ker:
 
-    return (boundaries, object)
+            if isinstance(support_ker, str):
+                support_ker = [support_ker]
+
+            for ker in support_ker:
+                spiceypy.unload(ker)
+
+    return boundaries
 
 
 def cov_ck_obj(mk, object, time_format= 'UTC', global_boundary=False,
@@ -524,7 +540,7 @@ def cov_ck_obj(mk, object, time_format= 'UTC', global_boundary=False,
     binary CK files provided in a meta-kernel. Several options are
     available. This function is based on the following SPICE API:
 
-    http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/ckcov_c.html
+    http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/spiceypy/ckcov_c.html
 
     The NAIF utility CKBRIEF can be used for the same purpose.
 
@@ -543,26 +559,26 @@ def cov_ck_obj(mk, object, time_format= 'UTC', global_boundary=False,
     :return: Returns a list with the coverage intervals.
     :rtype: list
     """
-    cspice.furnsh(mk)
+    spiceypy.furnsh(mk)
     boundaries_list = []
     et_boundaries_list = []
 
-    object_id = cspice.namfrm(object)
+    object_id = spiceypy.namfrm(object)
     MAXIV = 2000
-    ck_count = cspice.ktotal('CK') - 1
+    ck_count = spiceypy.ktotal('CK') - 1
     WINSIZ = 2 * MAXIV
     MAXOBJ = 10000
 
     while ck_count >= 0:
 
-        ck_ids = cspice.support_types.SPICEINT_CELL(MAXOBJ)
-        ck_kernel = cspice.kdata(ck_count, 'CK', 155, 155, 155)
-        ck_ids = cspice.ckobj(ck=ck_kernel[0], outCell=ck_ids)
+        ck_ids = spiceypy.support_types.SPICEINT_CELL(MAXOBJ)
+        ck_kernel = spiceypy.kdata(ck_count, 'CK', 155, 155, 155)
+        ck_ids = spiceypy.ckobj(ck=ck_kernel[0], outCell=ck_ids)
 
         for id in ck_ids:
             if id == object_id:
-                object_cov = cspice.support_types.SPICEDOUBLE_CELL(WINSIZ)
-                object_cov = cspice.ckcov(ck=ck_kernel[0], idcode=object_id,
+                object_cov = spiceypy.support_types.SPICEDOUBLE_CELL(WINSIZ)
+                object_cov = spiceypy.ckcov(ck=ck_kernel[0], idcode=object_id,
                                           needav=False, level='SEGMENT',
                                           tol=0.0, timsys='TDB',
                                           cover=object_cov)
@@ -601,28 +617,28 @@ def cov_ck_obj(mk, object, time_format= 'UTC', global_boundary=False,
         if report:
 
             try:
-                body_name = cspice.bodc2n(object_id)
+                body_name = spiceypy.bodc2n(object_id)
             except:
-                body_name = cspice.frmnam(object_id, 60)
+                body_name = spiceypy.frmnam(object_id, 60)
 
             print("Global Coverage for {} [{}]: {} - {}".format(
                    body_name, time_format, boundaries_list[0],
                 boundaries_list[1]))
 
     if unload:
-        cspice.unload(mk)
+        spiceypy.unload(mk)
 
     return boundaries_list
 
 
 def cov_ck_ker(ck, object, support_ker=list(), time_format= 'UTC',
-               report=False, unload=False):
+               report=False, unload=True):
     """
     Provides time coverage summary for a given object for a given CK file.
     Several options are available. This function is based on the following
     SPICE API:
 
-    http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/ckcov_c.html
+    http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/spiceypy/ckcov_c.html
 
     The NAIF utility CKBRIEF can be used for the same purpose.
 
@@ -648,7 +664,7 @@ def cov_ck_ker(ck, object, support_ker=list(), time_format= 'UTC',
     :return: Returns a list with the coverage intervals.
     :rtype: list
     """
-    cspice.furnsh(ck)
+    spiceypy.furnsh(ck)
 
     if support_ker:
 
@@ -656,22 +672,22 @@ def cov_ck_ker(ck, object, support_ker=list(), time_format= 'UTC',
             support_ker = [support_ker]
 
         for ker in support_ker:
-            cspice.furnsh(ker)
+            spiceypy.furnsh(ker)
 
 
-    object_id = cspice.namfrm(object)
+    object_id = spiceypy.namfrm(object)
     MAXIV = 2000
     WINSIZ = 2 * MAXIV
     MAXOBJ = 10000
 
-    ck_ids = cspice.support_types.SPICEINT_CELL(MAXOBJ)
-    ck_ids = cspice.ckobj(ck, outCell=ck_ids)
+    ck_ids = spiceypy.support_types.SPICEINT_CELL(MAXOBJ)
+    ck_ids = spiceypy.ckobj(ck, outCell=ck_ids)
 
     if object_id in ck_ids:
 
-        object_cov = cspice.support_types.SPICEDOUBLE_CELL(WINSIZ)
-        cspice.scard, 0, object_cov
-        object_cov = cspice.ckcov(ck=ck, idcode=object_id,
+        object_cov = spiceypy.support_types.SPICEDOUBLE_CELL(WINSIZ)
+        spiceypy.scard, 0, object_cov
+        object_cov = spiceypy.ckcov(ck=ck, idcode=object_id,
                                       needav=False, level='INTERVAL',
                                       tol=0.0, timsys='TDB',
                                       cover=object_cov)
@@ -679,7 +695,7 @@ def cov_ck_ker(ck, object, support_ker=list(), time_format= 'UTC',
     else:
         print('{} with ID {} is not present in {}.'.format(object,
                                                            object_id, ck))
-        return
+        return False
 
     if time_format == 'SPICE':
         boundaries = object_cov
@@ -691,7 +707,14 @@ def cov_ck_ker(ck, object, support_ker=list(), time_format= 'UTC',
                                   time_format=time_format, report=report)
 
     if unload:
-        cspice.unload(ck)
+        spiceypy.unload(ck)
+        if support_ker:
+
+            if isinstance(support_ker, str):
+                support_ker = [support_ker]
+
+            for ker in support_ker:
+                spiceypy.unload(ker)
 
     return (boundaries)
 
@@ -769,54 +792,54 @@ def fk_body_ifj2000(mission, body, pck, body_spk, frame_id, report=False,
     body = body.upper()
     mission = mission.upper()
 
-    cspice.furnsh(pck)
+    spiceypy.furnsh(pck)
 
     #
     # This can actually be a list of bodies.
     #
-    cspice.furnsh(body_spk)
+    spiceypy.furnsh(body_spk)
 
     #
     # Get instantaneous Body state at J2000 and compute instantaneous
     # orbital normal.
     #
-    state, lt = cspice.spkezr(body, 0.0, 'J2000', 'NONE', 'SUN')
-    normal = cspice.ucrss(state[0:3:1], state[3:6:1])
+    state, lt = spiceypy.spkezr(body, 0.0, 'J2000', 'NONE', 'SUN')
+    normal = spiceypy.ucrss(state[0:3:1], state[3:6:1])
 
     #
     # Get J2000 -> IAU_{BODY} rotation at J2000 and compute Body pole
     # direction in J2000 at J2000.
     #
-    mat = cspice.pxform('IAU_{}'.format(body), 'J2000', 0.0)
-    z = cspice.vpack(0.0, 0.0, 1.0)
-    pole = cspice.mxv(mat, z)
+    mat = spiceypy.pxform('IAU_{}'.format(body), 'J2000', 0.0)
+    z = spiceypy.vpack(0.0, 0.0, 1.0)
+    pole = spiceypy.mxv(mat, z)
 
     #
     # Compute direction Body orbit's ascending node on Body equator at
     # J2000 in J2000 and print it and Body pole as RA/DEC in J2000 in
     # degrees
     #
-    ascnod = cspice.ucrss(pole, normal)
-    r, ra, dec = cspice.recrad(pole)
+    ascnod = spiceypy.ucrss(pole, normal)
+    r, ra, dec = spiceypy.recrad(pole)
 
     if report:
-        print('POLE RA/DEC = {}/{}'.format(ra*cspice.dpr(), dec*cspice.dpr()))
+        print('POLE RA/DEC = {}/{}'.format(ra*spiceypy.dpr(), dec*spiceypy.dpr()))
 
-    r, ra, dec = cspice.recrad(ascnod)
+    r, ra, dec = spiceypy.recrad(ascnod)
 
     if report:
-        print('ASCNOD RA/DEC = {}/{}'.format(ra * cspice.dpr(), dec * cspice.dpr()))
+        print('ASCNOD RA/DEC = {}/{}'.format(ra * spiceypy.dpr(), dec * spiceypy.dpr()))
 
     #
     # Build two vector from a with POLE as Z and ASNOD as X and print rotation
     # from that frame to J200 as Euler angles.
     #
-    mat = cspice.twovec(pole, 3, ascnod, 1)
-    matxp = cspice.xpose(mat)
-    r3, r2, r1 = cspice.m2eul(matxp, 3, 2, 3)
+    mat = spiceypy.twovec(pole, 3, ascnod, 1)
+    matxp = spiceypy.xpose(mat)
+    r3, r2, r1 = spiceypy.m2eul(matxp, 3, 2, 3)
 
     if file:
-      body_id = cspice.bodn2c(body)
+      body_id = spiceypy.bodn2c(body)
       with open('{}_{}_IF_J2000.tf'.format(mission, body), 'w+') as f:
 
          f.write(r"\begindata")
@@ -835,11 +858,11 @@ def fk_body_ifj2000(mission, body, pck, body_spk, frame_id, report=False,
          f.write("    TKFRAME_{}_RELATIVE        = 'J2000'\n".format(frame_id))
          f.write('    TKFRAME_{}_ANGLES          = (\n'.format(frame_id))
          f.write('                                        {}\n'.format(r3 *
-                                                                     cspice.dpr()))
+                                                                     spiceypy.dpr()))
          f.write('                                        {}\n'.format(r2 *
-                                                                     cspice.dpr()))
+                                                                     spiceypy.dpr()))
          f.write('                                        {}\n'.format(r1 *
-                                                                     cspice.dpr()))
+                                                                     spiceypy.dpr()))
          f.write('                                     )\n')
          f.write('    TKFRAME_{}_AXES            = (\n'.format(frame_id))
          f.write('                                        3,\n')
@@ -852,13 +875,13 @@ def fk_body_ifj2000(mission, body, pck, body_spk, frame_id, report=False,
 
     else:
         return '{}_IF->J2000 (3-2-3): {} - {} - {}'.format(body,
-            r3 * cspice.dpr(),
-            r2 * cspice.dpr(),
-            r1 * cspice.dpr())
+            r3 * spiceypy.dpr(),
+            r2 * spiceypy.dpr(),
+            r1 * spiceypy.dpr())
 
     if unload:
-        cspice.unload(pck)
-        cspice.unload(body_spk)
+        spiceypy.unload(pck)
+        spiceypy.unload(body_spk)
 
     return
 
@@ -886,11 +909,11 @@ def eul_angle_report(et_list, eul_ck1, eul_ck2, eul_num, tolerance, name=''):
                 else:
                     interval_bool = True
                     eul_tol_list.append(element)
-                    utc_start = cspice.et2utc(et_list[count], 'ISOC', 2)
+                    utc_start = spiceypy.et2utc(et_list[count], 'ISOC', 2)
 
             else:
                 if interval_bool:
-                    utc_finish = cspice.et2utc(et_list[count], 'ISOC', 2)
+                    utc_finish = spiceypy.et2utc(et_list[count], 'ISOC', 2)
 
                     f.write('TOLERANCE of ' + str(tolerance) + ' DEG exceeded from ' + utc_start + ' until ' +
                           utc_finish + ' with an average angle of ' + str(numpy.mean(eul_tol_list)) + ' DEG \n')
@@ -929,11 +952,11 @@ def state_report(et_list, pos_spk1, pos_spk2, vel_spk1, vel_spk2, pos_tolerance,
                 else:
                     interval_bool = True
                     pos_tol_list.append(element)
-                    utc_start = cspice.et2utc(et_list[count], 'ISOC', 2)
+                    utc_start = spiceypy.et2utc(et_list[count], 'ISOC', 2)
 
             else:
                 if interval_bool:
-                    utc_finish = cspice.et2utc(et_list[count], 'ISOC', 2)
+                    utc_finish = spiceypy.et2utc(et_list[count], 'ISOC', 2)
 
                     f.write('TOLERANCE of ' + str(pos_tolerance) + ' KM exceeded from ' + utc_start + ' until ' +
                           utc_finish + ' with an average distance of ' + str(numpy.mean(pos_tol_list)) + ' KM \n')
@@ -955,11 +978,11 @@ def state_report(et_list, pos_spk1, pos_spk2, vel_spk1, vel_spk2, pos_tolerance,
                 else:
                     interval_bool = True
                     vel_tol_list.append(element)
-                    utc_start = cspice.et2utc(et_list[count], 'ISOC', 2)
+                    utc_start = spiceypy.et2utc(et_list[count], 'ISOC', 2)
 
             else:
                 if interval_bool:
-                    utc_finish = cspice.et2utc(et_list[count], 'ISOC', 2)
+                    utc_finish = spiceypy.et2utc(et_list[count], 'ISOC', 2)
 
                     f.write('TOLERANCE of ' + str(vel_tolerance) + ' KM/S exceeded from ' + utc_start + ' until ' +
                           utc_finish + ' with an average velocity of ' + str(numpy.mean(vel_tol_list)) + ' KM/S \n')
@@ -987,7 +1010,7 @@ def ckdiff_euler(mk, ck1, ck2, spacecraft_frame, target_frame, resolution, toler
     Several options are available. This function is based on the following
     SPICE API:
 
-    http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/ckcov_c.html
+    http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/spiceypy/ckcov_c.html
 
     The NAIF utility CKBRIEF can be used for the same purpose.
 
@@ -1013,21 +1036,21 @@ def ckdiff_euler(mk, ck1, ck2, spacecraft_frame, target_frame, resolution, toler
     :rtype: list
     """
 
-    cspice.furnsh(mk)
+    spiceypy.furnsh(mk)
 
     windows_ck1 = cov_ck_ker(ck1, object=spacecraft_frame, time_format='SPICE')
-    cspice.unload(ck1)
+    spiceypy.unload(ck1)
 
     windows_ck2 = cov_ck_ker(ck2, object=spacecraft_frame, time_format='SPICE')
-    cspice.unload(ck2)
+    spiceypy.unload(ck2)
 
-    windows_intersected = cspice.wnintd(windows_ck1, windows_ck2)
+    windows_intersected = spiceypy.wnintd(windows_ck1, windows_ck2)
 
-    number_of_intervals = list(range(cspice.wncard(windows_intersected)))
+    number_of_intervals = list(range(spiceypy.wncard(windows_intersected)))
 
     et_boundaries_list = []
     for element in number_of_intervals:
-        et_boundaries = cspice.wnfetd(windows_intersected, element)
+        et_boundaries = spiceypy.wnfetd(windows_intersected, element)
         et_boundaries_list.append(et_boundaries[0])
         et_boundaries_list.append(et_boundaries[1])
 
@@ -1042,35 +1065,35 @@ def ckdiff_euler(mk, ck1, ck2, spacecraft_frame, target_frame, resolution, toler
 
 
     if utc_start:
-        et_start = cspice.utc2et(utc_start)
+        et_start = spiceypy.utc2et(utc_start)
 
     if utc_finish:
-        et_finish = cspice.utc2et(utc_finish)
+        et_finish = spiceypy.utc2et(utc_finish)
         et_list = numpy.arange(et_start, et_finish, resolution)
 
 
-    cspice.furnsh(ck1)
+    spiceypy.furnsh(ck1)
 
     eul1_ck1 = []
     eul2_ck1 = []
     eul3_ck1 = []
     for et in et_list:
 
-        rot_mat = cspice.pxform(spacecraft_frame,  target_frame,et)
-        euler = (cspice.m2eul(rot_mat, 1, 2, 3))
+        rot_mat = spiceypy.pxform(spacecraft_frame,  target_frame,et)
+        euler = (spiceypy.m2eul(rot_mat, 1, 2, 3))
         eul1_ck1.append(math.degrees(euler[0]))
         eul2_ck1.append(math.degrees(euler[1]))
         eul3_ck1.append(math.degrees(euler[2]))
 
-    cspice.unload(ck1)
-    cspice.furnsh(ck2)
+    spiceypy.unload(ck1)
+    spiceypy.furnsh(ck2)
 
     eul1_ck2 = []
     eul2_ck2 = []
     eul3_ck2 = []
     for et in et_list:
-        rot_mat = cspice.pxform(spacecraft_frame, target_frame, et)
-        euler = (cspice.m2eul(rot_mat, 1, 2, 3))
+        rot_mat = spiceypy.pxform(spacecraft_frame, target_frame, et)
+        euler = (spiceypy.m2eul(rot_mat, 1, 2, 3))
         eul1_ck2.append(math.degrees(euler[0]))
         eul2_ck2.append(math.degrees(euler[1]))
         eul3_ck2.append(math.degrees(euler[2]))
@@ -1106,7 +1129,7 @@ def ckdiff_euler(mk, ck1, ck2, spacecraft_frame, target_frame, resolution, toler
         eul_angle_report(et_list, eul2_ck1, eul2_ck2, 2, tolerance, name=eul2_name)
         eul_angle_report(et_list, eul3_ck1, eul3_ck2, 3, tolerance, name=eul3_name)
 
-    cspice.unload(ck2)
+    spiceypy.unload(ck2)
 
     return
 
@@ -1119,7 +1142,7 @@ def ckdiff(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance,
     Several options are available. This function is based on the following
     SPICE API:
 
-    http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/ckcov_c.html
+    http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/spiceypy/ckcov_c.html
 
     The NAIF utility CKBRIEF can be used for the same purpose.
 
@@ -1146,21 +1169,21 @@ def ckdiff(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance,
     """
 
     if mk:
-        cspice.furnsh(mk)
+        spiceypy.furnsh(mk)
 
     windows_ck1 = cov_ck_ker(ck1, object=spacecraft_frame, time_format='SPICE')
-    cspice.unload(ck1)
+    spiceypy.unload(ck1)
 
     windows_ck2 = cov_ck_ker(ck2, object=spacecraft_frame, time_format='SPICE')
-    cspice.unload(ck2)
+    spiceypy.unload(ck2)
 
-    windows_intersected = cspice.wnintd(windows_ck1, windows_ck2)
+    windows_intersected = spiceypy.wnintd(windows_ck1, windows_ck2)
 
-    number_of_intervals = list(range(cspice.wncard(windows_intersected)))
+    number_of_intervals = list(range(spiceypy.wncard(windows_intersected)))
 
     et_boundaries_list = []
     for element in number_of_intervals:
-        et_boundaries = cspice.wnfetd(windows_intersected, element)
+        et_boundaries = spiceypy.wnfetd(windows_intersected, element)
         et_boundaries_list.append(et_boundaries[0])
         et_boundaries_list.append(et_boundaries[1])
 
@@ -1175,14 +1198,14 @@ def ckdiff(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance,
 
 
     if utc_start:
-        et_start = cspice.utc2et(utc_start)
+        et_start = spiceypy.utc2et(utc_start)
 
     if utc_finish:
-        et_finish = cspice.utc2et(utc_finish)
+        et_finish = spiceypy.utc2et(utc_finish)
         et_list = numpy.arange(et_start, et_finish, resolution)
 
 
-    cspice.furnsh(ck1)
+    spiceypy.furnsh(ck1)
 
     eul1_ck1 = []
     eul2_ck1 = []
@@ -1190,34 +1213,34 @@ def ckdiff(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance,
     bsight_ck1 = []
     for et in et_list:
 
-        rot_mat = cspice.pxform(spacecraft_frame, target_frame, et)
-        euler = (cspice.m2eul(rot_mat, 1, 2, 3))
+        rot_mat = spiceypy.pxform(spacecraft_frame, target_frame, et)
+        euler = (spiceypy.m2eul(rot_mat, 1, 2, 3))
         eul1_ck1.append(math.degrees(euler[0]))
         eul2_ck1.append(math.degrees(euler[1]))
         eul3_ck1.append(math.degrees(euler[2]))
 
-        bsight = cspice.mxv(rot_mat, boresight)
-        bsight_ang = cspice.vsep(bsight, boresight)
-        bsight_ck1.append(bsight_ang*cspice.dpr())
+        bsight = spiceypy.mxv(rot_mat, boresight)
+        bsight_ang = spiceypy.vsep(bsight, boresight)
+        bsight_ck1.append(bsight_ang*spiceypy.dpr())
 
 
-    cspice.unload(ck1)
-    cspice.furnsh(ck2)
+    spiceypy.unload(ck1)
+    spiceypy.furnsh(ck2)
 
     eul1_ck2 = []
     eul2_ck2 = []
     eul3_ck2 = []
     bsight_ck2 = []
     for et in et_list:
-        rot_mat = cspice.pxform(spacecraft_frame, target_frame, et)
-        euler = (cspice.m2eul(rot_mat, 1, 2, 3))
+        rot_mat = spiceypy.pxform(spacecraft_frame, target_frame, et)
+        euler = (spiceypy.m2eul(rot_mat, 1, 2, 3))
         eul1_ck2.append(math.degrees(euler[0]))
         eul2_ck2.append(math.degrees(euler[1]))
         eul3_ck2.append(math.degrees(euler[2]))
 
-        bsight = cspice.mxv(rot_mat, boresight)
-        bsight_ang = cspice.vsep(bsight, boresight)
-        bsight_ck2.append(bsight_ang*cspice.dpr())
+        bsight = spiceypy.mxv(rot_mat, boresight)
+        bsight_ang = spiceypy.vsep(bsight, boresight)
+        bsight_ck2.append(bsight_ang*spiceypy.dpr())
 
 
     ck1_filename = ck1.split('/')[-1].split('.')[0]
@@ -1253,7 +1276,7 @@ def ckdiff(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance,
         eul_angle_report(et_list, eul2_ck1, eul2_ck2, 2, tolerance, name=title_name)
         eul_angle_report(et_list, eul3_ck1, eul3_ck2, 3, tolerance, name=title_name)
 
-    cspice.unload(ck2)
+    spiceypy.unload(ck2)
 
     return
 
@@ -1267,7 +1290,7 @@ def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance
     Several options are available. This function is based on the following
     SPICE API:
 
-    http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/ckcov_c.html
+    http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/spiceypy/ckcov_c.html
 
     The NAIF utility CKBRIEF can be used for the same purpose.
 
@@ -1293,21 +1316,21 @@ def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance
     :rtype: list
     """
     if mk:
-        cspice.furnsh(mk)
+        spiceypy.furnsh(mk)
 
     windows_ck1 = cov_ck_ker(ck1, object=spacecraft_frame, time_format='SPICE')
-    cspice.unload(ck1)
+    spiceypy.unload(ck1)
 
     windows_ck2 = cov_ck_ker(ck2, object=spacecraft_frame, time_format='SPICE')
-    cspice.unload(ck2)
+    spiceypy.unload(ck2)
 
-    windows_intersected = cspice.wnintd(windows_ck1, windows_ck2)
+    windows_intersected = spiceypy.wnintd(windows_ck1, windows_ck2)
 
-    number_of_intervals = list(range(cspice.wncard(windows_intersected)))
+    number_of_intervals = list(range(spiceypy.wncard(windows_intersected)))
 
     et_boundaries_list = []
     for element in number_of_intervals:
-        et_boundaries = cspice.wnfetd(windows_intersected, element)
+        et_boundaries = spiceypy.wnfetd(windows_intersected, element)
         et_boundaries_list.append(et_boundaries[0])
         et_boundaries_list.append(et_boundaries[1])
 
@@ -1322,14 +1345,14 @@ def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance
 
 
     if utc_start:
-        et_start = cspice.utc2et(utc_start)
+        et_start = spiceypy.utc2et(utc_start)
 
     if utc_finish:
-        et_finish = cspice.utc2et(utc_finish)
+        et_finish = spiceypy.utc2et(utc_finish)
         et_list = numpy.arange(et_start, et_finish, resolution)
 
 
-    cspice.furnsh(ck1)
+    spiceypy.furnsh(ck1)
 
     eul1_ck1 = []
     eul2_ck1 = []
@@ -1338,21 +1361,21 @@ def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance
     angle_ck1 = []
     for et in et_list:
 
-        rot_mat = cspice.pxform(spacecraft_frame,  target_frame,et)
-        euler = (cspice.m2eul(rot_mat, 1, 2, 3))
+        rot_mat = spiceypy.pxform(spacecraft_frame,  target_frame,et)
+        euler = (spiceypy.m2eul(rot_mat, 1, 2, 3))
         eul1_ck1.append(math.degrees(euler[0]))
         eul2_ck1.append(math.degrees(euler[1]))
         eul3_ck1.append(math.degrees(euler[2]))
 
-        bsight = cspice.mxv(rot_mat, boresight)
-        bsight_ang = cspice.vsep(bsight, boresight)
-        bsight_ck1.append(bsight_ang*cspice.dpr())
+        bsight = spiceypy.mxv(rot_mat, boresight)
+        bsight_ang = spiceypy.vsep(bsight, boresight)
+        bsight_ck1.append(bsight_ang*spiceypy.dpr())
 
-        (rot_axis, rot_angle) = cspice.raxisa(rot_mat)
-        angle_ck1.append(rot_angle*cspice.dpr()*1000)
+        (rot_axis, rot_angle) = spiceypy.raxisa(rot_mat)
+        angle_ck1.append(rot_angle*spiceypy.dpr()*1000)
 
-    cspice.unload(ck1)
-    cspice.furnsh(ck2)
+    spiceypy.unload(ck1)
+    spiceypy.furnsh(ck2)
 
     eul1_ck2 = []
     eul2_ck2 = []
@@ -1361,18 +1384,18 @@ def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance
     angle_ck2 = []
     for et in et_list:
 
-        rot_mat = cspice.pxform(spacecraft_frame, target_frame, et)
-        euler = (cspice.m2eul(rot_mat, 1, 2, 3))
+        rot_mat = spiceypy.pxform(spacecraft_frame, target_frame, et)
+        euler = (spiceypy.m2eul(rot_mat, 1, 2, 3))
         eul1_ck2.append(math.degrees(euler[0]))
         eul2_ck2.append(math.degrees(euler[1]))
         eul3_ck2.append(math.degrees(euler[2]))
 
-        bsight = cspice.mxv(rot_mat, boresight)
-        bsight_ang = cspice.vsep(bsight, boresight)
-        bsight_ck2.append(bsight_ang*cspice.dpr())
+        bsight = spiceypy.mxv(rot_mat, boresight)
+        bsight_ang = spiceypy.vsep(bsight, boresight)
+        bsight_ck2.append(bsight_ang*spiceypy.dpr())
 
-        (rot_axis, rot_angle) = cspice.raxisa(rot_mat)
-        angle_ck2.append(rot_angle*cspice.dpr()*1000)
+        (rot_axis, rot_angle) = spiceypy.raxisa(rot_mat)
+        angle_ck2.append(rot_angle*spiceypy.dpr()*1000)
 
     eul1_diff = [i - j for i, j in zip(eul1_ck1, eul1_ck2)]
     eul2_diff = [i - j for i, j in zip(eul2_ck1, eul2_ck2)]
@@ -1415,7 +1438,7 @@ def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance
         eul_angle_report(et_list, eul2_ck1, eul2_ck2, 2, tolerance, name=eul2_name)
         eul_angle_report(et_list, eul3_ck1, eul3_ck2, 3, tolerance, name=eul3_name)
 
-    cspice.unload(ck2)
+    spiceypy.unload(ck2)
 
     return
 
@@ -1428,7 +1451,7 @@ def ckplot(ck1, spacecraft_frame, target_frame, resolution,
     Several options are available. This function is based on the following
     SPICE API:
 
-    http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/ckcov_c.html
+    http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/spiceypy/ckcov_c.html
 
     The NAIF utility CKBRIEF can be used for the same purpose.
 
@@ -1455,8 +1478,8 @@ def ckplot(ck1, spacecraft_frame, target_frame, resolution,
     """
 
     if mk:
-        cspice.furnsh(mk)
-    cspice.furnsh(ck1)
+        spiceypy.furnsh(mk)
+    spiceypy.furnsh(ck1)
 
     et_boundaries_list = cov_ck_ker(ck1, support_ker=mk, object=spacecraft_frame,
                                         time_format='TDB')
@@ -1474,10 +1497,10 @@ def ckplot(ck1, spacecraft_frame, target_frame, resolution,
 
     # TODO: if we want to really use start and end times and intersect it with the available intervals we need to develop this
     if utc_start:
-        et_start = cspice.utc2et(utc_start)
+        et_start = spiceypy.utc2et(utc_start)
 
     if utc_finish:
-        et_finish = cspice.utc2et(utc_finish)
+        et_finish = spiceypy.utc2et(utc_finish)
         et_list = numpy.arange(et_start, et_finish, resolution)
 
 
@@ -1486,13 +1509,13 @@ def ckplot(ck1, spacecraft_frame, target_frame, resolution,
     eul3 = []
     for et in et_list:
 
-        rot_mat = cspice.pxform(spacecraft_frame,  target_frame,et)
-        euler = cspice.m2eul(rot_mat, 1, 2, 3)
+        rot_mat = spiceypy.pxform(spacecraft_frame,  target_frame,et)
+        euler = spiceypy.m2eul(rot_mat, 1, 2, 3)
         eul1.append(math.degrees(euler[0]))
         eul2.append(math.degrees(euler[1]))
         eul3.append(math.degrees(euler[2]))
 
-    cspice.unload(ck1)
+    spiceypy.unload(ck1)
 
     plot(et_list, [eul1,eul2,eul3],
          yaxis_name=['Euler Angle 1', 'Euler Angle 2', 'Euler Angle 3'],
@@ -1509,7 +1532,7 @@ def spkdiff(mk, spk1, spk2, spacecraft, target, resolution, pos_tolerance,
     Several options are available. This function is based on the following
     SPICE API:
 
-    http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/ckcov_c.html
+    http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/spiceypy/ckcov_c.html
 
     The NAIF utility CKBRIEF can be used for the same purpose.
 
@@ -1538,21 +1561,21 @@ def spkdiff(mk, spk1, spk2, spacecraft, target, resolution, pos_tolerance,
     if not target_frame:
         target_frame = 'IAU_{}'.format(target.upper())
 
-    cspice.furnsh(mk)
+    spiceypy.furnsh(mk)
 
     windows_spk1 = cov_spk_ker(spk1, object=spacecraft, time_format='SPICE')
-    cspice.unload(spk1)
+    spiceypy.unload(spk1)
 
     windows_spk2 = cov_spk_ker(spk2, object=spacecraft, time_format='SPICE')
-    cspice.unload(spk2)
+    spiceypy.unload(spk2)
 
-    windows_intersected = cspice.wnintd(windows_spk1, windows_spk2)
+    windows_intersected = spiceypy.wnintd(windows_spk1, windows_spk2)
 
-    number_of_intervals = list(range(cspice.wncard(windows_intersected)))
+    number_of_intervals = list(range(spiceypy.wncard(windows_intersected)))
 
     et_boundaries_list = []
     for element in number_of_intervals:
-        et_boundaries = cspice.wnfetd(windows_intersected, element)
+        et_boundaries = spiceypy.wnfetd(windows_intersected, element)
         et_boundaries_list.append(et_boundaries[0])
         et_boundaries_list.append(et_boundaries[1])
 
@@ -1566,13 +1589,13 @@ def spkdiff(mk, spk1, spk2, spacecraft, target, resolution, pos_tolerance,
         et_list = numpy.append(et_list, numpy.arange(et_start, et_finish, resolution))
 
     if utc_start:
-        et_start = cspice.utc2et(utc_start)
+        et_start = spiceypy.utc2et(utc_start)
 
     if utc_finish:
-        et_finish = cspice.utc2et(utc_finish)
+        et_finish = spiceypy.utc2et(utc_finish)
         et_list = numpy.arange(et_start, et_finish, resolution)
 
-    cspice.furnsh(spk1)
+    spiceypy.furnsh(spk1)
 
     state_spk1 = []
     state_spk2 = []
@@ -1582,7 +1605,7 @@ def spkdiff(mk, spk1, spk2, spacecraft, target, resolution, pos_tolerance,
     vel_spk2 = []
 
     for et in et_list:
-        state = cspice.spkezr(target, et, target_frame, 'NONE', spacecraft)[0]
+        state = spiceypy.spkezr(target, et, target_frame, 'NONE', spacecraft)[0]
 
         state_spk1.append(state)
         pos_spk1.append(np.sqrt(state[0]*state[0] +
@@ -1592,10 +1615,10 @@ def spkdiff(mk, spk1, spk2, spacecraft, target, resolution, pos_tolerance,
                                 state[4]*state[4] +
                                 state[5]*state[5]))
 
-    cspice.unload(spk1)
-    cspice.furnsh(spk2)
+    spiceypy.unload(spk1)
+    spiceypy.furnsh(spk2)
     for et in et_list:
-        state = cspice.spkezr(target, et, target_frame, 'NONE', spacecraft)[0]
+        state = spiceypy.spkezr(target, et, target_frame, 'NONE', spacecraft)[0]
 
         state_spk2.append(state)
         pos_spk2.append(np.sqrt(state[0]*state[0] +
@@ -1611,7 +1634,7 @@ def spkdiff(mk, spk1, spk2, spacecraft, target, resolution, pos_tolerance,
          title='Position of {} w.r.t {} ({})'.format(spacecraft, target, target_frame),
          format=plot_style)
 
-    cspice.unload(spk2)
+    spiceypy.unload(spk2)
     if report:
 
         spk1_filename = spk1.split('/')[-1].split('.')[0]
@@ -1642,7 +1665,7 @@ def pck_body_placeholder(bodies):
             # Get body NAIF ID.
             #
             try:
-                id =  cspice.bodn2c(str(body.upper))
+                id =  spiceypy.bodn2c(str(body.upper))
             except:
                 id = pl_id
                 pl_id += 1
@@ -1657,7 +1680,7 @@ def pck_body_placeholder(bodies):
             # Get body NAIF ID.
             #
             try:
-                id =  cspice.bodn2c(str(body.upper))
+                id =  spiceypy.bodn2c(str(body.upper))
             except:
                 id = pl_id
                 pl_id += 1
@@ -1672,7 +1695,7 @@ def pck_body_placeholder(bodies):
             # Get body NAIF ID.
             #
             try:
-                id =  cspice.bodn2c(str(body.upper))
+                id =  spiceypy.bodn2c(str(body.upper))
             except:
                 id = pl_id
                 pl_id += 1
@@ -1704,7 +1727,7 @@ def read_ik_with_sectors(sensor_name):
     secsis = 0
 
     try:
-        sensid = cspice.bodn2c(sensnm)
+        sensid = spiceypy.bodn2c(sensnm)
     except:
         print('Cannot determine NAIF ID for {}'.format(sensnm))
         return sensnm, 0, 0, secsiz, secsis, '', []
@@ -1716,10 +1739,10 @@ def read_ik_with_sectors(sensor_name):
     # of the sensor.)
     #
     ikkwd = 'INS#_NUMBER_OF_SECTORS'
-    ikkwd = cspice.repmi(ikkwd, "#", sensid)
+    ikkwd = spiceypy.repmi(ikkwd, "#", sensid)
 
     try:
-        secnum = cspice.gipool(ikkwd, 0, 2)
+        secnum = spiceypy.gipool(ikkwd, 0, 2)
     except:
         print('Loaded IK does not contain {}.'.format(ikkwd))
         return sensnm, sensid, 0, secsiz, secsis, '', []
@@ -1729,10 +1752,10 @@ def read_ik_with_sectors(sensor_name):
     # INS-NNNNNN_SECTOR_SIZE or INS-NNNNNN_SECTOR_SIZES keyword.
     #
     ikkwd = 'INS#_SECTOR_SIZES'
-    ikkwd = cspice.repmi(ikkwd, '#', sensid)
+    ikkwd = spiceypy.repmi(ikkwd, '#', sensid)
 
     try:
-        secsis = cspice.gdpool(ikkwd, 0, 2)
+        secsis = spiceypy.gdpool(ikkwd, 0, 2)
 
         #
         # We need to search for INS-NNNNNN_SECTOR_SIZE in the second place
@@ -1741,11 +1764,11 @@ def read_ik_with_sectors(sensor_name):
     except:
 
         ikkwd = 'INS#_SECTOR_SIZE'
-        ikkwd = cspice.repmi(ikkwd, '#', sensid)
+        ikkwd = spiceypy.repmi(ikkwd, '#', sensid)
 
         try:
             room = int(secnum[0]*secnum[1]*2)
-            secsiz = cspice.gdpool(ikkwd, 0, room)
+            secsiz = spiceypy.gdpool(ikkwd, 0, room)
         except:
             print('Loaded IK does not contain {}.'.format(ikkwd))
             return sensnm, sensid, secnum, secsiz, secsis, '', []
@@ -1755,10 +1778,10 @@ def read_ik_with_sectors(sensor_name):
     # defined. It is provided in the INS-NNNNNN_FRAME keyword.
     #
     ikkwd = 'INS#_FRAME'
-    ikkwd = cspice.repmi(ikkwd, '#', sensid)
+    ikkwd = spiceypy.repmi(ikkwd, '#', sensid)
 
     try:
-        secfrm = cspice.gcpool(ikkwd, 0, 1)
+        secfrm = spiceypy.gcpool(ikkwd, 0, 1)
     except:
         print('Loaded IK does not contain {}.'.format(ikkwd))
         return sensnm, sensid, secnum, secsiz, secsis, secfrm, []
@@ -1768,11 +1791,11 @@ def read_ik_with_sectors(sensor_name):
     # INS-NNNNNN_SECTOR_DIRECTIONS keyword.
     #
     ikkwd = 'INS#_SECTOR_DIRECTIONS'
-    ikkwd = cspice.repmi(ikkwd, '#', sensid)
+    ikkwd = spiceypy.repmi(ikkwd, '#', sensid)
 
     try:
         room = int(secnum[0]*secnum[1]*3)
-        secdir = cspice.gdpool(ikkwd, 0, room)
+        secdir = spiceypy.gdpool(ikkwd, 0, room)
 
 
         #
@@ -1803,9 +1826,9 @@ def sensor_with_sectors(sensor, mk, fk=''):
     #
     # Load ROS FK and RPC IK files.
     #
-    cspice.furnsh(mk)
+    spiceypy.furnsh(mk)
     if fk:
-        cspice.furnsh(fk)
+        spiceypy.furnsh(fk)
 
     #
     # Get ELS IK data.
@@ -1864,25 +1887,25 @@ def hga_angles(sc, time):
     hga_az_frame = sc + '_HGA_AZ'
     hga_frame = sc + '_HGA'
 
-    sc_id = cspice.bodn2c(sc)
+    sc_id = spiceypy.bodn2c(sc)
 
     try:
 
         # Get the rotation matrix between two frames
-        cmat = cspice.pxform(hga_zero_frame, hga_el_frame, time)
+        cmat = spiceypy.pxform(hga_zero_frame, hga_el_frame, time)
 
         # Get the quaternion elements from the rotation matrix
-        quat = cspice.m2q(cmat)
+        quat = spiceypy.m2q(cmat)
         hga_el = np.rad2deg(2. * np.arccos(quat[0]))  # in radians
 
 
-        cmat = cspice.pxform(hga_el_frame, hga_az_frame, time)
-        quat = cspice.m2q(cmat)
+        cmat = spiceypy.pxform(hga_el_frame, hga_az_frame, time)
+        quat = spiceypy.m2q(cmat)
         hga_az = np.rad2deg(2. * np.arccos(quat[0]))  # in radians
 
 
-        (earth_vec, lt) = cspice.spkezp(399, time, hga_frame, 'NONE', sc_id)
-        hga_earth = np.rad2deg(cspice.vsep([0,0,1], earth_vec))
+        (earth_vec, lt) = spiceypy.spkezp(399, time, hga_frame, 'NONE', sc_id)
+        hga_earth = np.rad2deg(spiceypy.vsep([0,0,1], earth_vec))
 
 
     except:
@@ -1916,28 +1939,28 @@ def solar_aspect_angles(sc, time):
         sa_n_frame = sc+'_SA-Y'
 
 
-    sc_id = cspice.bodn2c(sc)
+    sc_id = spiceypy.bodn2c(sc)
 
     try:
 
         # If there is only one Solar Array e.g.: BEPICOLOMBO MPO
         if sa_frame:
 
-            (sun_vec, lt) = cspice.spkezp(10, time, sa_frame, 'NONE', sc_id)
-            saa_sa = np.rad2deg(cspice.vsep([1, 0, 0], sun_vec))
+            (sun_vec, lt) = spiceypy.spkezp(10, time, sa_frame, 'NONE', sc_id)
+            saa_sa = np.rad2deg(spiceypy.vsep([1, 0, 0], sun_vec))
 
         else:
 
-            (sun_vec, lt) = cspice.spkezp(10, time, sa_p_frame, 'NONE', sc_id)
-            saa_sa_p = np.rad2deg(cspice.vsep([1, 0, 0], sun_vec))
+            (sun_vec, lt) = spiceypy.spkezp(10, time, sa_p_frame, 'NONE', sc_id)
+            saa_sa_p = np.rad2deg(spiceypy.vsep([1, 0, 0], sun_vec))
 
-            (sun_vec, lt) = cspice.spkezp(10, time, sa_n_frame, 'NONE', sc_id)
-            saa_sa_n = np.rad2deg(cspice.vsep([1, 0, 0], sun_vec))
+            (sun_vec, lt) = spiceypy.spkezp(10, time, sa_n_frame, 'NONE', sc_id)
+            saa_sa_n = np.rad2deg(spiceypy.vsep([1, 0, 0], sun_vec))
 
-        (sun_vec, lt) = cspice.spkezp(10, time, sc+'_SPACECRAFT', 'NONE', sc_id)
-        saa_sc_x = np.rad2deg(cspice.vsep([1, 0, 0], sun_vec))
-        saa_sc_y = np.rad2deg(cspice.vsep([0, 1, 0], sun_vec))
-        saa_sc_z = np.rad2deg(cspice.vsep([0, 0, 1], sun_vec))
+        (sun_vec, lt) = spiceypy.spkezp(10, time, sc+'_SPACECRAFT', 'NONE', sc_id)
+        saa_sc_x = np.rad2deg(spiceypy.vsep([1, 0, 0], sun_vec))
+        saa_sc_y = np.rad2deg(spiceypy.vsep([0, 1, 0], sun_vec))
+        saa_sc_z = np.rad2deg(spiceypy.vsep([0, 0, 1], sun_vec))
 
     except:
 
@@ -1960,10 +1983,10 @@ def solar_array_angle(sa_frame, time):
     try:
 
         # Get the rotation matrix between two frames
-        cmat = cspice.pxform(sa_frame, sa_zero_frame, time)
+        cmat = spiceypy.pxform(sa_frame, sa_zero_frame, time)
 
         # Get the quaternion elements from the rotation matrix
-        quat = cspice.m2q(cmat)
+        quat = spiceypy.m2q(cmat)
         sa_ang = np.rad2deg(2. * np.arccos(quat[0]))  # in radians
 
     except:
@@ -1985,17 +2008,17 @@ def body_distance_to_plane(body_distance, body_plane, time):
     body_2 = body_distance
 
     if isinstance(time, str):
-        time = cspice.utc2et(time)
+        time = spiceypy.utc2et(time)
 
-    id_1 = cspice.bodn2c(body_1)
-    id_2 = cspice.bodn2c(body_2)
+    id_1 = spiceypy.bodn2c(body_1)
+    id_2 = spiceypy.bodn2c(body_2)
 
 
-    mat = cspice.pxform('MEX_SIDING_SPRING_PLANE','IAU_MARS', time)
-    vec1_1 = cspice.mxv(mat, [1,0,0])
-    vec2_1 = cspice.mxv(mat, [0,1,0])
+    mat = spiceypy.pxform('MEX_SIDING_SPRING_PLANE','IAU_MARS', time)
+    vec1_1 = spiceypy.mxv(mat, [1,0,0])
+    vec2_1 = spiceypy.mxv(mat, [0,1,0])
 
-    state_1 = cspice.spkgeo(id_2, time, 'IAU_MARS', id_1)[0]
+    state_1 = spiceypy.spkgeo(id_2, time, 'IAU_MARS', id_1)[0]
 
     pos_1 = state_1[0:3]
     vel_1 = state_1[2:5]
@@ -2021,14 +2044,14 @@ def body_distance_to_plane(body_distance, body_plane, time):
 def angle_between_planes(body_1, body_2, time):
 
     if isinstance(time, str):
-        time = cspice.utc2et(time)
+        time = spiceypy.utc2et(time)
 
-    mat = cspice.pxform('MEX_SIDING_SPRING_PLANE', 'HEE', time)
-    norm_1 = cspice.mxv(mat, [0,0,1])
+    mat = spiceypy.pxform('MEX_SIDING_SPRING_PLANE', 'HEE', time)
+    norm_1 = spiceypy.mxv(mat, [0,0,1])
 
     norm_1 = norm_1 / np.linalg.norm(norm_1)
 
-    angle = 180 - cspice.dpr()*cspice.vsep(norm_1,[0,0,1])
+    angle = 180 - spiceypy.dpr()*spiceypy.vsep(norm_1,[0,0,1])
 
     return angle
 
@@ -2036,35 +2059,215 @@ def angle_between_planes(body_1, body_2, time):
 def plane_ellipsoid(body_1, body_2, time):
 
 
-    id_1 = cspice.bodn2c(body_1)
-    id_2 = cspice.bodn2c(body_2)
+    id_1 = spiceypy.bodn2c(body_1)
+    id_2 = spiceypy.bodn2c(body_2)
 
-    mat = cspice.pxform('MEX_SIDING_SPRING_PLANE','IAU_MARS', time)
-    vec1 = cspice.mxv(mat, [1,0,0])
-    vec2 = cspice.mxv(mat, [0,1,0])
+    mat = spiceypy.pxform('MEX_SIDING_SPRING_PLANE','IAU_MARS', time)
+    vec1 = spiceypy.mxv(mat, [1,0,0])
+    vec2 = spiceypy.mxv(mat, [0,1,0])
 
-    state1 = cspice.spkgeo(id_2, time, 'IAU_'+body_2, id_1)[0]
+    state1 = spiceypy.spkgeo(id_2, time, 'IAU_'+body_2, id_1)[0]
     pos1 = state1[0:3]
 
-    plane = cspice.psv2pl(pos1, vec1, vec2)
+    plane = spiceypy.psv2pl(pos1, vec1, vec2)
 
     # Get the body semi-axis lenght
-    (num, semi_axis) = cspice.bodvcd(id_2, "RADII", 3)
+    (num, semi_axis) = spiceypy.bodvcd(id_2, "RADII", 3)
 
     a = semi_axis[0]
     b = semi_axis[1]
     c = semi_axis[2]
 
     try:
-        ellipse = cspice.inedpl(a, b, c, plane)
+        ellipse = spiceypy.inedpl(a, b, c, plane)
     except:
         ellipse = 0
 
     return ellipse
 
 
+def beta_angle(observer, target, time):
+
+    # Provided by Bernhard Geiger
+
+    if not isinstance(time, float):
+        et = spiceypy.utc2et(time)
+    else:
+        et = time
+
+    #
+    # compute the Sun position relative to Mars; vector from Mars to Sun
+    #
+    vec_tar_sun, lt = spiceypy.spkpos( 'SUN', et, 'J2000', 'None', target)
+
+    #
+    # beta angle
+    #
+    sta_tar_obs, lt = spiceypy.spkezr(observer, et, 'J2000', 'None', target)
+
+    #
+    # orbital plane is defined by the cross-product of position and velocity
+    # vector
+    #
+    vec_orbit = spiceypy.vcrss(sta_tar_obs[:3], sta_tar_obs[3:])
+
+    #
+    # the beta angle can be computed from the orbital plane and Sun vectors
+    #
+    beta = abs(90.-spiceypy.vsep(vec_orbit, vec_tar_sun)*spiceypy.dpr())
+
+    return beta
 
 
+def ck_coverage_timeline(metakernel, sc, notebook=True, html_file_name='test',
+                         plot_width=975,plot_height=500):
+
+    if notebook:
+        output_notebook()
+        plot_width = 975
+        plot_height = 300
+    else:
+        output_file(html_file_name + '.html')
+        plot_width = plot_width
+        plot_height = plot_height
+
+    cov_start = []
+    cov_finsh = []
+    kernels = []
+
+    with open(metakernel, 'r') as f:
+        for line in f:
+            if '/ck/' in line and '{}_sc'.format(sc.lower()) in line:
+                kernels.append(line.split('/ck/')[-1].strip().split("'")[0])
+            if 'PATH_VALUES' in line and '=' in line:
+                path = line.split("'")[1] + '/ck/'
+
+    kernels = list(reversed(kernels))
+    ck_kernels = []
+
+    for kernel in kernels:
+
+        cov = cov_ck_ker(path+kernel, '{}_SPACECRAFT'.format(sc.upper()), support_ker=metakernel,
+                                time_format='TDB')
+        if cov:
+            cov_start.append(cov[0])
+            cov_finsh.append(cov[-1])
+            ck_kernels.append(kernel)
+
+
+    date_format = 'UTC'
+    start_dt =[]
+    finsh_dt =[]
+    for element in cov_start:
+        start_dt.append(et_to_datetime(element, date_format))
+    for element in cov_finsh:
+        finsh_dt.append(et_to_datetime(element, date_format))
+
+
+
+    source = ColumnDataSource(data=dict(start_dt=start_dt,
+                                        finsh_dt=finsh_dt,
+                                        ck_kernels=ck_kernels))
+
+    p = figure(y_range=ck_kernels, plot_height=plot_height ,plot_width=plot_width,
+                title="CK Kernels Coverage", )
+    p.hbar(y=ck_kernels, height=0.2, left=start_dt, right=finsh_dt, color="red")
+
+    labels = LabelSet(x='start_dt', y='ck_kernels', text='ck_kernels', level='glyph',
+                  x_offset=5, y_offset=-5, source=source)
+
+    p.xaxis.formatter = DatetimeTickFormatter(seconds=["%Y-%m-%d %H:%M:%S"],
+                                              minsec=["%Y-%m-%d %H:%M:%S"],
+                                              minutes=["%Y-%m-%d %H:%M:%S"],
+                                              hourmin=["%Y-%m-%d %H:%M:%S"],
+                                              hours=["%Y-%m-%d %H:%M:%S"],
+                                              days=["%Y-%m-%d %H:%M:%S"],
+                                              months=["%Y-%m-%d %H:%M:%S"],
+                                              years=["%Y-%m-%d %H:%M:%S"])
+
+    p.xaxis.major_label_orientation = 0#pi/4
+    p.yaxis.visible = False
+    p.xaxis.axis_label_text_font_size = "5pt"
+
+
+    p.add_layout(labels)
+
+    show(p)
+
+
+def spk_coverage_timeline(metakernel, sc, notebook=True, html_file_name='test',
+                         plot_width=975, plot_height=500):
+
+    if notebook:
+        output_notebook()
+        plot_width = 975
+        plot_height = 300
+    else:
+        output_file(html_file_name + '.html')
+        plot_width = plot_width
+        plot_height = plot_height
+
+    cov_start = []
+    cov_finsh = []
+    kernels = []
+
+    with open(metakernel, 'r') as f:
+        for line in f:
+            if '/spk/' in line and sc.lower() in line:
+                kernels.append(line.split('/spk/')[-1].strip().split("'")[0])
+            if 'PATH_VALUES' in line and '=' in line:
+                path = line.split("'")[1] + '/spk/'
+
+    kernels = list(reversed(kernels))
+    spk_kernels = []
+
+    for kernel in kernels:
+
+        cov = cov_spk_ker(path+kernel, sc.upper(), support_ker=metakernel,
+                                time_format='TDB')
+        if cov:
+            cov_start.append(cov[0][0])
+            cov_finsh.append(cov[0][-1])
+            spk_kernels.append(kernel)
+
+
+    date_format = 'UTC'
+    start_dt =[]
+    finsh_dt =[]
+    for element in cov_start:
+        start_dt.append(et_to_datetime(element, date_format))
+    for element in cov_finsh:
+        finsh_dt.append(et_to_datetime(element, date_format))
+
+
+
+    source = ColumnDataSource(data=dict(start_dt=start_dt,
+                                        finsh_dt=finsh_dt,
+                                        spk_kernels=spk_kernels))
+
+    p = figure(y_range=spk_kernels, plot_height=plot_height ,plot_width=plot_width,
+                title="SPK Kernels Coverage", )
+    p.hbar(y=spk_kernels, height=0.2, left=start_dt, right=finsh_dt, color="red")
+
+    labels = LabelSet(x='start_dt', y='spk_kernels', text='spk_kernels', level='glyph',
+                  x_offset=5, y_offset=-5, source=source)
+
+    p.xaxis.formatter = DatetimeTickFormatter(seconds=["%Y-%m-%d %H:%M:%S"],
+                                              minsec=["%Y-%m-%d %H:%M:%S"],
+                                              minutes=["%Y-%m-%d %H:%M:%S"],
+                                              hourmin=["%Y-%m-%d %H:%M:%S"],
+                                              hours=["%Y-%m-%d %H:%M:%S"],
+                                              days=["%Y-%m-%d %H:%M:%S"],
+                                              months=["%Y-%m-%d %H:%M:%S"],
+                                              years=["%Y-%m-%d %H:%M:%S"])
+
+    p.xaxis.major_label_orientation = 0#pi/4
+    p.yaxis.visible = False
+    p.xaxis.axis_label_text_font_size = "5pt"
+
+    p.add_layout(labels)
+
+    show(p)
 
 
 

@@ -1,4 +1,4 @@
-import spiceypy as cspice
+import spiceypy as spiceypy
 import numpy as np
 from spiops.utils import utils
 
@@ -9,10 +9,10 @@ class Body(object):
 
         if isinstance(body, str):
             name = body
-            id = cspice.bodn2c(body)
+            id = spiceypy.bodn2c(body)
         else:
             id = body
-            name = cspice.bodc2n(body)
+            name = spiceypy.bodc2n(body)
 
         if target:
             self.target = target
@@ -72,7 +72,7 @@ class Body(object):
         if not current:
             current = self.time.current
 
-        state, lt = cspice.spkezr(target, current, reference_frame,
+        state, lt = spiceypy.spkezr(target, current, reference_frame,
                                   self.time.abcorr, self.name)
 
         return state
@@ -96,20 +96,20 @@ class Body(object):
             #TODO: need to add a time conversion here
             current = current
 
-        rot_mat = cspice.pxform(target_frame, frame, current)
+        rot_mat = spiceypy.pxform(target_frame, frame, current)
 
         if format == 'spice quaternions':
-            orientation = cspice.m2q(rot_mat)
+            orientation = spiceypy.m2q(rot_mat)
 
         if format == 'msop quaternions':
-            quaternions = cspice.m2q(rot_mat)
+            quaternions = spiceypy.m2q(rot_mat)
             orientation = [-quaternions[1],
                            -quaternions[2],
                            -quaternions[3],
                             quaternions[0]]
 
         elif format == 'euler angles':
-            orientation = (cspice.m2eul(rot_mat, 3, 2, 1))
+            orientation = (spiceypy.m2eul(rot_mat, 3, 2, 1))
 
         elif format == 'rotation matrix':
             orientation = rot_mat
@@ -202,8 +202,15 @@ class Body(object):
 
         self.sa_ang_p = sa_ang_p_list
         self.sa_ang_n = sa_ang_n_list
-        self.sa_ang = [sa_ang_p_list, sa_ang_n_list]
-        self.saa_sa = [saa_sa_p_list, saa_sa_n_list]
+        if minus_array:
+            self.sa_ang = [sa_ang_p_list, sa_ang_n_list]
+        else:
+            self.sa_ang = sa_ang_p_list
+        if minus_array:
+            self.saa_sa = [saa_sa_p_list, saa_sa_n_list]
+        else:
+            self.saa_sa = saa_sa_p_list
+
         self.saa_sc = [saa_sc_x_list, saa_sc_y_list, saa_sc_z_list]
 
         self.hga_earth = hga_earth
@@ -221,6 +228,8 @@ class Body(object):
         #                self.time.window.all() == self.previous_tw.all():
         #    return
 
+        import spiops as spiops
+
         distance = []
         altitude = []
         latitude = []
@@ -230,6 +239,10 @@ class Body(object):
         subpoint_pcc = []
         zaxis_target_angle = []
         myaxis_target_angle = []
+        beta_angle = []
+
+        qs, qx, qy, qz = [], [], [] ,[]
+
 
         tar = self.target
         time = self.time
@@ -239,15 +252,15 @@ class Body(object):
             #
             # Compute the distance
             #
-            ptarg, lt = cspice.spkpos(tar.name, et, tar.frame, time.abcorr,
+            ptarg, lt = spiceypy.spkpos(tar.name, et, tar.frame, time.abcorr,
                                       self.name)
-            vout, vmag = cspice.unorm(ptarg)
+            vout, vmag = spiceypy.unorm(ptarg)
             distance.append(vmag)
 
             #
             # Compute the geometric sub-observer point.
             #
-            spoint, trgepc, srfvec = cspice.subpnt(tar.method, tar.name, et,
+            spoint, trgepc, srfvec = spiceypy.subpnt(tar.method, tar.name, et,
                                                    tar.frame, time.abcorr,
                                                    self.name)
             subpoint_xyz.append(spoint)
@@ -255,7 +268,7 @@ class Body(object):
             #
             # Compute the observer's altitude from SPOINT.
             #
-            dist = cspice.vnorm(srfvec)
+            dist = spiceypy.vnorm(srfvec)
             altitude.append(dist)
 
 
@@ -263,14 +276,14 @@ class Body(object):
             # Convert the sub-observer point's rectangular coordinates to
             # planetographic longitude, latitude and altitude.
             #
-            spglon, spglat, spgalt = cspice.recpgr(tar.name, spoint,
+            spglon, spglat, spgalt = spiceypy.recpgr(tar.name, spoint,
                                                    tar.radii_equ, tar.flat)
 
             #
             # Convert radians to degrees.
             #
-            spglon *= cspice.dpr()
-            spglat *= cspice.dpr()
+            spglon *= spiceypy.dpr()
+            spglat *= spiceypy.dpr()
 
             subpoint_pgc.append([spglon, spglat, spgalt])
 
@@ -278,14 +291,14 @@ class Body(object):
             #  Convert sub-observer point's rectangular coordinates to
             #  planetocentric radius, longitude, and latitude.
             #
-            spcrad, spclon, spclat = cspice.reclat(spoint)
+            spcrad, spclon, spclat = spiceypy.reclat(spoint)
 
 
             #
             # Convert radians to degrees.
             #
-            spclon *= cspice.dpr()
-            spclat *= cspice.dpr()
+            spclon *= spiceypy.dpr()
+            spclat *= spiceypy.dpr()
 
             subpoint_pcc.append([spclon, spclat, spcrad])
             latitude.append(spclat) #TODO: Remove with list extraction
@@ -295,7 +308,7 @@ class Body(object):
             # Compute the angle between the observer's S/C axis and the
             # geometric sub-observer point
             #
-            obs_tar, ltime = cspice.spkpos(tar.name, et,
+            obs_tar, ltime = spiceypy.spkpos(tar.name, et,
                                                    'J2000', time.abcorr,
                                                    self.name)
             obs_zaxis  = [0,  0, 1]
@@ -305,23 +318,35 @@ class Body(object):
             # We need to account for when there is no CK attitude available.
             #
             try:
-                matrix = cspice.pxform(self.frame, 'J2000', et)
+                matrix = spiceypy.pxform(self.frame, 'J2000', et)
 
-                z_vecout = cspice.mxv(matrix, obs_zaxis)
-                zax_target_angle = cspice.vsep(z_vecout, obs_tar)
-                zax_target_angle *= cspice.dpr()
+                z_vecout = spiceypy.mxv(matrix, obs_zaxis)
+                zax_target_angle = spiceypy.vsep(z_vecout, obs_tar)
+                zax_target_angle *= spiceypy.dpr()
                 zaxis_target_angle.append(zax_target_angle)
 
-                my_vecout = cspice.mxv(matrix, obs_myaxis)
-                myax_target_angle = cspice.vsep(my_vecout, obs_tar)
-                myax_target_angle *= cspice.dpr()
+                my_vecout = spiceypy.mxv(matrix, obs_myaxis)
+                myax_target_angle = spiceypy.vsep(my_vecout, obs_tar)
+                myax_target_angle *= spiceypy.dpr()
                 myaxis_target_angle.append(myax_target_angle)
-            #
-            # TODO: Include a thorough error message here
-            #
+                
+                quat = spiceypy.m2q(spiceypy.invert(matrix))
+                qs.append(quat[0])
+                qx.append(-1*quat[1])
+                qy.append(-1*quat[2])
+                qz.append(-1*quat[3])
+
             except:
                 zaxis_target_angle.append(0.0)
                 myaxis_target_angle.append(0.0)
+                qs.append(0.0)
+                qx.append(0.0)
+                qy.append(0.0)
+                qz.append(0.0)
+
+            beta_angle.append(spiops.beta_angle(self.name, self.target.name,
+                                                et))
+
 
 
         self.distance = distance
@@ -335,7 +360,8 @@ class Body(object):
         self.subpoint_pcc = subpoint_pcc
         self.zaxis_target_angle = zaxis_target_angle
         self.myaxis_target_angle = myaxis_target_angle
-
+        self.beta_angle = beta_angle
+        self.quaternions = [qx, qy, qz, qs]
 
         self.geometry_flag = True
         self.previous_tw = self.time.window
@@ -357,7 +383,8 @@ class Body(object):
                        self.__getattribute__('latitude'),
                        notebook=notebook, xaxis_name = 'Longitude',
                        yaxis_name='Latitude', mission=self.name,
-                       target=self.target.name, background_image=True)
+                       target=self.target.name, background_image=True,
+                       format ='circle_only')
 
             return
 
@@ -365,7 +392,10 @@ class Body(object):
         # Time in X axis
         #
         if yaxis == 'sa_ang':
-            yaxis_name = ['sa_ang_p', 'sa_ang_n']
+            if self.name != 'MPO':
+                yaxis_name = ['sa_ang_p', 'sa_ang_n']
+            else:
+                yaxis_name = ['sa_ang_p']
         elif yaxis == 'saa_sc':
             yaxis_name = ['saa_sc_x', 'saa_sc_y', 'saa_sc_z']
         elif yaxis == 'saa_sa':
@@ -377,6 +407,8 @@ class Body(object):
             yaxis_name = ['hga_el', 'hga_az']
         elif yaxis == 'hga_earth':
             yaxis_name = 'hga_earth'
+        elif yaxis == 'quaternions':
+            yaxis_name = ['qx','qy','qz','qs']
         else:
             yaxis_name = yaxis
 
@@ -391,6 +423,7 @@ class Body(object):
 
     def Plot3D(self, data='trajectory', reference_frame=False):
 
+        self.__Geometry()
 
         #TODO: Arrange the reference frame flow
         if not self.state_in_window:
@@ -446,7 +479,7 @@ class Target(Body):
     def __getRadii(self):
 
         try:
-            self.radii = cspice.bodvar(self.id, 'RADII', 3)
+            self.radii = spiceypy.bodvar(self.id, 'RADII', 3)
 
         except:
             print("Ephemeris object has no radii")
@@ -466,9 +499,9 @@ class Observer(Body):
 
         if not frame:
             self.frame = '{}_SPACECRAFT'.format(self.name)
-            if cspice.namfrm(self.frame) == 0:
+            if spiceypy.namfrm(self.frame) == 0:
                 self.frame = self.name
-            if cspice.namfrm(self.frame) == 0:
+            if spiceypy.namfrm(self.frame) == 0:
                 #TODO: Fix this shit
                 self.frame = '{}_LANDER'.format(self.name)
                 print('The frame name has not been able to be built; please introduce it manually')
