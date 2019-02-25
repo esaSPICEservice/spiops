@@ -18,7 +18,7 @@ setup(
     name="spiops",
 
     # Version number (initial):
-    version="0.3.0",
+    version="0.4.0",
 
     description="Extension of SPICE functionalities for ESA Planetary Missons",
     long_description=open('README.md').read(),
