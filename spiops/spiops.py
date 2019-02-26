@@ -693,8 +693,8 @@ def cov_ck_ker(ck, object, support_ker=list(), time_format= 'UTC',
                                       cover=object_cov)
 
     else:
-        print('{} with ID {} is not present in {}.'.format(object,
-                                                           object_id, ck))
+        #print('{} with ID {} is not present in {}.'.format(object,
+         #                                                  object_id, ck))
         return False
 
     if time_format == 'SPICE':
@@ -1429,7 +1429,7 @@ def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance
     # Attitude Error
     else:
         plot(et_list, angle_diff, yaxis_name='Milidegrees',
-             title='Atittude Error',
+             title='Attitude Error',
              format=plot_style,
              notebook=notebook)
 
@@ -1885,7 +1885,10 @@ def hga_angles(sc, time):
 
     hga_el_frame = sc + '_HGA_EL'
     hga_az_frame = sc + '_HGA_AZ'
-    hga_frame = sc + '_HGA'
+    if sc == 'MPO':
+        hga_frame = 'MPO_HGA_OPTIC'
+    else:
+        hga_frame = sc + '_HGA'
 
     sc_id = spiceypy.bodn2c(sc)
 
@@ -1934,7 +1937,6 @@ def solar_aspect_angles(sc, time):
         sa_n_frame = sc + '_SA-X'
 
     else:
-
         sa_p_frame = sc+'_SA+Y'
         sa_n_frame = sc+'_SA-Y'
 
@@ -1978,8 +1980,12 @@ def solar_aspect_angles(sc, time):
 
 def solar_array_angle(sa_frame, time):
 
-    sa_zero_frame = sa_frame + '_ZERO'
-
+    if 'MPO' in sa_frame:
+        sa_zero_frame = 'MPO_SA_SADM'
+    elif 'MEX' in sa_frame:
+        sa_zero_frame = sa_frame + '_GIMBAL'
+    else:
+        sa_zero_frame = sa_frame + '_ZERO'
     try:
 
         # Get the rotation matrix between two frames
@@ -2137,7 +2143,7 @@ def ck_coverage_timeline(metakernel, sc, notebook=True, html_file_name='test',
 
     with open(metakernel, 'r') as f:
         for line in f:
-            if '/ck/' in line and '{}_sc'.format(sc.lower()) in line:
+            if '/ck/' in line and 'prelaunch' not in line:
                 kernels.append(line.split('/ck/')[-1].strip().split("'")[0])
             if 'PATH_VALUES' in line and '=' in line:
                 path = line.split("'")[1] + '/ck/'
@@ -2145,10 +2151,18 @@ def ck_coverage_timeline(metakernel, sc, notebook=True, html_file_name='test',
     kernels = list(reversed(kernels))
     ck_kernels = []
 
-    for kernel in kernels:
+    if sc.upper() == 'MEX':
+        sc_frame = 'MEX_SC_REF'
+    else:
+        sc_frame = '{}_SPACECRAFT'.format(sc.upper())
 
-        cov = cov_ck_ker(path+kernel, '{}_SPACECRAFT'.format(sc.upper()), support_ker=metakernel,
+    for kernel in kernels:
+        try:
+            cov = cov_ck_ker(path+kernel, sc_frame, support_ker=metakernel,
                                 time_format='TDB')
+        except:
+            pass
+
         if cov:
             cov_start.append(cov[0])
             cov_finsh.append(cov[-1])
@@ -2213,7 +2227,7 @@ def spk_coverage_timeline(metakernel, sc, notebook=True, html_file_name='test',
 
     with open(metakernel, 'r') as f:
         for line in f:
-            if '/spk/' in line and sc.lower() in line:
+            if '/spk/' in line and 'prelaunch' not in line:
                 kernels.append(line.split('/spk/')[-1].strip().split("'")[0])
             if 'PATH_VALUES' in line and '=' in line:
                 path = line.split("'")[1] + '/spk/'
@@ -2223,8 +2237,11 @@ def spk_coverage_timeline(metakernel, sc, notebook=True, html_file_name='test',
 
     for kernel in kernels:
 
-        cov = cov_spk_ker(path+kernel, sc.upper(), support_ker=metakernel,
+        try:
+            cov = cov_spk_ker(path+kernel, sc.upper(), support_ker=metakernel,
                                 time_format='TDB')
+        except:
+            pass
         if cov:
             cov_start.append(cov[0][0])
             cov_finsh.append(cov[0][-1])

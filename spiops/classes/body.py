@@ -1,6 +1,11 @@
 import spiceypy as spiceypy
 import numpy as np
 from spiops.utils import utils
+from bokeh.layouts import row
+from bokeh.plotting import figure, show, output_notebook
+from bokeh.models.glyphs import Ellipse
+from bokeh.models import ColumnDataSource, Plot, LinearAxis, Grid
+
 
 
 
@@ -34,7 +39,8 @@ class Body(object):
                     'distance',
                     'zaxis_target_angle'
                     'myaxis_target_angle',
-                    'groundtrack']:
+                    'groundtrack',
+                    'trajectory']:
             self.__Geometry()
             return object.__getattribute__(self, item)
         elif item in ['sa_ang_p',
@@ -43,7 +49,7 @@ class Body(object):
                       'saa_sa',
                       'saa_sc',
                       'hga_earth',
-                      'hga_el_az']:
+                      'hga_angles']:
             self.__Structures()
             return object.__getattribute__(self, item)
         else:
@@ -150,6 +156,9 @@ class Body(object):
         elif self.name == 'MTM':
             plus_array = 'MTM_SA+X'
             minus_array = 'MTM_SA-X'
+        else:
+            plus_array = '{}_SA+Y'.format(self.name.upper())
+            minus_array = '{}_SA-Y'.format(self.name.upper())
 
 
         #
@@ -185,8 +194,8 @@ class Body(object):
             sa_ang_p_list.append(sa_ang_p)
             if minus_array:
                 sa_ang_n_list.append(sa_ang_n)
+                saa_sa_n_list.append(saa[0][1])
             saa_sa_p_list.append(saa[0][0])
-            saa_sa_n_list.append(saa[0][1])
             saa_sc_x_list.append(saa[1][0])
             saa_sc_y_list.append(saa[1][1])
             saa_sc_z_list.append(saa[1][2])
@@ -200,15 +209,11 @@ class Body(object):
                 hga_angles_el.append(hga_angles_ang[0])
                 hga_angles_az.append(hga_angles_ang[1])
 
-        self.sa_ang_p = sa_ang_p_list
-        self.sa_ang_n = sa_ang_n_list
         if minus_array:
             self.sa_ang = [sa_ang_p_list, sa_ang_n_list]
-        else:
-            self.sa_ang = sa_ang_p_list
-        if minus_array:
             self.saa_sa = [saa_sa_p_list, saa_sa_n_list]
         else:
+            self.sa_ang = sa_ang_p_list
             self.saa_sa = saa_sa_p_list
 
         self.saa_sc = [saa_sc_x_list, saa_sc_y_list, saa_sc_z_list]
@@ -242,6 +247,7 @@ class Body(object):
         beta_angle = []
 
         qs, qx, qy, qz = [], [], [] ,[]
+        x, y, z = [],[],[]
 
 
         tar = self.target
@@ -254,8 +260,13 @@ class Body(object):
             #
             ptarg, lt = spiceypy.spkpos(tar.name, et, tar.frame, time.abcorr,
                                       self.name)
+            x.append(ptarg[0])
+            y.append(ptarg[1])
+            z.append(ptarg[2])
+
             vout, vmag = spiceypy.unorm(ptarg)
             distance.append(vmag)
+
 
             #
             # Compute the geometric sub-observer point.
@@ -362,6 +373,7 @@ class Body(object):
         self.myaxis_target_angle = myaxis_target_angle
         self.beta_angle = beta_angle
         self.quaternions = [qx, qy, qz, qs]
+        self.trajectory = [x,y,z]
 
         self.geometry_flag = True
         self.previous_tw = self.time.window
@@ -388,6 +400,46 @@ class Body(object):
 
             return
 
+        elif yaxis == 'trajectory':
+
+            if notebook:
+                output_notebook()
+
+            # Make data
+            x = float(self.target.radii[0])
+            y = float(self.target.radii[1])
+            z = float(self.target.radii[2])
+
+
+            # create a new plot
+            s1 = figure(width=300, plot_height=300, title='X-Y [KM]')
+            s1.ellipse(x=0, y=0, width=x, height=y, color="orange")
+
+            s1.line(self.__getattribute__('trajectory')[0],
+                      self.__getattribute__('trajectory')[1],
+                      color="red")
+
+            # create another one
+            s2 = figure(width=300, height=300, title='X-Z [KM]')
+            s2.ellipse(x=0, y=0, width=x, height=z, color="orange")
+            s2.line(self.__getattribute__('trajectory')[0],
+                        self.__getattribute__('trajectory')[2],
+                        color="green")
+
+
+            # create another one
+            s3 = figure(width=300, height=300, title='Y-Z [KM]')
+            s3.ellipse(x=0, y=0, width=y, height=z, color="orange")
+            s3.line(self.__getattribute__('trajectory')[1],
+                        self.__getattribute__('trajectory')[2],
+                        color="blue")
+
+
+            # put all the plots in an HBox
+            show(row(s1, s2, s3))
+
+            return
+
         #
         # Time in X axis
         #
@@ -395,14 +447,14 @@ class Body(object):
             if self.name != 'MPO':
                 yaxis_name = ['sa_ang_p', 'sa_ang_n']
             else:
-                yaxis_name = ['sa_ang_p']
+                yaxis_name = 'sa_ang_p'
         elif yaxis == 'saa_sc':
             yaxis_name = ['saa_sc_x', 'saa_sc_y', 'saa_sc_z']
         elif yaxis == 'saa_sa':
             if self.name != 'MPO':
                 yaxis_name = ['saa_sa_p', 'saa_sa_n']
             else:
-                yaxis_name = ['saa_sa']
+                yaxis_name = 'saa_sa'
         elif yaxis == 'hga_angles':
             yaxis_name = ['hga_el', 'hga_az']
         elif yaxis == 'hga_earth':

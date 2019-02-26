@@ -194,7 +194,7 @@ def plot(xaxis, yaxis, xaxis_name = 'Date', yaxis_name='', title='', format='lin
 
     if background_image:
         p.image_url(url=[os.path.join(os.path.dirname(__file__),
-                         '../data/Mars_Viking_MDIM21_ClrMosaic_global_1024.py')], x=-180, y=-90,
+                         '../data/Mars_Viking_MDIM21_ClrMosaic_global_1024.jpg')], x=-180, y=-90,
                 w=360, h=180, anchor="bottom_left", global_alpha=0.6)
 
     for element in y:
@@ -207,7 +207,7 @@ def plot(xaxis, yaxis, xaxis_name = 'Date', yaxis_name='', title='', format='lin
 
         elif format == 'line':
             p.line(x, element, legend=yaxis_name[index].upper(),
-                   line_width=line_width, color=color_list[index])
+                       line_width=line_width, color=color_list[index])
         index += 1
 
 

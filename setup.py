@@ -18,7 +18,7 @@ setup(
     name="spiops",
 
     # Version number (initial):
-    version="0.4.0",
+    version="0.4.2",
 
     description="Extension of SPICE functionalities for ESA Planetary Missons",
     long_description=open('README.md').read(),
@@ -53,7 +53,7 @@ setup(
     install_requires=['spiceypy>=2.0.0', 'bokeh>=0.12.15', 'numpy>=1.14.2', 'matplotlib>=2.2.2'],
 
     # Include additional files into the package
-    include_package_data=False,
+    include_package_data=True,
 
 
 
