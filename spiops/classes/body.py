@@ -271,8 +271,12 @@ class Body(object):
             #
             # Compute the geometric sub-observer point.
             #
+            if tar.frame == 'MARSIAU':
+                tar_frame = 'IAU_MARS'
+            else:
+                tar_frame = tar.frame
             spoint, trgepc, srfvec = spiceypy.subpnt(tar.method, tar.name, et,
-                                                   tar.frame, time.abcorr,
+                                                   tar_frame, time.abcorr,
                                                    self.name)
             subpoint_xyz.append(spoint)
 
