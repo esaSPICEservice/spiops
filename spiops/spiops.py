@@ -2,13 +2,20 @@
 
 import math
 import numpy as np
-import spiceypy as spiceypy
+import spiceypy
 import logging
 import os
 import numpy as np
 from spiceypy.utils.support_types import *
 from .utils import time
 from .utils import plot
+from .utils import target2frame
+import imageio
+from scipy.misc import imsave
+import matplotlib as mpl
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.pyplot as plt
+
 
 from bokeh.io import output_file, show
 from bokeh.plotting import figure, output_file, output_notebook, show
@@ -18,8 +25,6 @@ from math import pi
 import spiops
 from .utils.time import et_to_datetime
 
-# TODO: change for Bokeh. And try to generalise it. Also put the alternative of
-# not using bokeh at some point
 import matplotlib.pyplot as plt
 
 """
@@ -929,6 +934,48 @@ def eul_angle_report(et_list, eul_ck1, eul_ck2, eul_num, tolerance, name=''):
     return
 
 
+def attitude_error_report(et_list, ang_ck1, ang_ck2, tolerance, name=''):
+
+
+    ang_error = list(abs(numpy.array(ang_ck1) - numpy.array(ang_ck2)))
+
+    count = 0
+    interval_bool = False
+    ang_tol_list = []
+
+    with open('attitude_error_{}_report.txt'.format(name), 'w+') as f:
+        f.write('ATTITUDE ERROR REPORT \n')
+        f.write('==================== \n')
+
+
+        for element in ang_error:
+
+            if element >= tolerance:
+                if interval_bool:
+                    ang_tol_list.append(element)
+                else:
+                    interval_bool = True
+                    ang_tol_list.append(element)
+                    utc_start = spiceypy.et2utc(et_list[count], 'ISOC', 2)
+
+            else:
+                if interval_bool:
+                    utc_finish = spiceypy.et2utc(et_list[count], 'ISOC', 2)
+
+                    f.write('TOLERANCE of ' + str(tolerance) + ' DEG exceeded from ' + utc_start + ' until ' +
+                          utc_finish + ' with an average angle of ' + str(numpy.mean(ang_tol_list)) + ' DEG \n')
+
+                interval_bool = False
+
+            count += 1
+
+        f.write('\nMAX Error:  {} MILLIDEG\n'.format(str(max(ang_error))))
+        f.write('MIN Error:   {} MILLIDEG\n'.format(str(min(ang_error))))
+        f.write('MEAN Error: {} MILLIDEG\n'.format(str(numpy.mean(ang_error))))
+
+    return
+
+
 def state_report(et_list, pos_spk1, pos_spk2, vel_spk1, vel_spk2, pos_tolerance,
                  vel_tolerance, name=''):
 
@@ -1434,9 +1481,13 @@ def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance
              notebook=notebook)
 
     if report:
-        eul_angle_report(et_list, eul1_ck1, eul1_ck2, 1, tolerance, name=eul1_name)
-        eul_angle_report(et_list, eul2_ck1, eul2_ck2, 2, tolerance, name=eul2_name)
-        eul_angle_report(et_list, eul3_ck1, eul3_ck2, 3, tolerance, name=eul3_name)
+
+        attitude_error_report(et_list, angle_ck1, angle_ck2, tolerance, name=eul1_name)
+
+        if output == 'euler_angles':
+            eul_angle_report(et_list, eul1_ck1, eul1_ck2, 1, tolerance, name=eul1_name)
+            eul_angle_report(et_list, eul2_ck1, eul2_ck2, 2, tolerance, name=eul2_name)
+            eul_angle_report(et_list, eul3_ck1, eul3_ck2, 3, tolerance, name=eul3_name)
 
     spiceypy.unload(ck2)
 
@@ -2287,5 +2338,344 @@ def spk_coverage_timeline(metakernel, sc, notebook=True, html_file_name='test',
     show(p)
 
 
+def simulate_image(utc, metakernel, camera, mission_targets,
+                    pixel_lines=False, pixel_samples=False, dsk=False,
+                    generate_image=False, plot_image=False, report=False,
+                   name=False, load_kernels=True):
+    '''
+
+    :param utc: Image acquisition time in UTC format e.g.: 2016-01-01T00:00:00
+    :type utc: str
+    :param metakernel: SPICE Kernel Dataset     Meta-Kernel
+    :type metakernel: str
+    :param camera: Name of the camera to be used. Usually found in the
+    instrument kernel (IK) e.g.: 'ROS_NAVCAM-A'
+    :type camera: str
+    :param mission_targets: Targets of the observation, e.g.:'67P/C-G'
+    :type mission_targets: list
+    :param pixel_lines: Number of pixel lines usually provided by the IK.
+    :type pixel_lines: int
+    :param pixel_samples: Number of pixel samples per line usually provided by
+    the IK.
+    :type pixel_samples: int
+    :param dsk: Digital Shape Model to be used for the computation. Not required
+    of included in the Meta-Kernel.
+    :type dsk: str
+    :param generate_image: Flag to determine whether if the image is saved or
+    plotted.
+    :type generate_image: bool
+    :param plot_image: Flag to determine whether if the image is to be plotted or
+    plotted.
+    :type generate_image: bool
+    :param report: Flag for processing report.
+    :type generate_image: bool
+    :param name: Name to be provided to the image
+    :type generate_image: str
+    :return: Name of the output image
+    :rtype: str
+    '''
+    if load_kernels:
+        spiceypy.furnsh(metakernel)
+    if load_kernels:
+        spiceypy.furnsh(dsk)
+    et = spiceypy.utc2et(utc)
+
+    #
+    # We retrieve the camera information using GETFOV. More info available:
+    #
+    #   https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/getfov_c.html
+    #
+    camera_name = camera
+    camera_id = spiceypy.bodn2c(camera_name)
+    (shape, frame, bsight, vectors, bounds) = spiceypy.getfov(camera_id, 100)
+
+
+    #
+    # TODO: In the future all the sensors should be epehmeris objects, see
+    # https://issues.cosmos.esa.int/socci/browse/SPICEMNGT-77
+    #
+    if camera.split('_')[0] == 'ROS':
+        observer = 'ROSETTA'
+    elif camera.split('_')[0] == 'MEX':
+        observer = 'MEX'
+    elif camera.split('_')[0] == 'VEX':
+        observer = 'VEX'
+    elif camera.split('_')[0] == 'JUICE':
+        observer = 'JUICE'
+    elif camera.split('_')[0] == 'HERA':
+        observer = 'HERA'
+    else:
+        observer = camera
+
+    #
+    # We check if the resolution of the camera has been provided as an input
+    # if not we try to obtain the resolution of the camera from the IK
+    #
+    if not pixel_lines or not pixel_samples:
+        try:
+            pixel_samples = int(spiceypy.gdpool('INS'+str(camera_id) + '_PIXEL_SAMPLES',0,1))
+            pixel_lines = int(spiceypy.gdpool('INS' + str(camera_id) + '_PIXEL_LINES',0,1))
+        except:
+            pass
+            print("PIXEL_SAMPLES and/or PIXEL_LINES not defined for "
+                  "{}".format(camera))
+            return
+
+    #
+    # We generate a matrix using the resolution of the framing camera as the
+    # dimensions of the matrix
+    #
+    nx, ny = (pixel_samples, pixel_lines)
+    x = np.linspace(bounds[0][0], bounds[2][0], nx)
+    y = np.linspace(bounds[0][1], bounds[2][1], ny)
+    xv, yv = np.meshgrid(x, y)
+
+    #
+    # We define the matrices that will be used as outputs and the
+    #
+    phase_matrix = np.zeros((nx, ny))
+    emissn_matrix = np.zeros((nx, ny))
+    solar_matrix = np.zeros((nx, ny))
+
+
+    #
+    # Now we look for additional targets.
+    #
+    targets_frames = []
+    methods = []
+    targets = []
+
+    for target in mission_targets:
+
+        try:
+            target_frame = target2frame(target)
+
+            if dsk:
+                ids = spiceypy.dskobj(dsk)
+                if spiceypy.bodn2c(target) in ids:
+                    method = 'DSK/UNPRIORITIZED'
+                else:
+                    method = 'ELLIPSOID'
+            else:
+                method = 'ELLIPSOID'
+
+            visible = spiceypy.fovtrg(camera, target, 'ELLIPSOID', target_frame, 'NONE',
+                                      observer, et)
+
+            if visible:
+               targets.append(target)
+               targets_frames.append(target_frame)
+               methods.append(method)
+        except Exception as e:
+            print(e)
+            pass
+
+    r = []
+    for target in targets:
+
+        r.append(np.linalg.norm(
+                spiceypy.spkpos(target, et, 'J2000', 'NONE', observer)[
+                    0]))
+    #
+    # If we have targets we order the list in target proximity order
+    #
+    if len(r) > 1:
+        targets = np.asarray(targets)
+        targets = targets[np.argsort(r)]
+        targets_frames = np.asarray(targets_frames)
+        targets_frames = targets_frames[np.argsort(r)]
+        methods = np.asarray(methods)
+        methods = methods[np.argsort(r)]
+
+    #
+    # For each pixel we compute the possible intersection with the target, if
+    # the target is intersected we then compute the illumination angles. We
+    # use the following SPICE APIs: SINCPT and ILLUMF
+    #
+    #   https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/sincpt_c.html
+    #   https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/illumf_c.html
+    #
+    isvisible, isiluminated = [], []
+    for i, x in enumerate(xv):
+        for j, y in enumerate(yv):
+
+            #
+            # List of pixel's boresight
+            #
+            ibsight = [x[i], y[j], bsight[2]]
+
+            #
+            # We do another loop in order to determine if we have other
+            # 'targets' in addition to the 'main' target
+            #
+            for k in range(0, len(targets), 1):
+                try:
+                    (spoint, trgepc, srfvec ) = spiceypy.sincpt(methods[k], targets[k], et,
+                                                targets_frames[k], 'NONE', observer, frame, ibsight)
+                    (trgenpc, srfvec, phase, solar,
+                     emissn, visiblef, iluminatedf) = spiceypy.illumf(methods[k], targets[k], 'SUN', et,
+                                                      targets_frames[k], 'LT+S', observer, spoint)
+
+                    emissn_matrix[i, j] = emissn
+                    phase_matrix[i, j] = phase
+
+                    #
+                    # Add to list if the point is visible to the camera
+                    #
+                    if visiblef == True:
+                        isvisible.append(visiblef)
+                    #
+                    # Add to list if the point is illuminated and seen by the camera
+                    #
+                    if iluminatedf == True:
+
+                        isiluminated.append(iluminatedf)
+                        solar_matrix[i, j] = solar
+
+                    else:
+                        #
+                        # And we set the not illuminated pixels with np.pi/2
+                        #
+                        solar_matrix[i, j] = np.pi/2
+
+                    break
+
+                except:
+                    pass
+
+                    #
+                    # If SINCPT raises an error, we set that we see nothing in
+                    # the pixel.
+                    #
+                    emissn_matrix[i,j] = 0
+                    phase_matrix[i,j] = np.pi
+                    solar_matrix[i,j] = np.pi/2
+
+    if report:
+        print('Pixel report for {} w.r.t {} @ {}'.format(camera,target,utc))
+        print('   Total number of pixels: ', pixel_samples*pixel_lines)
+        print('   Illuminated pixels:     ', len(isvisible))
+        print('   Hidden pixels:          ', pixel_samples*pixel_lines - len(isvisible))
+        print('   Shadowed points:        ', pixel_samples*pixel_lines - len(isiluminated))
+
+    #
+    # We transform the matrix from illumination angles to greyscale [0-255]
+    #
+    rescaled = (255 / (solar_matrix.max()-solar_matrix.min()) * (solar_matrix - solar_matrix.min())).astype(np.uint8)
+    rescaled = - np.flip(rescaled, 0) + 255
+
+    #
+    # We generate the plot
+    #
+    if generate_image:
+        if not name:
+
+            name = '{}_{}.PNG'.format(camera.upper(),
+                                         utc.upper())
+        else:
+
+            name = '{}_{}_{}.PNG'.format(name.upper(),
+                                         camera.upper(),
+                                         utc.upper())
+
+
+        imageio.imwrite(name, rescaled)
+
+    if plot_image:
+        plt.imshow(rescaled, cmap='gray')
+        plt.axis('off')
+        plt.show()
+
+    return name
+
+
+def sc_dsk_view(utc,mk, dsk, observer, target, target_frame,
+                    pixels=150):
+    mpl.rcParams['figure.figsize'] = (26.0, 26.0)
+
+    spiceypy.furnsh(mk)
+
+    utcstr = utc[10:13] + utc[14:16] + utc[17:19]
+    et = spiceypy.utc2et(utc)
+
+    spiceypy.furnsh(dsk)
+
+    nx, ny = (pixels, pixels)                                    # resolution of the image
+    x = np.linspace(-5, 5, nx)
+    y = np.linspace(-5, 5, ny)
+    xv, yv = np.meshgrid(x, y)
+
+    phase_matrix = np.zeros((nx, ny))
+    emissn_matrix = np.zeros((nx, ny))
+    solar_matrix = np.zeros((nx, ny))
+
+    isvisible, isiluminated = [], []
+    r, lt = spiceypy.spkpos(observer, et, 'J2000', 'NONE', target)
+
+    #
+    # We define a 'Nadir frame' w.r.t. J000 to make it general regardless of
+    #
+    #
+    zN = r
+    zN = zN/np.linalg.norm(zN)
+    xN = np.array([1,0,0]) - np.dot(np.dot([1,0,0], zN), zN)/np.linalg.norm(zN)**2
+    xN = xN/np.linalg.norm(xN)
+    yN = np.cross(zN, xN)
+    yN = yN/np.linalg.norm(yN)
+    RotM = np.linalg.inv(np.array([xN, yN, zN]))
+    spoints = []
+    for i, x in enumerate(xv):
+        for j, y in enumerate(yv):
+            dpxy = [x[i], y[i], -np.linalg.norm(r)*1000]
+            ibsight = spiceypy.mxv(RotM, dpxy)
+            # ibsight = [x[i], y[j], -r*1000]
+            try:
+                (spoint, trgepc, srfvec ) = spiceypy.sincpt('DSK/UNPRIORITIZED', target, et, target_frame, 'NONE', observer, 'J2000', ibsight)
+                spoints.append(spoint)
+                (trgepc, srfvec, phase, solar, emissn, visiblef, iluminatedf) = spiceypy.illumf('DSK/UNPRIORITIZED', target, 'SUN', et, target_frame, 'NONE', observer, spoint)
+                #check visibility of spoint
+                if visiblef == True:
+                    isvisible.append(visiblef)
+                if iluminatedf == True:
+                    isiluminated.append(iluminatedf)
+                    if solar > np.pi/2:
+                        solar_matrix[i, j] = np.pi - solar
+                    else:
+                        solar_matrix[i, j] = solar
+                else:
+                    solar_matrix[i, j] = np.pi/2          # not illuminated
+                emissn_matrix[i,j] = emissn
+                phase_matrix[i,j] = phase
+            except:
+                pass
+                emissn_matrix[i,j] = 0
+                phase_matrix[i,j] = math.pi
+                solar_matrix[i,j] = np.pi/2
+
+    spoints = np.asarray(spoints)
+    fig = plt.figure(figsize=(9, 9))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.scatter(spoints[:, 0], spoints[:, 1], spoints[:, 2], marker='.')
+    plt.xlabel("x position")
+    plt.ylabel("y position")
+    plt.title('')
+    plt.axis('equal')
+    plt.show()
+
+    print('total number of points: ', pixels*pixels)
+    print('occulted points: ', pixels*pixels - len(isvisible))
+    print('not iluminated points: ', pixels*pixels - len(isiluminated))
+
+    name = 'solar_matrix'
+    try:
+        os.remove(name)
+        print('modifying png file' + name)
+    except:
+        print('generating png file' + name)
+    plt.imshow(solar_matrix, cmap='viridis_r')
+    plt.show()
+    imsave(name+utcstr+'.png', solar_matrix)
+
+    return
 
 

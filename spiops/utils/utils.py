@@ -3,6 +3,7 @@ from .time import cal2et
 from .time import et_to_datetime
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+import spiceypy
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 from bokeh.plotting import figure, output_file, output_notebook, show
@@ -364,3 +365,22 @@ def get_sc(kernel):
             return 'emrsp_sp'
         else:
             return 'emrsp_rm'
+
+
+def target2frame(target):
+
+    if target == '67P/C-G':
+        target_frame = '67P/C-G_CK'
+    elif target == '21 LUTETIA':
+        target_frame = 'LUTETIA_FIXED'
+    elif target == 'DIDYMOS' or target == 'DIDYMOON':
+        target_frame = '{}_FIXED'.format(target)
+    else:
+        try:
+            target_frame = 'IAU_' + target.upper()
+        except:
+            target_id = str(spiceypy.bodn2c(target))
+            target_id += '000'
+            target_frame = spiceypy.frmnam(int(target_id))
+
+    return target_frame

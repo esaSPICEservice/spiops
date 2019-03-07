@@ -319,6 +319,7 @@ class Body(object):
             latitude.append(spclat) #TODO: Remove with list extraction
             longitude.append(spclon)  # TODO: Remove with list extraction
 
+
             #
             # Compute the angle between the observer's S/C axis and the
             # geometric sub-observer point
