@@ -10,11 +10,15 @@ from spiceypy.utils.support_types import *
 from .utils import time
 from .utils import plot
 from .utils import target2frame
+from .utils import findIntersection
+from .utils import findNearest
 import imageio
-from scipy.misc import imsave
+#from scipy.misc import imsave
 import matplotlib as mpl
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
+
+from spiceypy import support_types as stypes
 
 
 from bokeh.io import output_file, show
@@ -25,7 +29,6 @@ from math import pi
 import spiops
 from .utils.time import et_to_datetime
 
-import matplotlib.pyplot as plt
 
 """
 The MIT License (MIT)
@@ -1872,6 +1875,261 @@ def read_ik_with_sectors(sensor_name):
     return sensnm, sensid, secnum, secsiz, secsis, secfrm, secdir
 
 
+def mex_tgo_occultations(interval, refval):
+    (out, radii) = spiceypy.bodvrd('MARS', 'RADII', 3)
+
+    # Compute flattening coefficient.
+    re = radii[0]
+    rp = radii[2]
+    f = (re - rp) / re
+
+    a = re
+    b = radii[1]
+    c = rp
+
+    MAXIVL = 10000
+    MAXWIN = 2 * MAXIVL
+    TDBFMT = 'YYYY MON DD HR:MN:SC.### (TDB) ::TDB'
+
+    # Initialize the "confinement" window with the interval
+    # over which we'll conduct the search.
+    cnfine = stypes.SPICEDOUBLE_CELL(2)
+    spiceypy.wninsd(interval.start, interval.finish, cnfine)
+
+    #
+    # In the call below, the maximum number of window
+    # intervals gfposc can store internally is set to MAXIVL.
+    # We set the cell size to MAXWIN to achieve this.
+    #
+    riswin = stypes.SPICEDOUBLE_CELL(MAXWIN)
+
+    #
+    # Now search for the time period, within our confinement
+    # window, during which the apparent target has elevation
+    # at least equal to the elevation limit.
+    #
+    #   VARIABLE        I/O  DESCRIPTION
+    #   --------------- ---  -------------------------------------------------
+    #   SPICE_GF_CNVTOL  P   Convergence tolerance.
+    #   occtyp           I   Type of occultation.
+    #   front            I   Name of body occulting the other.
+    #   fshape           I   Type of shape model used for front body.
+    #   fframe           I   Body-fixed, body-centered frame for front body.
+    #   back             I   Name of body occulted by the other.
+    #   bshape           I   Type of shape model used for back body.
+    #   bframe           I   Body-fixed, body-centered frame for back body.
+    #   abcorr           I   Aberration correction flag.
+    #   obsrvr           I   Name of the observing body.
+    #   step             I   Step size in seconds for finding occultation
+    #                        events.
+    #   cnfine          I-O  SPICE window to which the search is restricted.
+    #   result           O   SPICE window containing results.
+    #
+    spiceypy.gfoclt('ANY', 'MARS', 'ELLIPSOID', 'IAU_MARS', 'MEX',
+                    'POINT', '', 'NONE', 'TGO', 60, cnfine, riswin)
+
+    #
+    # Now we perform another search to constrain the number of occultations by a
+    # distance criteria
+    #
+    cnfine = riswin
+
+    riswin = stypes.SPICEDOUBLE_CELL(MAXWIN)
+
+    #
+    # We're not using the adjustment feature, so
+    # we set `adjust' to zero.
+    #
+    adjust = 0.0
+
+    #
+    # We use a step size of 1 hour
+    #
+    step = 60 * 60
+
+    # nintvls  =  2*n  +  ( m / step )
+    #
+    # where
+    #
+    #    n     is the number of intervals in the confinement
+    #          window
+    #
+    #    m     is the measure of the confinement window, in
+    #          units of seconds
+    #
+    #    step  is the search step size in seconds
+    #
+    ndays = 100
+    nintvls = int(2 * 1 + (ndays * 24 * 60 * 60 / step))
+
+    #
+    # Now search for the time period, within our confinement
+    # window, during which the apparent target has elevation
+    # at least equal to the elevation limit.
+    #
+    #   VARIABLE         I/O  DESCRIPTION
+    #   ---------------  ---  ------------------------------------------------
+    #   SPICE_GF_CNVTOL   P   Convergence tolerance
+    #   target            I   Name of the target body.
+    #   abcorr            I   Aberration correction flag.
+    #   obsrvr            I   Name of the observing body.
+    #   relate            I   Relational operator.
+    #   refval            I   Reference value.
+    #   adjust            I   Adjustment value for absolute extrema searches.
+    #   step              I   Step size used for locating extrema and roots.
+    #   nintvls           I   Workspace window interval count.
+    #
+    #   cnfine           I-O  SPICE window to which the search is confined.
+    #   result            O   SPICE window containing results.
+    #
+    spiceypy.gfdist('MEX', 'NONE', 'TGO', '<', refval, adjust, step, nintvls,
+                    cnfine, riswin)
+
+    #
+    # The function wncard returns the number of intervals
+    # in a SPICE window.
+    #
+    winsiz = spiceypy.wncard(riswin)
+
+    lat_mid_list = []
+    lon_mid_list = []
+    dist_mid_list = []
+
+    lat_list = []
+    lon_list = []
+    dist_list = []
+
+    x, y, z = [], [], []
+
+    if winsiz == 0:
+        print('No events were found.')
+
+    else:
+
+        #
+        # Display the visibility time periods.
+        #
+        print(
+                'Occultation times of {0:s} as seen from {1:s} when the distance is '
+                'less than {2:f} km:\n'.format('MEX', 'TGO', refval))
+
+        for i in range(winsiz):
+            #
+            # Fetch the start and stop times of
+            # the ith interval from the search result
+            # window riswin.
+            #
+            [intbeg, intend] = spiceypy.wnfetd(riswin, i)
+
+            #
+            # Convert the rise time to a TDB calendar string.
+            #
+            timstr = spiceypy.timout(intbeg, TDBFMT)
+            et_rise = intbeg
+
+            #
+            # Write the string to standard output.
+            #
+            # if i == 0:
+            #
+            #    print('Occultation start time:'
+            #          '  {:s}'.format(timstr))
+            # else:
+            #
+            #    print('Occultation start time:'
+            #          '  {:s}'.format(timstr))
+            #
+            #
+            # Convert the set time to a TDB calendar string.
+            #
+            timstr = spiceypy.timout(intend, TDBFMT)
+            et_set = intend
+
+            #
+            # Write the string to standard output.
+            #
+            # if i == (winsiz - 1):
+            #
+            #    print('Occultation or window stop time: '
+            #          '  {:s}'.format(timstr))
+            # else:
+            #
+            #    print('Occultation stop time: '
+            #          '  {:s}'.format(timstr))
+            #
+            # print(' ')
+
+            #
+            # Generate a Time Window with the rise and set times
+            #
+            utc_rise = spiceypy.et2utc(et_rise, 'ISOC', 3)
+            utc_set = spiceypy.et2utc(et_set, 'ISOC', 3)
+
+            time_window = spiops.TimeWindow(utc_rise, utc_set, resolution=1)
+
+            interval = time_window.window
+            num = 0
+            for et in interval:
+
+                num += 1
+
+                (linept, lt) = spiceypy.spkpos('MARS', et, 'IAU_MARS', 'NONE',
+                                               'TGO')
+                (linedr, lt) = spiceypy.spkpos('MEX', et, 'IAU_MARS', 'NONE',
+                                               'TGO')
+
+                #
+                #  Variable  I/O  Description
+                #  --------  ---  --------------------------------------------------
+                #  a          I   Length of ellipsoid's semi-axis in the x direction
+                #  b          I   Length of ellipsoid's semi-axis in the y direction
+                #  c          I   Length of ellipsoid's semi-axis in the z direction
+                #  linept     I   Point on line
+                #  linedr     I   Direction vector of line
+                #  pnear      O   Nearest point on ellipsoid to line
+                #  dist       O   Distance of ellipsoid from line
+                #
+                (pnear, dist) = spiceypy.npedln(a, b, c, linept, linedr)
+
+                (lon, lat, alt) = spiceypy.recpgr('MARS', pnear, re, f)
+
+                lon = spiceypy.dpr() * lon
+                lat = spiceypy.dpr() * lat
+
+                lon_list.append(lon)
+                lat_list.append(lat)
+                dist_list.append(spiceypy.vnorm(linedr))
+
+                if num == int(len(interval) / 2):
+                    lon_mid_list.append(lon)
+                    lat_mid_list.append(lat)
+                    dist_mid_list.append(spiceypy.vnorm(linedr))
+
+    spiops.plot(lon_mid_list, [lat_mid_list],
+                xaxis_name='Longitude [deg]',
+                yaxis_name=['Latitude [deg]'],
+                title='TGO-MEX Occultation Groundtrack for MEX-TGO Distance < {}km'.format(
+                    refval),
+                plot_height=500,
+                plot_width=900,
+                format='circle',
+                background_image=True,
+                line_width=6)
+
+    spiops.plot(lon_list, [lat_list],
+                xaxis_name='Longitude [deg]',
+                yaxis_name=['Latitude [deg]'],
+                title='TGO-MEX Occultation Groundtrack for MEX-TGO Distance < {}km'.format(
+                    refval),
+                plot_height=500,
+                plot_width=900,
+                format='circle',
+                background_image=True,
+                line_width=1)
+
+    return
+
+
 def sensor_with_sectors(sensor, mk, fk=''):
 
     #
@@ -1958,7 +2216,7 @@ def hga_angles(sc, time):
         hga_az = np.rad2deg(2. * np.arccos(quat[0]))  # in radians
 
 
-        (earth_vec, lt) = spiceypy.spkezp(399, time, hga_frame, 'NONE', sc_id)
+        (earth_vec, lt) = spiceypy.spkezp(399, time, hga_frame, 'LT+S', sc_id)
         hga_earth = np.rad2deg(spiceypy.vsep([0,0,1], earth_vec))
 
 
@@ -2236,7 +2494,7 @@ def ck_coverage_timeline(metakernel, sc, notebook=True, html_file_name='test',
 
     p = figure(y_range=ck_kernels, plot_height=plot_height ,plot_width=plot_width,
                 title="CK Kernels Coverage", )
-    p.hbar(y=ck_kernels, height=0.2, left=start_dt, right=finsh_dt, color="red")
+    p.hbar(y=ck_kernels, height=0.2, left=start_dt, right=finsh_dt, color="lime")
 
     labels = LabelSet(x='start_dt', y='ck_kernels', text='ck_kernels', level='glyph',
                   x_offset=5, y_offset=-5, source=source)
@@ -2315,7 +2573,7 @@ def spk_coverage_timeline(metakernel, sc, notebook=True, html_file_name='test',
 
     p = figure(y_range=spk_kernels, plot_height=plot_height ,plot_width=plot_width,
                 title="SPK Kernels Coverage", )
-    p.hbar(y=spk_kernels, height=0.2, left=start_dt, right=finsh_dt, color="red")
+    p.hbar(y=spk_kernels, height=0.2, left=start_dt, right=finsh_dt, color="lime")
 
     labels = LabelSet(x='start_dt', y='spk_kernels', text='spk_kernels', level='glyph',
                   x_offset=5, y_offset=-5, source=source)
@@ -2338,10 +2596,111 @@ def spk_coverage_timeline(metakernel, sc, notebook=True, html_file_name='test',
     show(p)
 
 
-def simulate_image(utc, metakernel, camera, mission_targets,
-                    pixel_lines=False, pixel_samples=False, dsk=False,
-                    generate_image=False, plot_image=False, report=False,
-                   name=False, load_kernels=True):
+#
+#   The camera has no distortion;  the image of a point
+#   is determined by the intersection of the focal plane
+#   and the line determined by the point and the camera's
+#   focal point.
+#
+#   https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/inrypl_c.html
+#
+def target_center_pixel(et, camera, target, target_frame):
+
+    camera_id = spiceypy.bodn2c(camera)
+
+    focal_lenght = spiceypy.gdpool('INS{}_FOCAL_LENGTH'.format(camera_id), 0, 80)[0]
+    focal_lenght /= 1000000 # in milimiters (original routine for OSIRIS was 717.322)
+
+
+    (shape, frame, bsight, vectors, bounds) = spiceypy.getfov(camera_id, 100)
+    visible = spiceypy.fovtrg(camera, target, 'POINT', target_frame, 'LT+S', camera, et)
+
+
+    if visible:
+
+        (ptarg, lt) = spiceypy.spkpos(camera, et, frame, 'LT+S', target)
+        (ptarg, norm) = spiceypy.unorm(ptarg)
+
+        focus = spiceypy.vscl(focal_lenght, [0,0,1])
+
+
+        #
+        #   The camera's focal plane contains the origin in
+        #   camera coordinates, and the z-vector is orthogonal
+        #   to the plane.  Make a CSPICE plane representing
+        #   the focal plane.
+        #
+        focal_plane = spiceypy.nvc2pl([0,0,1], 0.)
+
+        #
+        #    The image of the target body's center in the focal
+        #    plane is defined by the intersection with the focal
+        #    plane of the ray whose vertex is the focal point and
+        #    whose direction is dir.
+        #
+        (nxpts, image_focal) = spiceypy.inrypl(focus, ptarg, focal_plane)
+
+        if nxpts != 1:
+            print('Something went wrong')
+            return 0
+
+    else:
+        print('{}: {} Center is not in the image'.format(spiceypy.et2utc(et, 'ISOC', 3, 20),target))
+        return
+
+    pixel_size = spiceypy.gdpool('INS{}_PIXEL_SIZE'.format(camera_id), 0, 80)[0]
+    ccd_center = spiceypy.gdpool('INS{}_CCD_CENTER'.format(camera_id), 0, 80)
+
+    image  = (1000000000/pixel_size) * image_focal # Pixel Size in Microns
+
+    return (image_focal, (ccd_center[0]+image[0], ccd_center[1]+image[1])) # in OSIRIS this was inverted: pixel_samples-image[1], pixel_lines-image[0]
+
+
+def pixel_center_distance(et, camera, pixel_x, pixel_y):
+
+
+    pix_x = 1024 - pixel_y
+    pix_y = 1024 - pixel_x
+
+    camera_name = camera
+    camera_id = spiceypy.bodn2c(camera_name)
+
+
+    focal_lenght = 717.322/1000000
+
+    (shape, frame, bsight, vectors, bounds) = spiceypy.getfov(camera_id, 100)
+
+
+    (image_focal, target_pixel) = target_center_pixel(et, camera, report=False)
+
+    center_x = image_focal[0]
+    center_y = image_focal[1]
+
+    tar_cent_vec = [center_x, center_y, bsight[2]*focal_lenght]
+    pix_vec = [pix_x*13.5/1000000000, pix_y*13.5/1000000000, bsight[2]*focal_lenght]
+
+    (ptarg, lt) = spiceypy.spkpos(camera, et, frame, 'LT+S', '67P/C-G')
+    (ptarg, norm) = spiceypy.unorm(ptarg)
+
+
+    pixel_vector = [13.5/1000000000, 0, bsight[2]*focal_lenght]
+
+    pix_cent_dist = np.tan(spiceypy.vsep(pix_vec,tar_cent_vec))*norm
+
+    pixel_size = np.tan(spiceypy.vsep([0,0,bsight[2]*focal_lenght],pixel_vector))*norm
+
+    #print('Comet offset', spiceypy.dpr()*spiceypy.vsep(bsight*focal_lenght,tar_cent_vec))
+    #print('Pixe-Comet offset', spiceypy.dpr()*spiceypy.vsep(pix_vec,tar_cent_vec))
+
+
+    return pix_cent_dist, target_pixel, pixel_size
+
+
+def simulate_image(utc, metakernel, camera, mission_targets, camera_spk=False,
+                    pixel_lines=False, pixel_samples=False, dsks=False,
+                    generate_image=False, report=False, name=False,
+                    illumination=True,
+                   load_kernels=True, unload_kernels=True, log=False):
     '''
 
     :param utc: Image acquisition time in UTC format e.g.: 2016-01-01T00:00:00
@@ -2376,8 +2735,9 @@ def simulate_image(utc, metakernel, camera, mission_targets,
     '''
     if load_kernels:
         spiceypy.furnsh(metakernel)
-    if load_kernels:
-        spiceypy.furnsh(dsk)
+    if dsks:
+        for dsk in dsks:
+            spiceypy.furnsh(dsk)
     et = spiceypy.utc2et(utc)
 
     #
@@ -2394,18 +2754,24 @@ def simulate_image(utc, metakernel, camera, mission_targets,
     # TODO: In the future all the sensors should be epehmeris objects, see
     # https://issues.cosmos.esa.int/socci/browse/SPICEMNGT-77
     #
-    if camera.split('_')[0] == 'ROS':
-        observer = 'ROSETTA'
-    elif camera.split('_')[0] == 'MEX':
-        observer = 'MEX'
-    elif camera.split('_')[0] == 'VEX':
-        observer = 'VEX'
-    elif camera.split('_')[0] == 'JUICE':
-        observer = 'JUICE'
-    elif camera.split('_')[0] == 'HERA':
-        observer = 'HERA'
+    if not camera_spk:
+        if camera.split('_')[0] == 'ROS':
+            observer = 'ROSETTA'
+        elif camera.split('_')[0] == 'MEX':
+            observer = 'MEX'
+        elif camera.split('_')[0] == 'VEX':
+            observer = 'VEX'
+        elif camera.split('_')[0] == 'JUICE':
+            observer = 'JUICE'
+        elif camera.split('_')[0] == 'HERA':
+            observer = 'HERA'
+        elif camera.split('_')[0] == 'MTM':
+            observer = 'MTM'
     else:
-        observer = camera
+        if isinstance(camera_spk, str):
+                observer = camera_spk
+        else:
+            observer = camera
 
     #
     # We check if the resolution of the camera has been provided as an input
@@ -2425,10 +2791,9 @@ def simulate_image(utc, metakernel, camera, mission_targets,
     # We generate a matrix using the resolution of the framing camera as the
     # dimensions of the matrix
     #
-    nx, ny = (pixel_samples, pixel_lines)
+    nx, ny = (pixel_lines, pixel_samples)
     x = np.linspace(bounds[0][0], bounds[2][0], nx)
     y = np.linspace(bounds[0][1], bounds[2][1], ny)
-    xv, yv = np.meshgrid(x, y)
 
     #
     # We define the matrices that will be used as outputs and the
@@ -2436,7 +2801,7 @@ def simulate_image(utc, metakernel, camera, mission_targets,
     phase_matrix = np.zeros((nx, ny))
     emissn_matrix = np.zeros((nx, ny))
     solar_matrix = np.zeros((nx, ny))
-
+    target_matrix = np.zeros((nx, ny))
 
     #
     # Now we look for additional targets.
@@ -2450,22 +2815,26 @@ def simulate_image(utc, metakernel, camera, mission_targets,
         try:
             target_frame = target2frame(target)
 
-            if dsk:
-                ids = spiceypy.dskobj(dsk)
-                if spiceypy.bodn2c(target) in ids:
-                    method = 'DSK/UNPRIORITIZED'
-                else:
-                    method = 'ELLIPSOID'
+            if dsks:
+                for dsk in dsks:
+                    ids = spiceypy.dskobj(dsk)
+                    if spiceypy.bodn2c(target) in ids:
+                        method = 'DSK/UNPRIORITIZED'
+                        break
+                    else:
+                        method = 'ELLIPSOID'
             else:
                 method = 'ELLIPSOID'
 
-            visible = spiceypy.fovtrg(camera, target, 'ELLIPSOID', target_frame, 'NONE',
+            visible = spiceypy.fovtrg(camera, target, 'POINT', target_frame, 'NONE',
                                       observer, et)
 
             if visible:
-               targets.append(target)
-               targets_frames.append(target_frame)
-               methods.append(method)
+                print('{} center is visible'.format(target))
+
+            targets.append(target)
+            targets_frames.append(target_frame)
+            methods.append(method)
         except Exception as e:
             print(e)
             pass
@@ -2496,8 +2865,10 @@ def simulate_image(utc, metakernel, camera, mission_targets,
     #   https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/illumf_c.html
     #
     isvisible, isiluminated = [], []
-    for i, x in enumerate(xv):
-        for j, y in enumerate(yv):
+    for i in range(0, len(x), 1):
+        for j in range(0, len(y), 1):
+
+
 
             #
             # List of pixel's boresight
@@ -2512,6 +2883,10 @@ def simulate_image(utc, metakernel, camera, mission_targets,
                 try:
                     (spoint, trgepc, srfvec ) = spiceypy.sincpt(methods[k], targets[k], et,
                                                 targets_frames[k], 'NONE', observer, frame, ibsight)
+
+                    target_matrix[i, j] = 255
+
+
                     (trgenpc, srfvec, phase, solar,
                      emissn, visiblef, iluminatedf) = spiceypy.illumf(methods[k], targets[k], 'SUN', et,
                                                       targets_frames[k], 'LT+S', observer, spoint)
@@ -2524,6 +2899,7 @@ def simulate_image(utc, metakernel, camera, mission_targets,
                     #
                     if visiblef == True:
                         isvisible.append(visiblef)
+
                     #
                     # Add to list if the point is illuminated and seen by the camera
                     #
@@ -2551,17 +2927,14 @@ def simulate_image(utc, metakernel, camera, mission_targets,
                     phase_matrix[i,j] = np.pi
                     solar_matrix[i,j] = np.pi/2
 
-    if report:
-        print('Pixel report for {} w.r.t {} @ {}'.format(camera,target,utc))
-        print('   Total number of pixels: ', pixel_samples*pixel_lines)
-        print('   Illuminated pixels:     ', len(isvisible))
-        print('   Hidden pixels:          ', pixel_samples*pixel_lines - len(isvisible))
-        print('   Shadowed points:        ', pixel_samples*pixel_lines - len(isiluminated))
-
     #
     # We transform the matrix from illumination angles to greyscale [0-255]
     #
-    rescaled = (255 / (solar_matrix.max()-solar_matrix.min()) * (solar_matrix - solar_matrix.min())).astype(np.uint8)
+    if solar_matrix.max() == solar_matrix.min():
+        rescaled = solar_matrix
+    else:
+        rescaled = (255 / (solar_matrix.max()-solar_matrix.min()) * (solar_matrix - solar_matrix.min())).astype(np.uint8)
+
     rescaled = - np.flip(rescaled, 0) + 255
 
     #
@@ -2570,47 +2943,79 @@ def simulate_image(utc, metakernel, camera, mission_targets,
     if generate_image:
         if not name:
 
-            name = '{}_{}.PNG'.format(camera.upper(),
-                                         utc.upper())
+            name_illum = '{}_{}.PNG'.format(camera.upper(),
+                                            utc.upper())
+            name_tar = '{}_{}_TAR.PNG'.format(camera.upper(),
+                                            utc.upper())
         else:
 
-            name = '{}_{}_{}.PNG'.format(name.upper(),
+            name_illum = '{}_{}_{}.PNG'.format(name.upper(),
+                                         camera.upper(),
+                                         utc.upper())
+            name_tar = '{}_{}_{}_TAR.PNG'.format(name.upper(),
                                          camera.upper(),
                                          utc.upper())
 
 
-        imageio.imwrite(name, rescaled)
+        if np.count_nonzero(target_matrix) >= 1.0:
+            if illumination:
+                imageio.imwrite(name_illum, rescaled)
+            else:
+                imageio.imwrite(name_tar, target_matrix)
 
-    if plot_image:
+    if not generate_image:
         plt.imshow(rescaled, cmap='gray')
         plt.axis('off')
         plt.show()
 
+    if report:
+        print('{} {} {} {} {}'.format(utc, pixel_samples*pixel_lines, np.count_nonzero(target_matrix), len(isvisible), camera))
+
+    #if report:
+    #    print('Pixel report for {} w.r.t {} @ {}'.format(camera,target,utc))
+    #    print('   Total number of pixels: ', pixel_samples*pixel_lines)
+    #    print('   Illuminated pixels:     ', len(isvisible))
+    #    print('   Hidden pixels:          ', pixel_samples*pixel_lines - len(isvisible))
+    #    print('   Shadowed points:        ', pixel_samples*pixel_lines - len(isiluminated))
+
+    if log:
+        with open(log, "a") as f:
+            f.write('{} {} {} {} {}\n'.format(utc, pixel_samples*pixel_lines, np.count_nonzero(target_matrix), len(isvisible), camera))
+
+    if unload_kernels:
+        spiceypy.kclear()
+
     return name
 
 
-def sc_dsk_view(utc,mk, dsk, observer, target, target_frame,
-                    pixels=150):
+def sc_dsk_view(utc,mk, dsks, observer, sc_targets, sc_frames=False,
+                pixels=150, name=False, generate_image=True, illumination=True,
+                show3Dplot=False, unload_kernels=False):
+
+    if not sc_frames:
+        sc_frames = sc_targets
+
     mpl.rcParams['figure.figsize'] = (26.0, 26.0)
 
     spiceypy.furnsh(mk)
 
-    utcstr = utc[10:13] + utc[14:16] + utc[17:19]
+    for dsk in dsks:
+        spiceypy.furnsh(dsk)
+
+    utcstr = utc.replace(':','')
     et = spiceypy.utc2et(utc)
 
-    spiceypy.furnsh(dsk)
-
-    nx, ny = (pixels, pixels)                                    # resolution of the image
+    nx, ny = (pixels, pixels)   # resolution of the image
     x = np.linspace(-5, 5, nx)
     y = np.linspace(-5, 5, ny)
     xv, yv = np.meshgrid(x, y)
 
-    phase_matrix = np.zeros((nx, ny))
-    emissn_matrix = np.zeros((nx, ny))
+
     solar_matrix = np.zeros((nx, ny))
+    target_matrix = np.zeros((nx, ny))
 
     isvisible, isiluminated = [], []
-    r, lt = spiceypy.spkpos(observer, et, 'J2000', 'NONE', target)
+    r, lt = spiceypy.spkpos(observer, et, 'J2000', 'NONE', sc_targets[0])
 
     #
     # We define a 'Nadir frame' w.r.t. J000 to make it general regardless of
@@ -2623,59 +3028,563 @@ def sc_dsk_view(utc,mk, dsk, observer, target, target_frame,
     yN = np.cross(zN, xN)
     yN = yN/np.linalg.norm(yN)
     RotM = np.linalg.inv(np.array([xN, yN, zN]))
+
     spoints = []
+    flag = False
+    f = 0.5 # Factor for the FOV
+
     for i, x in enumerate(xv):
         for j, y in enumerate(yv):
-            dpxy = [x[i], y[i], -np.linalg.norm(r)*1000]
+            dpxy = [x[i], y[i], -np.linalg.norm(r)*1000*f]
             ibsight = spiceypy.mxv(RotM, dpxy)
-            # ibsight = [x[i], y[j], -r*1000]
-            try:
-                (spoint, trgepc, srfvec ) = spiceypy.sincpt('DSK/UNPRIORITIZED', target, et, target_frame, 'NONE', observer, 'J2000', ibsight)
-                spoints.append(spoint)
-                (trgepc, srfvec, phase, solar, emissn, visiblef, iluminatedf) = spiceypy.illumf('DSK/UNPRIORITIZED', target, 'SUN', et, target_frame, 'NONE', observer, spoint)
-                #check visibility of spoint
-                if visiblef == True:
-                    isvisible.append(visiblef)
-                if iluminatedf == True:
-                    isiluminated.append(iluminatedf)
-                    if solar > np.pi/2:
-                        solar_matrix[i, j] = np.pi - solar
-                    else:
-                        solar_matrix[i, j] = solar
-                else:
-                    solar_matrix[i, j] = np.pi/2          # not illuminated
-                emissn_matrix[i,j] = emissn
-                phase_matrix[i,j] = phase
-            except:
-                pass
-                emissn_matrix[i,j] = 0
-                phase_matrix[i,j] = math.pi
-                solar_matrix[i,j] = np.pi/2
 
-    spoints = np.asarray(spoints)
-    fig = plt.figure(figsize=(9, 9))
-    ax = fig.add_subplot(111, projection='3d')
-    ax.scatter(spoints[:, 0], spoints[:, 1], spoints[:, 2], marker='.')
-    plt.xlabel("x position")
-    plt.ylabel("y position")
-    plt.title('')
-    plt.axis('equal')
-    plt.show()
+            #
+            # We do another loop in order to determine if we have other
+            # 'targets' in addition to the 'main' target
+            #
+            spoint_per_target = []
+            distance_per_target = []
+            for k in range(0, len(sc_targets), 1):
+                try:
+                    (spoint, trgepc, srfvec) = spiceypy.sincpt('DSK/UNPRIORITIZED', sc_targets[k], et, sc_frames[k], 'NONE', observer, 'J2000', ibsight)
+                    spoint_per_target.append(spoint)
+                    distance_per_target.append(spiceypy.vnorm(srfvec))
+
+                except:
+                    spoint_per_target.append([])
+                    distance_per_target.append([])
+                    pass
+
+            for spoint in spoint_per_target:
+                if not spoint.__class__ == list:
+                    flag = True
+
+            if flag:
+                #
+                # we get the minimum distance and the range.
+                #
+                distance_per_target_floats = []
+                for element in distance_per_target:
+                    if not isinstance(element, list):
+                        distance_per_target_floats.append(element)
+                min_dist = min(distance_per_target_floats)
+
+                for k in range(0, len(sc_targets), 1):
+                    if min_dist == distance_per_target[k]:
+                        target = sc_targets[k]
+                        tar_frame = sc_frames[k]
+                        spoints.append(spoint_per_target[k])
+                        spoint = spoint_per_target[k]
+
+                        try:
+                            (trgenpc, srfvec, phase, solar,
+                            emissn, visiblef, iluminatedf) = spiceypy.illumf('DSK/UNPRIORITIZED', target, 'SUN', et, tar_frame, 'NONE', observer, spoint)
+
+                            if visiblef == True:
+                                isvisible.append(visiblef)
+
+                                target_matrix[i, j] = 255
+                            if iluminatedf == True:
+                                isiluminated.append(iluminatedf)
+
+                                if solar > np.pi / 2:
+                                    solar_matrix[i, j] = np.pi - solar
+                                else:
+                                    solar_matrix[i, j] = solar
+                            else:
+                                solar_matrix[i, j] = np.pi / 2  # not illuminated
+                        except:
+                            solar_matrix[i, j] = np.pi / 2
+            else:
+                solar_matrix[i, j] = np.pi / 2
+
+
+            flag = False
+
+    if show3Dplot:
+        spoints = np.asarray(spoints)
+        fig = plt.figure(figsize=(9, 9))
+        ax = fig.add_subplot(111, projection='3d')
+        ax.scatter(spoints[:, 0], spoints[:, 1], spoints[:, 2], marker='.')
+        plt.xlabel("x position")
+        plt.ylabel("y position")
+        plt.title('')
+        plt.axis('equal')
+        plt.show()
 
     print('total number of points: ', pixels*pixels)
     print('occulted points: ', pixels*pixels - len(isvisible))
     print('not iluminated points: ', pixels*pixels - len(isiluminated))
 
-    name = 'solar_matrix'
-    try:
-        os.remove(name)
-        print('modifying png file' + name)
-    except:
-        print('generating png file' + name)
-    plt.imshow(solar_matrix, cmap='viridis_r')
-    plt.show()
-    imsave(name+utcstr+'.png', solar_matrix)
+    #
+    # We transform the matrix from illumination angles to greyscale [0-255]
+    #
+    if illumination:
+        rescaled = (255 / (solar_matrix.max()-solar_matrix.min()) * (solar_matrix - solar_matrix.min())).astype(np.uint8)
+        rescaled = - np.flip(rescaled, 0) + 255
+    else:
+        rescaled = target_matrix
+
+
+    #
+    # We generate the plot
+    #
+    if generate_image:
+        if not name:
+
+            name = '{}_{}.PNG'.format(sc_targets[0].upper(),
+                                         utcstr.upper())
+        else:
+
+            name = '{}_{}_{}.PNG'.format(name.upper(),
+                                         sc_targets[0].upper(),
+                                         utcstr.upper())
+
+
+        imageio.imwrite(name, rescaled)
+
+    else:
+        plt.imshow(rescaled, cmap='gray')
+        plt.axis('off')
+        plt.show()
+
+
+    if unload_kernels:
+        spiceypy.kclear()
 
     return
 
 
+def getXYforPlanet(time_et, planet, camera):
+    """
+    compute for all time instances in this class the xy position of a planet
+    within a camera_name field-of-view. If not visible, return (-1,-1).
+    If planet is visible, also return the size of the planet in pixels.
+    Routine is tested for planet_name=Earth
+    """
+    #
+    camera_id = spiceypy.bodn2c(camera)
+    r_planet = (spiceypy.bodvrd(planet, 'RADII', 3))[1][0]
+    #
+    # get instrument related info
+    #
+
+    (shape, frame, bsight, vectors, bounds) = spiceypy.getfov(camera_id,
+                                                               100)
+    mat = spiceypy.pxform(frame, 'J2000', time_et)
+    for bs in range(0, 4):
+        bounds[bs, :] = spiceypy.mxv(mat, bounds[bs, :])
+
+    [pos, ltime] = spiceypy.spkpos(planet, time_et, 'J2000',
+                                    'LT+S', camera)
+    visible = spiceypy.fovray(camera, pos, 'J2000', 'S', planet,
+                               time_et)
+    #
+    # only get detector position, if target is visible
+    #
+    x = 0.0
+    y = 0.0
+    s = 0.0
+    if visible:
+        hit = []
+        for p in range(0, 4):
+            #
+            # compute the plane that is build up by the coordinate origin and two FOV corner vectors
+            #
+            plane = spiceypy.psv2pl([0, 0, 0], bounds[p, :],
+                                 bounds[(p + 1) % 4, :])
+            #
+            # compute the projection of the target vector onto that plane
+            #
+            vout = (spiceypy.unorm(spiceypy.vprjp(pos, plane)))[0]
+            #
+            # calculate the angle between this vector and the original corner vectors
+            #
+            alpha = spiceypy.vsep(bounds[p, :], vout)
+            beta = spiceypy.vsep(bounds[(p + 1) % 4, :], vout)
+            #
+            # the ratio of these angles also give the ratio of the detector on the edge
+            # of the field of view, in a first approximation, average of the two opposite
+            # FOV corner values: these are the x,y coordinates on the detector
+            hit.append(1024 * alpha / (alpha + beta))
+
+        # get intersection of the points
+        (x, y) = findIntersection(hit[0], 0, hit[1], 1023, 0,
+                                       hit[1], 1023, hit[2])
+        size = 2 * r_planet * 500 / (
+                        np.tan(35. * 2 * np.pi / 360.) * spiceypy.vnorm(pos))
+
+    else:
+        print('Planet {} not visible by {} at {}'.format(planet, camera, spiceypy.et2utc(time_et,'ISOC',1,25)))
+        return False
+
+    return (time, x, y, size)
+
+
+def pixel_radec(time, camera, pixel, units='radians'):
+    """
+    Obtain the Right Ascension and Declination in J2000 of a pixel of a given
+    sensor at a given time.
+
+    @param time: Input time in UTC
+    @type time:  str
+    @param camera: SPICE name for the camera sensor (requires IK kernel)
+    @type camera: str
+    @param pixel: Pixel location in the camera sensor CCD. Provided as two
+    values [x y]
+    @type pixel: list
+    @param units: Angular units for Right Ascension and Declination: radians or
+    degrees
+    @type units: str
+    @return: Right Ascension and Declination in the indicated units
+    @rtype: tuple
+    """
+
+    et = spiceypy.utc2et(time)
+
+    #
+    # We retrieve the camera information using GETFOV. More info available:
+    #
+    #   https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/getfov_c.html
+    #
+    camera_name = camera
+    camera_id = spiceypy.bodn2c(camera_name)
+    (shape, frame, bsight, vectors, bounds) = spiceypy.getfov(camera_id, 100)
+
+    pixel_samples = \
+        int(spiceypy.gdpool(''.join(('INS', str(camera_id), '_PIXEL_SAMPLES')),
+                            0, 1))
+    pixel_lines = \
+        int(spiceypy.gdpool(''.join(('INS', str(camera_id), '_PIXEL_LINES')), 0,
+                            1))
+
+    #
+    # We generate a matrix using the resolution of the framing camera as the
+    # dimensions of the matrix
+    #
+    nx, ny = (pixel_samples, pixel_lines)
+    x = np.linspace(bounds[0][0], bounds[2][0], nx)
+    y = np.linspace(bounds[0][1], bounds[2][1], ny)
+
+    (i, j) = pixel
+
+    #
+    # List of pixel's boresight
+    #
+    ibsight = [x[i], y[j], bsight[2]]
+
+    mat = spiceypy.pxform(frame, 'J2000', et)
+    ibsight = spiceypy.mxv(mat, ibsight)
+    (r, ra, dec) = spiceypy.recrad(ibsight)
+
+    if units == 'degrees':
+        ra = np.degrees(ra)
+        dec = np.degrees(dec)
+
+    return ra, dec
+
+
+def radec_in_fov(time, ra, dec, camera, observer=False, units='degrees'):
+    """
+    Determine whether if a given Right Ascension and Declination coordinate in
+    J2000 (ultimately a given Star) is present at a given sensor Field-of-View
+    at a given time.
+
+    @param time: Input time in UTC
+    @type time:  str
+    @param ra: Right Ascension in the indicated units (w.r.t J2000)
+    @type ra: float
+    @param dec: Declination in the indicated units (w.r.t J2000)
+    @type dec: float
+    @param camera: SPICE name for the camera sensor (requires IK kernel)
+    @type camera: str
+    @param observer: SPICE name for the camera sensor position
+    @type observer: str
+    @param units: Angular units for Right Ascension and Declination: radians or
+    degrees
+    @type units: str
+    @return: True/False if the RA, DEC is in the Field-of-View
+    @rtype: bool
+    """
+
+    #
+    # If an observer is not provided then it is assumed that the observer is the
+    # camera itself. Please note that this then requires the strctures SPK to
+    # be present in the meta-kernel (or the loaded kernels)
+    #
+    if not observer:
+        observer = camera
+
+    if units == 'degrees':
+        ra = np.radians(ra)
+        dec = np.radians(dec)
+
+    et = spiceypy.utc2et(time)
+
+    #
+    # Create a unit direction vector pointing from the given S/C
+    # to the specified star. For details on corrections such
+    # as parallax, please see the example in GFRFOV.
+    #
+    raydir = spiceypy.radrec(1.0, ra, dec)
+
+    #
+    # Is the star in the field-of-view of the given sensor?
+    #
+    visible = spiceypy.fovray(camera, raydir, 'J2000', 'S', observer, et)
+
+    if visible:
+        return True
+    else:
+        return False
+
+
+def gf_radec_in_fov(start_time, finish_time, ra, dec, camera, step=60,
+                    units='degrees', observer=False):
+    """
+    This functions provides the time windows for which a given Right Ascension
+    and Declination in J2000 (ultimately a given Star) is present in the given
+    camera FOV for a given start and finish UTC times.
+
+    @param start_time: Search time window start in UTC
+    @type start_time: str
+    @param finish_time: Search time window finish in UTC
+    @type finish_time: str
+    @param ra: Right Ascension in the indicated units (w.r.t J2000)
+    @type ra: float
+    @param dec: Declination in the indicated units (w.r.t J2000)
+    @type dec: float
+    @param camera: SPICE name for the camera sensor (requires IK kernel)
+    @type camera: str
+    @param step: Step with which the search will be performed in seconds
+    @type step: float
+    @param units: Angular units for Right Ascension and Declination: radians or
+    degrees
+    @type units: str
+    @param observer: SPICE name for the camera sensor position
+    @type observer: str
+    @return: List of Time Windows
+    @rtype: list
+    """
+
+    #
+    # If an observer is not provided then it is assumed that the observer is the
+    # camera itself. Please note that this then requires the strctures SPK to
+    # be present in the meta-kernel (or the loaded kernels)
+    #
+    if not observer:
+        observer = camera
+
+    if units == 'degrees':
+        ra = np.radians(ra)
+        dec = np.radians(dec)
+
+    et_start = spiceypy.utc2et(start_time)
+    et_finish = spiceypy.utc2et(finish_time)
+
+    #
+    # Create a unit direction vector pointing from the given S/C
+    # to the specified star. For details on corrections such
+    # as parallax, please see the example in GFRFOV.
+    #
+    raydir = spiceypy.radrec(1.0, ra, dec)
+
+    MAXIVL = 10000
+    MAXWIN = 2 * MAXIVL
+    TDBFMT = 'YYYY MON DD HR:MN:SC.### (TDB) ::TDB'
+
+    # Initialize the "confinement" window with the interval
+    # over which we'll conduct the search.
+    cnfine = stypes.SPICEDOUBLE_CELL(2)
+    spiceypy.wninsd(et_start, et_finish, cnfine)
+
+    #
+    # In the call below, the maximum number of window
+    # intervals gfposc can store internally is set to MAXIVL.
+    # We set the cell size to MAXWIN to achieve this.
+    #
+    reswin = stypes.SPICEDOUBLE_CELL(MAXWIN)
+
+    #
+    # Now search for the time period, within our confinement
+    # window, during which the RA, DEC ray is in the camera FOV.
+    #
+    # VARIABLE  I/O  DESCRIPTION
+    # --------  ---  --------------------------------------------------
+    # INST       I   Name of the instrument.
+    # RAYDIR     I   Ray's direction vector.
+    # RFRAME     I   Reference frame of ray's direction vector.
+    # ABCORR     I   Aberration correction flag.
+    # OBSRVR     I   Name of the observing body.
+    # STEP       I   Step size in seconds for finding FOV events.
+    # CNFINE     I   SPICE window to which the search is restricted.
+    # RESULT     O   SPICE window containing results.
+    spiceypy.gfrfov(camera, raydir, 'J2000', 'S', camera, step, cnfine, reswin)
+
+    #
+    # The function wncard returns the number of intervals
+    # in a SPICE window.
+    #
+    winsiz = spiceypy.wncard(reswin)
+
+    if winsiz == 0:
+        print('No events were found.')
+
+    else:
+
+        #
+        # Display the event time periods.
+        #
+        print('Time Windows for RA={0:f}, DEC={1:f} [DEG] in '
+              '{2:s} FOV:'.format(np.degrees(ra), np.degrees(dec), camera))
+
+        #
+        # Store the values in a list
+        #
+        intervals = []
+
+        for i in range(winsiz):
+            #
+            # Fetch the start and stop times of the ith interval from the search
+            # result window reswin.
+            #
+            [intbeg, intend] = spiceypy.wnfetd(reswin, i)
+            intervals.append([intbeg, intend])
+
+            #
+            # Convert the start and finish times to a TDB calendar string.
+            #
+            print(spiceypy.timout(intbeg, TDBFMT), ',',
+                  spiceypy.timout(intend, TDBFMT))
+
+    return intervals
+
+
+def radec2pixel(time, ra, dec, camera, observer=False, units='degrees'):
+    """
+    This function determines the pixel location for a given camera of a
+    Right Ascension and Declination coordinate in J2000 (ultimately a star
+    position) at a given time.
+
+    @param time: Input time in UTC
+    @type time:  str
+    @param ra: Right Ascension in the indicated units (w.r.t J2000)
+    @type ra: float
+    @param dec: Declination in the indicated units (w.r.t J2000)
+    @type dec: float
+    @param camera: SPICE name for the camera sensor (requires IK kernel)
+    @type camera: str
+    @param observer: SPICE name for the camera sensor position
+    @type observer: str
+    @param units: Angular units for Right Ascension and Declination: radians or
+    degrees
+    @type units: str
+    @return: Pixel location of a given Right Ascension and Declination
+    (if present in the FOV)
+    @rtype: tuple
+    """
+
+    #
+    # We first check whether if the RA, DEC is in the FOV
+    #
+    if radec_in_fov(time, ra, dec, camera, observer=observer, units='degrees'):
+
+        (ra_matrix, dec_matrix) = camera_radec(time, camera, units=units)
+
+        #
+        # Now we look for the pixel location of the RA, DEC
+        #
+        (ra_idx, ra_value) = findNearest(ra_matrix, ra)
+        (dec_idx, dec_value) = findNearest(dec_matrix, dec)
+
+        #
+        # If the indexes are not the same, indicate and provide both
+        #
+        if ra_idx != dec_idx:
+            print('RA and DEC indexes are not the same: {}, {}'.format(ra_idx,
+                                                                       dec_idx))
+
+        return ra_idx
+
+    else:
+        return 'RA, DEC are not in the FOV'
+
+
+def camera_radec(time, camera, units='radians', plot=False):
+    """
+    This function provides two mesh grids with Right Ascensions and Declinations
+    for a given camera at a given time.
+
+    @param time: Input time in UTC
+    @type time:  str
+    @param camera: SPICE name for the camera sensor (requires IK kernel)
+    @type camera: str
+    @param units: Angular units for Right Ascension and Declination: radians or
+    degrees
+    @type units: str
+    @param plot: Indicate whether if the mesh grids should be ploted or not
+    @type plot: bool
+    @return:
+    @rtype:
+    """
+
+    et = spiceypy.utc2et(time)
+
+    #
+    # We retrieve the camera information using GETFOV. More info available:
+    #
+    #   https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/getfov_c.html
+    #
+    camera_name = camera
+    camera_id = spiceypy.bodn2c(camera_name)
+    (shape, frame, bsight, vectors, bounds) = spiceypy.getfov(camera_id, 100)
+
+    pixel_samples = \
+        int(spiceypy.gdpool(''.join(('INS', str(camera_id), '_PIXEL_SAMPLES')),
+                            0, 1))
+    pixel_lines = \
+        int(spiceypy.gdpool(''.join(('INS', str(camera_id), '_PIXEL_LINES')), 0,
+                            1))
+
+    #
+    # We generate a matrix using the resolution of the framing camera as the
+    # dimensions of the matrix
+    #
+    nx, ny = (pixel_samples, pixel_lines)
+    x = np.linspace(bounds[0][0], bounds[2][0], nx)
+    y = np.linspace(bounds[0][1], bounds[2][1], ny)
+    xv, yv = np.meshgrid(x, y)
+
+    #
+    # We define the matrices that will be used as outputs and the
+    #
+    ra_matrix = np.zeros((nx, ny))
+    dec_matrix = np.zeros((nx, ny))
+
+    #
+    # For each pixel we compute the RA/DEC in J2000.
+    #
+    for i, x in enumerate(xv):
+        for j, y in enumerate(yv):
+            #
+            # List of pixel's boresight
+            #
+            ibsight = [x[i], y[j], bsight[2]]
+
+            mat = spiceypy.pxform(frame, 'J2000', et)
+            ibsight = spiceypy.mxv(mat, ibsight)
+            (r, ra, dec) = spiceypy.recrad(ibsight)
+
+            if units == 'degrees':
+                ra_matrix[i, j] = np.degrees(ra)
+                dec_matrix[i, j] = np.degrees(dec)
+
+    if plot:
+        plt.imshow(ra_matrix)
+        plt.axis('off')
+        plt.show()
+        plt.imshow(dec_matrix)
+        plt.axis('off')
+        plt.show()
+
+    return ra_matrix, dec_matrix
