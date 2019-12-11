@@ -14,11 +14,20 @@ here = path.abspath(path.dirname(__file__))
 with open(path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
+
+def get_version():
+
+    with open('spiops/config/version', 'r') as f:
+        for line in f:
+            version = line
+
+    return version
+
 setup(
     name="spiops",
 
     # Version number (initial):
-    version="0.4.4",
+    version=get_version(),
 
     description="Extension of SPICE functionalities for ESA Planetary Missons",
     long_description=open('README.md').read(),
@@ -61,6 +70,6 @@ setup(
     python_requires='>=3',
 
     # Scripts
-    scripts=['bin/spiops-mk']
+    entry_points={'console_scripts': ['spiops=spiops.command_line:main']}
 
 )

@@ -1,4 +1,4 @@
-import spiceypy as cspice
+import spiceypy
 from datetime import datetime
 
 
@@ -16,7 +16,7 @@ def et_to_datetime(et, scale='TDB'):
     Returns:
         datetime: python datetime
     """
-    t = cspice.timout(et, 'YYYY-MON-DD HR:MN:SC.### ::{}'.format(scale), 41)
+    t = spiceypy.timout(et, 'YYYY-MON-DD HR:MN:SC.### ::{}'.format(scale), 41)
     return datetime.strptime(t, '%Y-%b-%d %H:%M:%S.%f')
 
 
@@ -39,7 +39,7 @@ def et2cal(time, format='UTC', support_ker=False, unload=False):
     out_list = []
 
     if support_ker:
-        cspice.furnsh(support_ker)
+        spiceypy.furnsh(support_ker)
 
     if isinstance(time, float) or isinstance(time, str):
         time = [time]
@@ -47,10 +47,10 @@ def et2cal(time, format='UTC', support_ker=False, unload=False):
     for element in time:
 
         if format == 'UTC':
-            out_elm = cspice.et2utc(element, 'ISOC', 3)
+            out_elm = spiceypy.et2utc(element, 'ISOC', 3)
 
         elif format == 'CAL':
-            out_elm = cspice.timout(element, "YYYY-MM-DDTHR:MN:SC.###::TDB", timlen)
+            out_elm = spiceypy.timout(element, "YYYY-MM-DDTHR:MN:SC.###::TDB", timlen)
         else:
             out_elm = element
 
@@ -62,7 +62,7 @@ def et2cal(time, format='UTC', support_ker=False, unload=False):
         out_time = out_list
 
     if unload:
-        cspice.unload(support_ker)
+        spiceypy.unload(support_ker)
 
     return out_time
 
@@ -92,7 +92,7 @@ def cal2et(time, format='UTC', support_ker=False, unload=False):
     # to load the support kernels
     #
     if support_ker:
-        cspice.furnsh(support_ker)
+        spiceypy.furnsh(support_ker)
 
 
     if format == 'CAL':
@@ -103,14 +103,14 @@ def cal2et(time, format='UTC', support_ker=False, unload=False):
 
         try:
             if format == 'UTC':
-                out_elm = cspice.utc2et(element)
+                out_elm = spiceypy.utc2et(element)
 
             elif format == 'CAL':
-                out_elm = cspice.str2et(element)
+                out_elm = spiceypy.str2et(element)
             else:
                 out_elm = element
         except:
-                out_elm = cspice.str2et(element)
+                out_elm = spiceypy.str2et(element)
 
         out_list.append(out_elm)
 
@@ -120,7 +120,7 @@ def cal2et(time, format='UTC', support_ker=False, unload=False):
         out_time = out_list
 
     if unload:
-        cspice.unload(support_ker)
+        spiceypy.unload(support_ker)
 
     return out_time
 
@@ -159,20 +159,20 @@ def cov_int(object_cov, object_id, kernel, time_format='TDB',
     if report and not global_boundary:
 
         try:
-            body_name = cspice.bodc2n(object_id)
+            body_name = spiceypy.bodc2n(object_id)
         except:
-            body_name = cspice.frmnam(object_id, 60)
+            body_name = spiceypy.frmnam(object_id, 60)
 
         print("Coverage for {} in {} [{}]:".format(body_name, kernel,
                                                    time_format))
 
-    number_of_intervals = list(range(cspice.wncard(object_cov)))
+    number_of_intervals = list(range(spiceypy.wncard(object_cov)))
     interval_start_list = []
     interval_finish_list = []
     coverage = []
 
     for element in number_of_intervals:
-        et_boundaries = cspice.wnfetd(object_cov, element)
+        et_boundaries = spiceypy.wnfetd(object_cov, element)
 
         if time_format == 'CAL' or time_format == 'UTC':
             boundaries = et2cal(et_boundaries, format=time_format)
@@ -228,7 +228,7 @@ def mjd20002et(mjd2000, support_ker=False, unload=False):
     tdb = []
 
     if support_ker:
-        cspice.furnsh(support_ker)
+        spiceypy.furnsh(support_ker)
 
     if not isinstance(mjd2000, list):
         mjd2000 = [mjd2000]
@@ -239,10 +239,10 @@ def mjd20002et(mjd2000, support_ker=False, unload=False):
         mjd = mjd2000 + 51544
         jd = mjd + 2400000.5
         jd = str(jd) + ' JD'
-        tdb.append(cspice.str2et(jd))
+        tdb.append(spiceypy.str2et(jd))
 
     if unload:
-        cspice.unload(support_ker)
+        spiceypy.unload(support_ker)
 
     if len(tdb) == 1:
         return tdb[0]

@@ -1,5 +1,6 @@
 import spiceypy as spiceypy
 import numpy as np
+from spiops import spiops
 from spiops.utils import utils
 from bokeh.layouts import row
 from bokeh.plotting import figure, show, output_notebook
@@ -33,15 +34,17 @@ class Body(object):
         self.geometry_flag = False
 
 
-    def __getattribute__(self, item):
+    def __getattribute__(self, item, boresight=''):
 
         if item in ['altitude',
                     'distance',
-                    'zaxis_target_angle'
+                    'velocity',
+                    'zaxis_target_angle',
                     'myaxis_target_angle',
                     'groundtrack',
+                    'boresight_groundtrack'
                     'trajectory']:
-            self.__Geometry()
+            self.__Geometry(boresight=boresight)
             return object.__getattribute__(self, item)
         elif item in ['sa_ang_p',
                       'sa_ang_n',
@@ -123,6 +126,54 @@ class Body(object):
         return orientation
 
 
+    def __ClockDrift(self, enddate=False):
+
+        if self.name != 'MPO':
+            sclk_start = 0.0
+            sclk_end = 500000000
+        else:
+            sclk_start = 3.9631239807361E+13/65536
+            sclk_end = 700000000
+
+        #sclk_end = spiceypy.gdpool('SCLK_PARTITION_END_{}'.format(str(-1*self.id)),0,1000)[0]/65536
+
+
+        step = 10000.0
+
+        if not enddate:
+            et_end = self.time.getTime('finish','utc')
+        else:
+            et_end = spiceypy.utc2et(enddate)
+
+        sclk = []
+        ephtime = []
+        utctime = []
+
+        for i in np.arange(sclk_start, sclk_end, step):
+            sclk.append(i)
+
+            sclkdp = i*65536
+            et = spiceypy.sct2e(self.id, sclkdp)
+            ephtime.append(et)
+
+            utcstr = spiceypy.et2utc(et, 'C', 3)
+            utctime.append(utcstr)
+
+
+        dates = []
+        drift = []
+        for j in range(0,len(ephtime),1):
+            if ephtime[j] >= et_end:
+                break
+            drift.append((sclk[j]-sclk_start) - (ephtime[j] - ephtime[0]))
+            dates.append(ephtime[j])
+
+        self.clock_dates = dates
+        self.clock_drift = drift
+
+        return
+
+
     def __StateInWindow(self, target=False, reference_frame=False, start=False,
                      finish=False):
 
@@ -142,7 +193,6 @@ class Body(object):
             return
 
         time = self.time
-        import spiops as spiops
 
         #
         # We determine the mission
@@ -164,8 +214,12 @@ class Body(object):
         #
         # Solar Arrays
         #
-        sa_ang_p_list = []
-        sa_ang_n_list = []
+        sa_ang1_p_list = []
+        sa_ang1_n_list = []
+        sa_ang2_p_list = []
+        sa_ang2_n_list = []
+        sa_ang3_p_list = []
+        sa_ang3_n_list = []
         saa_sa_p_list = []
         saa_sa_n_list = []
         saa_sc_x_list = []
@@ -186,14 +240,18 @@ class Body(object):
             # Of course we need to include all possible cases including only one
             # Solar Array
             #
-            sa_ang_p = spiops.solar_array_angle(plus_array, et)
+            (sa_ang1_p, sa_ang2_p, sa_ang3_p) = spiops.solar_array_angles(plus_array, et)
             if minus_array:
-                sa_ang_n = spiops.solar_array_angle(minus_array, et)
+                (sa_ang1_n, sa_ang2_n, sa_ang3_n) = spiops.solar_array_angles(minus_array, et)
             saa = spiops.solar_aspect_angles(self.name, et)
 
-            sa_ang_p_list.append(sa_ang_p)
+            sa_ang1_p_list.append(sa_ang1_p)
+            sa_ang2_p_list.append(sa_ang2_p)
+            sa_ang3_p_list.append(sa_ang3_p)
             if minus_array:
-                sa_ang_n_list.append(sa_ang_n)
+                sa_ang1_n_list.append(sa_ang1_n)
+                sa_ang2_n_list.append(sa_ang2_n)
+                sa_ang3_n_list.append(sa_ang3_n)
                 saa_sa_n_list.append(saa[0][1])
             saa_sa_p_list.append(saa[0][0])
             saa_sc_x_list.append(saa[1][0])
@@ -206,14 +264,19 @@ class Body(object):
             if self.name != 'MTM':
                 (hga_angles_ang, hga_earth_ang) = spiops.hga_angles(self.name, et)
                 hga_earth.append(hga_earth_ang)
+                if self.name == 'MPO':
+                    hga_angles_ang[0] = -1*(hga_angles_ang[0] - 180)
                 hga_angles_el.append(hga_angles_ang[0])
                 hga_angles_az.append(hga_angles_ang[1])
 
         if minus_array:
-            self.sa_ang = [sa_ang_p_list, sa_ang_n_list]
+            self.sa_ang_p = [sa_ang1_p_list, sa_ang2_p_list, sa_ang3_p_list]
+            self.sa_ang_n = [sa_ang1_n_list, sa_ang2_n_list, sa_ang3_n_list]
+            self.sa_ang = [sa_ang1_p_list, sa_ang2_p_list, sa_ang3_p_list]
             self.saa_sa = [saa_sa_p_list, saa_sa_n_list]
         else:
-            self.sa_ang = sa_ang_p_list
+            self.sa_ang_p = [sa_ang1_p_list, sa_ang2_p_list, sa_ang3_p_list]
+            self.sa_ang = [sa_ang1_p_list, sa_ang2_p_list, sa_ang3_p_list]
             self.saa_sa = saa_sa_p_list
 
         self.saa_sc = [saa_sc_x_list, saa_sc_y_list, saa_sc_z_list]
@@ -227,16 +290,16 @@ class Body(object):
         return
 
 
-    def __Geometry(self):
+    def __Geometry(self, boresight=''):
 
         #if self.geometry_flag is True and \
         #                self.time.window.all() == self.previous_tw.all():
         #    return
 
-        import spiops as spiops
-
         distance = []
         altitude = []
+        boresight_latitude = []
+        boresight_longitude = []
         latitude = []
         longitude = []
         subpoint_xyz = []
@@ -255,122 +318,198 @@ class Body(object):
 
         for et in time.window:
 
-            #
-            # Compute the distance
-            #
-            ptarg, lt = spiceypy.spkpos(tar.name, et, tar.frame, time.abcorr,
-                                      self.name)
-            x.append(ptarg[0])
-            y.append(ptarg[1])
-            z.append(ptarg[2])
-
-            vout, vmag = spiceypy.unorm(ptarg)
-            distance.append(vmag)
-
-
-            #
-            # Compute the geometric sub-observer point.
-            #
-            if tar.frame == 'MARSIAU':
-                tar_frame = 'IAU_MARS'
-            else:
-                tar_frame = tar.frame
-            spoint, trgepc, srfvec = spiceypy.subpnt(tar.method, tar.name, et,
-                                                   tar_frame, time.abcorr,
-                                                   self.name)
-            subpoint_xyz.append(spoint)
-
-            #
-            # Compute the observer's altitude from SPOINT.
-            #
-            dist = spiceypy.vnorm(srfvec)
-            altitude.append(dist)
-
-
-            #
-            # Convert the sub-observer point's rectangular coordinates to
-            # planetographic longitude, latitude and altitude.
-            #
-            spglon, spglat, spgalt = spiceypy.recpgr(tar.name, spoint,
-                                                   tar.radii_equ, tar.flat)
-
-            #
-            # Convert radians to degrees.
-            #
-            spglon *= spiceypy.dpr()
-            spglat *= spiceypy.dpr()
-
-            subpoint_pgc.append([spglon, spglat, spgalt])
-
-            #
-            #  Convert sub-observer point's rectangular coordinates to
-            #  planetocentric radius, longitude, and latitude.
-            #
-            spcrad, spclon, spclat = spiceypy.reclat(spoint)
-
-
-            #
-            # Convert radians to degrees.
-            #
-            spclon *= spiceypy.dpr()
-            spclat *= spiceypy.dpr()
-
-            subpoint_pcc.append([spclon, spclat, spcrad])
-            latitude.append(spclat) #TODO: Remove with list extraction
-            longitude.append(spclon)  # TODO: Remove with list extraction
-
-
-            #
-            # Compute the angle between the observer's S/C axis and the
-            # geometric sub-observer point
-            #
-            obs_tar, ltime = spiceypy.spkpos(tar.name, et,
-                                                   'J2000', time.abcorr,
-                                                   self.name)
-            obs_zaxis  = [0,  0, 1]
-            obs_myaxis = [0, -1, 0]
-
-            #
-            # We need to account for when there is no CK attitude available.
-            #
             try:
-                matrix = spiceypy.pxform(self.frame, 'J2000', et)
+                #
+                # Compute the distance
+                #
+                ptarg, lt = spiceypy.spkpos(tar.name, et, tar.frame, time.abcorr,
+                                          self.name)
+                x.append(ptarg[0])
+                y.append(ptarg[1])
+                z.append(ptarg[2])
 
-                z_vecout = spiceypy.mxv(matrix, obs_zaxis)
-                zax_target_angle = spiceypy.vsep(z_vecout, obs_tar)
-                zax_target_angle *= spiceypy.dpr()
-                zaxis_target_angle.append(zax_target_angle)
+                vout, vmag = spiceypy.unorm(ptarg)
+                distance.append(vmag)
 
-                my_vecout = spiceypy.mxv(matrix, obs_myaxis)
-                myax_target_angle = spiceypy.vsep(my_vecout, obs_tar)
-                myax_target_angle *= spiceypy.dpr()
-                myaxis_target_angle.append(myax_target_angle)
-                
-                quat = spiceypy.m2q(spiceypy.invert(matrix))
-                qs.append(quat[0])
-                qx.append(-1*quat[1])
-                qy.append(-1*quat[2])
-                qz.append(-1*quat[3])
 
+                #
+                # Compute the geometric sub-observer point.
+                #
+                if tar.frame == 'MARSIAU':
+                    tar_frame = 'IAU_MARS'
+                else:
+                    tar_frame = tar.frame
+                spoint, trgepc, srfvec = spiceypy.subpnt(tar.method, tar.name, et,
+                                                       tar_frame, time.abcorr,
+                                                       self.name)
+                subpoint_xyz.append(spoint)
+
+                #
+                # Compute the observer's altitude from SPOINT.
+                #
+                dist = spiceypy.vnorm(srfvec)
+                altitude.append(dist)
+
+
+                #
+                # Convert the sub-observer point's rectangular coordinates to
+                # planetographic longitude, latitude and altitude.
+                #
+                spglon, spglat, spgalt = spiceypy.recpgr(tar.name, spoint,
+                                                       tar.radii_equ, tar.flat)
+
+                #
+                # Convert radians to degrees.
+                #
+                spglon *= spiceypy.dpr()
+                spglat *= spiceypy.dpr()
+
+                subpoint_pgc.append([spglon, spglat, spgalt])
+
+                #
+                #  Convert sub-observer point's rectangular coordinates to
+                #  planetocentric radius, longitude, and latitude.
+                #
+                spcrad, spclon, spclat = spiceypy.reclat(spoint)
+
+
+                #
+                # Convert radians to degrees.
+                #
+                spclon *= spiceypy.dpr()
+                spclat *= spiceypy.dpr()
+
+                subpoint_pcc.append([spclon, spclat, spcrad])
+                latitude.append(spclat) #TODO: Remove with list extraction
+                longitude.append(spclon)  # TODO: Remove with list extraction
+
+                #
+                # Compute the geometric sub-boresight point.
+                #
+                if tar.frame == 'MARSIAU':
+                    tar_frame = 'IAU_MARS'
+                else:
+                    tar_frame = tar.frame
+
+
+                if boresight:
+                    try:
+                        id = spiceypy.bodn2c(boresight)
+                        (shape,framen, bsight, n, bounds) = spiceypy.getfov(id, 80)
+                        mat = spiceypy.pxform(framen,tar_frame,et)
+                    except:
+                        framen = boresight
+                        bsight = 0,0,1
+                else:
+                    bsight = self.name
+
+                try:
+                    if tar.method == 'INTERCEPT/ELLIPSOID':
+                        method = 'ELLIPSOID'
+                    else:
+                        method = tar.method
+                    spoint, trgepc, srfvec = spiceypy.sincpt(method, tar.name, et,
+                                                           tar_frame, time.abcorr,
+                                                           self.name, framen,
+                                                           bsight)
+
+                    #
+                    # Convert the sub-observer point's rectangular coordinates to
+                    # planetographic longitude, latitude and altitude.
+                    #
+                    spglon, spglat, spgalt = spiceypy.recpgr(tar.name, spoint,
+                                                           tar.radii_equ, tar.flat)
+
+                    #
+                    # Convert radians to degrees.
+                    #
+                    spglon *= spiceypy.dpr()
+                    spglat *= spiceypy.dpr()
+
+
+                    #
+                    #  Convert sub-observer point's rectangular coordinates to
+                    #  planetocentric radius, longitude, and latitude.
+                    #
+                    spcrad, spclon, spclat = spiceypy.reclat(spoint)
+
+
+                    #
+                    # Convert radians to degrees.
+                    #
+                    spclon *= spiceypy.dpr()
+                    spclat *= spiceypy.dpr()
+
+                    boresight_latitude.append(spclat)
+                    boresight_longitude.append(spclon)
+
+                except:
+                    pass
+
+                #
+                # Compute the angle between the observer's S/C axis and the
+                # geometric sub-observer point
+                #
+                obs_tar, ltime = spiceypy.spkpos(tar.name, et,
+                                                       'J2000', time.abcorr,
+                                                       self.name)
+                obs_zaxis  = [0,  0, 1]
+                obs_myaxis = [0, -1, 0]
+
+                #
+                # We need to account for when there is no CK attitude available.
+                #
+                try:
+                    matrix = spiceypy.pxform(self.frame, 'J2000', et)
+
+                    z_vecout = spiceypy.mxv(matrix, obs_zaxis)
+                    zax_target_angle = spiceypy.vsep(z_vecout, obs_tar)
+                    zax_target_angle *= spiceypy.dpr()
+                    zaxis_target_angle.append(zax_target_angle)
+
+                    my_vecout = spiceypy.mxv(matrix, obs_myaxis)
+                    myax_target_angle = spiceypy.vsep(my_vecout, obs_tar)
+                    myax_target_angle *= spiceypy.dpr()
+                    myaxis_target_angle.append(myax_target_angle)
+
+                    quat = spiceypy.m2q(spiceypy.invert(matrix))
+                    qs.append(quat[0])
+                    qx.append(-1*quat[1])
+                    qy.append(-1*quat[2])
+                    qz.append(-1*quat[3])
+
+                except:
+                    zaxis_target_angle.append(0.0)
+                    myaxis_target_angle.append(0.0)
+                    qs.append(0.0)
+                    qx.append(0.0)
+                    qy.append(0.0)
+                    qz.append(0.0)
+
+                beta_angle.append(spiops.beta_angle(self.name, self.target.name,
+                                                    et))
             except:
-                zaxis_target_angle.append(0.0)
-                myaxis_target_angle.append(0.0)
-                qs.append(0.0)
-                qx.append(0.0)
-                qy.append(0.0)
-                qz.append(0.0)
+                boresight_latitude = 0
+                boresight_longitude = 0
+                distance = 0
+                altitude = 0
+                latitude = 0
+                longitude = 0
+                subpoint_xyz = [0,0,0]
+                subpoint_pgc =  [0,0,0]
+                subpoint_pcc =  [0,0,0]
+                zaxis_target_angle = 0
+                myaxis_target_angle = 0
+                beta_angle = 0
+                (qx, qy, qz, qs) = 0, 0, 0, 0
+                (x, y, z) = 0, 0, 0
 
-            beta_angle.append(spiops.beta_angle(self.name, self.target.name,
-                                                et))
-
-
-
+        self.boresight_latitude = boresight_latitude
+        self.boresight_longitude = boresight_longitude
         self.distance = distance
         self.altitude = altitude
-        #self.latitude = [for subpoint in subpoint_pcc]
         self.latitude = latitude
         self.longitude = longitude
-        #self.longitude = [subpoint_pcc ]
         self.subpoint_xyz = subpoint_xyz
         self.subpoint_pgc = subpoint_pgc
         self.subpoint_pcc = subpoint_pcc
@@ -387,9 +526,9 @@ class Body(object):
 
 
     def Plot(self, yaxis = 'distance', date_format='TDB', external_data=[],
-             notebook=False):
+             notebook=False, boresight=''):
 
-        self.__Geometry()
+        self.__Geometry(boresight=boresight)
         self.__Structures()
 
         #
@@ -398,6 +537,16 @@ class Body(object):
         if yaxis == 'groundtrack':
             utils.plot(self.__getattribute__('longitude'),
                        self.__getattribute__('latitude'),
+                       notebook=notebook, xaxis_name = 'Longitude',
+                       yaxis_name='Latitude', mission=self.name,
+                       target=self.target.name, background_image=True,
+                       format ='circle_only')
+
+            return
+
+        if yaxis == 'boresight_groundtrack':
+            utils.plot(self.__getattribute__('boresight_longitude', boresight=boresight),
+                       self.__getattribute__('boresight_latitude', boresight=boresight),
                        notebook=notebook, xaxis_name = 'Longitude',
                        yaxis_name='Latitude', mission=self.name,
                        target=self.target.name, background_image=True,
@@ -448,31 +597,57 @@ class Body(object):
         #
         # Time in X axis
         #
-        if yaxis == 'sa_ang':
+
+        xaxis = self.time.window
+        xaxis_name = 'Date'
+
+        if (yaxis == 'sa_ang') or (yaxis == 'sa_ang_p'):
+            yaxis_name = ['sa_ang1_p','sa_ang2_p', 'sa_ang3_p']
+            yaxis_units = 'deg'
+        elif yaxis == 'sa_ang_n':
             if self.name != 'MPO':
-                yaxis_name = ['sa_ang_p', 'sa_ang_n']
+                yaxis_name = ['sa_ang1_n', 'sa_ang2_n', 'sa_ang3_n']
+                yaxis_units = 'deg'
             else:
-                yaxis_name = 'sa_ang_p'
+                yaxis_name = ['sa_ang1_p','sa_ang2_p', 'sa_ang3_p']
+                yaxis_units = 'deg'
         elif yaxis == 'saa_sc':
             yaxis_name = ['saa_sc_x', 'saa_sc_y', 'saa_sc_z']
+            yaxis_units = 'deg'
         elif yaxis == 'saa_sa':
             if self.name != 'MPO':
                 yaxis_name = ['saa_sa_p', 'saa_sa_n']
+                yaxis_units = 'deg'
             else:
                 yaxis_name = 'saa_sa'
+                yaxis_units = 'deg'
         elif yaxis == 'hga_angles':
             yaxis_name = ['hga_el', 'hga_az']
+            yaxis_units = 'deg'
         elif yaxis == 'hga_earth':
             yaxis_name = 'hga_earth'
+            yaxis_units = 'deg'
         elif yaxis == 'quaternions':
             yaxis_name = ['qx','qy','qz','qs']
+            yaxis_units = ''
+        elif yaxis == 'clock_drift':
+            self.__ClockDrift()
+            xaxis = self.clock_dates
+            xaxis_name = 'Date'
+            yaxis_name = 'Delta Clock Counts SC-Ground'
+            yaxis_units = 's'
+        elif yaxis == 'zaxis_target_angle':
+            yaxis_units = 'deg'
+            yaxis_name = yaxis
         else:
             yaxis_name = yaxis
+            yaxis_units = 'km'
 
-        utils.plot(self.time.window, self.__getattribute__(yaxis), notebook=notebook,
-                   external_data=external_data, yaxis_name=yaxis_name,
-                   mission = self.name, target = self.target.name,
-                   date_format=date_format)
+
+        utils.plot(xaxis, self.__getattribute__(yaxis), notebook=notebook,
+                   external_data=external_data, xaxis_name=xaxis_name,
+                   yaxis_name=yaxis_name, mission = self.name, yaxis_units=yaxis_units,
+                   target = self.target.name, date_format=date_format)
 
         return
 

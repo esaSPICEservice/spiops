@@ -1,6 +1,6 @@
 #from spiops import data as data
-from .time import cal2et
-from .time import et_to_datetime
+from spiops.utils.time import cal2et
+from spiops.utils.time import et_to_datetime
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import spiceypy
@@ -14,6 +14,13 @@ from shutil import move
 import os
 import glob
 from os import fdopen, remove, chmod, path
+try:
+    import importlib.resources as pkg_resources
+except ImportError:
+    import importlib_resources as pkg_resources
+
+from spiops.data import images
+
 
 
 def valid_url(html_file_name):
@@ -85,8 +92,8 @@ def convert_OEM2data():
 
 
 def plot(xaxis, yaxis, xaxis_name = 'Date', yaxis_name='', title='', format='line',
-         external_data=[], notebook=False, mission='', target='',
-         date_format='TDB', plot_width=1000, plot_height=1000,
+         external_data=[], notebook=False, mission='', target='', yaxis_units='',
+         date_format='TDB', plot_width=1000, plot_height=500,
          fill_color=[], fill_alpha=0, background_image=False,
          line_width=2):
 
@@ -97,6 +104,7 @@ def plot(xaxis, yaxis, xaxis_name = 'Date', yaxis_name='', title='', format='lin
 
     if not title:
         title = '{} {}'.format(mission, yaxis_name).title().upper()
+
 
         html_file_name = 'plot_{}_{}_{}-{}.html'.format('Time', yaxis_name,
                                                         mission,
@@ -132,7 +140,7 @@ def plot(xaxis, yaxis, xaxis_name = 'Date', yaxis_name='', title='', format='lin
     if notebook:
         output_notebook()
         plot_width = 975
-        plot_height = 400
+        plot_height = 300
     else:
         output_file(html_file_name + '.html')
         plot_width = plot_width
@@ -143,11 +151,11 @@ def plot(xaxis, yaxis, xaxis_name = 'Date', yaxis_name='', title='', format='lin
     else:
         x_axis_type = "auto"
 
-    p = figure(title=title,
+    p = figure(#title=title,
                 plot_width=plot_width,
                 plot_height=plot_height,
                 x_axis_label=xaxis_name.upper(),
-                y_axis_label='',
+                y_axis_label=yaxis_units,
                 x_axis_type=x_axis_type)
 
     if xaxis_name == 'Date':
@@ -194,8 +202,11 @@ def plot(xaxis, yaxis, xaxis_name = 'Date', yaxis_name='', title='', format='lin
     index = 0
 
     if background_image:
-        p.image_url(url=[os.path.join(os.path.dirname(__file__),
-                         '../data/Mars_Viking_MDIM21_ClrMosaic_global_1024.jpg')], x=-180, y=-90,
+        if background_image == 'mars':
+            image = 'Mars_Viking_MDIM21_ClrMosaic_global_1024.jpg'
+        else:
+            image = 'Earth_Contemporary_Basic.png'
+        p.image_url(url=[os.path.join(os.path.dirname(images.__file__),image)], x=-180, y=-90,
                 w=360, h=180, anchor="bottom_left", global_alpha=0.6)
 
     for element in y:
@@ -378,9 +389,39 @@ def target2frame(target):
     else:
         try:
             target_frame = 'IAU_' + target.upper()
+            target_frame_id = spiceypy.namfrm(target_frame)
+            if target_frame_id == 0:
+                raise Exception
         except:
-            target_id = str(spiceypy.bodn2c(target))
-            target_id += '000'
-            target_frame = spiceypy.frmnam(int(target_id))
+            try:
+                target_id = str(spiceypy.bodn2c(target))
+                target_frame = spiceypy.frmnam(int(target_id))
+            except:
+                target_id += '000'
+                target_frame = spiceypy.frmnam(int(target_id))
+
 
     return target_frame
+
+def findIntersection(x1,y1,x2,y2,x3,y3,x4,y4):
+    px= ( (x1*y2-y1*x2)*(x3-x4)-(x1-x2)*(x3*y4-y3*x4) ) / ( (x1-x2)*(y3-y4)-(y1-y2)*(x3-x4) )
+    py= ( (x1*y2-y1*x2)*(y3-y4)-(y1-y2)*(x3*y4-y3*x4) ) / ( (x1-x2)*(y3-y4)-(y1-y2)*(x3-x4) )
+    return [px, py]
+
+def findNearest(array, value):
+    """
+    Determine for a given value, the element of the array which is closest to
+    this value.
+
+    @param array: Input N-Dimensional Array with values
+    @type array: Numpy array
+    @param value: Value that we want to match with one value of the array
+    @type value: float
+    @return: Index and value in array closer to value
+    @rtype: list
+    """
+
+    array = np.asarray(array)
+    idx = np.unravel_index(np.argmin(np.abs(array - value)), array.shape)
+
+    return idx, array[idx]

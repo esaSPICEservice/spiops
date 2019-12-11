@@ -1,5 +1,5 @@
-from spiops.utils import get_latest_kernel
-from spiops.utils import get_sc
+from spiops.utils.utils import get_latest_kernel
+from spiops.utils.utils import get_sc
 import subprocess
 
 def brief(kernel, utc=False):

@@ -7,11 +7,17 @@ import logging
 import os
 import numpy as np
 from spiceypy.utils.support_types import *
-from .utils import time
-from .utils import plot
-from .utils import target2frame
-from .utils import findIntersection
-from .utils import findNearest
+from spiops.utils import time
+from spiops.utils.utils import plot
+from spiops.utils.utils import target2frame
+from spiops.utils.utils import findIntersection
+from spiops.utils.utils import findNearest
+from spiops.utils.utils import get_latest_kernel
+
+from spiops.utils.naif import brief
+from spiops.utils.naif import ckbrief
+from spiops.utils.naif import optiks
+
 import imageio
 #from scipy.misc import imsave
 import matplotlib as mpl
@@ -27,8 +33,12 @@ from bokeh.models import ColumnDataSource, DatetimeTickFormatter, LabelSet
 from math import pi
 
 import spiops
-from .utils.time import et_to_datetime
+from spiops.utils.time import et_to_datetime
 
+from spiops.classes.observation import TimeWindow
+from spiops.classes.body import Target
+from spiops.classes.body import Observer
+from spiops.core.objview import draw_obj_and_points
 
 """
 The MIT License (MIT)
@@ -972,12 +982,11 @@ def attitude_error_report(et_list, ang_ck1, ang_ck2, tolerance, name=''):
 
             count += 1
 
-        f.write('\nMAX Error:  {} MILLIDEG\n'.format(str(max(ang_error))))
-        f.write('MIN Error:   {} MILLIDEG\n'.format(str(min(ang_error))))
-        f.write('MEAN Error: {} MILLIDEG\n'.format(str(numpy.mean(ang_error))))
+        f.write('\nMAX Error:  {} ARCSECONDS\n'.format(str(max(ang_error))))
+        f.write('MIN Error:   {} ARCSECONDS\n'.format(str(min(ang_error))))
+        f.write('MEAN Error: {} ARCSECONDS\n'.format(str(numpy.mean(ang_error))))
 
     return
-
 
 def state_report(et_list, pos_spk1, pos_spk2, vel_spk1, vel_spk2, pos_tolerance,
                  vel_tolerance, name=''):
@@ -1419,10 +1428,10 @@ def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance
 
         bsight = spiceypy.mxv(rot_mat, boresight)
         bsight_ang = spiceypy.vsep(bsight, boresight)
-        bsight_ck1.append(bsight_ang*spiceypy.dpr())
+        bsight_ck1.append(spiceypy.convrt(bsight_ang,'RADIANS','ARCSECONDS'))
 
         (rot_axis, rot_angle) = spiceypy.raxisa(rot_mat)
-        angle_ck1.append(rot_angle*spiceypy.dpr()*1000)
+        angle_ck1.append(spiceypy.convrt(rot_angle,'RADIANS','ARCSECONDS'))
 
     spiceypy.unload(ck1)
     spiceypy.furnsh(ck2)
@@ -1442,16 +1451,16 @@ def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance
 
         bsight = spiceypy.mxv(rot_mat, boresight)
         bsight_ang = spiceypy.vsep(bsight, boresight)
-        bsight_ck2.append(bsight_ang*spiceypy.dpr())
+        bsight_ck2.append(spiceypy.convrt(bsight_ang,'RADIANS','ARCSECONDS'))
 
         (rot_axis, rot_angle) = spiceypy.raxisa(rot_mat)
-        angle_ck2.append(rot_angle*spiceypy.dpr()*1000)
+        angle_ck2.append(spiceypy.convrt(rot_angle,'RADIANS','ARCSECONDS'))
 
     eul1_diff = [i - j for i, j in zip(eul1_ck1, eul1_ck2)]
     eul2_diff = [i - j for i, j in zip(eul2_ck1, eul2_ck2)]
     eul3_diff = [i - j for i, j in zip(eul3_ck1, eul3_ck2)]
 
-    bsight_diff = [i - j for i, j in zip(bsight_ck1, bsight_ck2)]
+    bsight_diff = [np.abs(i - j) for i, j in zip(bsight_ck1, bsight_ck2)]
 
     angle_diff = [abs(i - j) for i, j in zip(angle_ck1, angle_ck2)]
 
@@ -1461,36 +1470,41 @@ def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance
     eul1_name = '{}_{}'.format(ck1_filename, ck2_filename)
     eul2_name = '{}_{}'.format(ck1_filename, ck2_filename)
     eul3_name = '{}_{}'.format(ck1_filename, ck2_filename)
+    bsight_name = '{}_{}'.format(ck1_filename, ck2_filename)
 
     if output == 'euler_angles':
 
 
         plot(et_list, [eul1_diff, eul2_diff, eul3_diff], yaxis_name=['Degrees','Degrees','Degrees'],
                                                         title='Euler Angle Differences',
-                                                        format=plot_style,
+                                                        format=plot_style, yaxis_units='deg',
                                                         notebook=notebook)
 
     elif output == 'boresight':
-        plot(et_list, bsight_diff, yaxis_name='Degrees',
+        plot(et_list, bsight_diff, yaxis_name='',
              title='Boresight Angle Difference',
-             format=plot_style,
+             format=plot_style, yaxis_units='arcsec',
              notebook=notebook)
 
     # Attitude Error
     else:
-        plot(et_list, angle_diff, yaxis_name='Milidegrees',
+        plot(et_list, angle_diff, yaxis_units='arcsec',
              title='Attitude Error',
              format=plot_style,
              notebook=notebook)
 
     if report:
-
-        attitude_error_report(et_list, angle_ck1, angle_ck2, tolerance, name=eul1_name)
+        attitude_error_report(et_list, bsight_ck1, bsight_ck2, tolerance,
+                              name=bsight_name)
 
         if output == 'euler_angles':
             eul_angle_report(et_list, eul1_ck1, eul1_ck2, 1, tolerance, name=eul1_name)
             eul_angle_report(et_list, eul2_ck1, eul2_ck2, 2, tolerance, name=eul2_name)
             eul_angle_report(et_list, eul3_ck1, eul3_ck2, 3, tolerance, name=eul3_name)
+
+        if output == 'rotaxis':
+            attitude_error_report(et_list, angle_ck1, angle_ck2, tolerance,
+                                  name=eul1_name)
 
     spiceypy.unload(ck2)
 
@@ -2185,45 +2199,91 @@ def sensor_with_sectors(sensor, mk, fk=''):
 def hga_angles(sc, time):
 
     if sc == 'MPO':
-        hga_zero_frame = sc + '_HGA_APM'
+        hga_zero_frame = sc + '_HGA_AZ_ZERO'
+
+        hga_el_frame = sc + '_HGA_EL'
+        hga_az_frame = sc + '_HGA_AZ'
+        hga_frame = sc + '_HGA'
+
+        sc_id = spiceypy.bodn2c(sc)
+
+        hga_el_bool = False
+        hga_az_bool = False
+        try:
+
+            # Get the rotation matrix between two frames
+            cmat = spiceypy.pxform(hga_zero_frame, hga_az_frame, time)
+
+            (angle3, angle2, angle1) = spiceypy.m2eul(cmat,3,2,1)
+            for angle in [angle3, angle2, angle1]:
+                if np.around(angle,2) !=0:
+                    hga_az = np.rad2deg(angle) - 180
+                    hga_az_bool = True
+
+            if not hga_az_bool:
+                hga_az = 0
+
+            # Get the quaternion elements from the rotation matrix
+            #quat = spiceypy.m2q(cmat)
+            #hga_az = np.rad2deg(2. * np.arccos(quat[0]))  # in radians
+
+            cmat = spiceypy.pxform(hga_az_frame, hga_el_frame, time)
+
+            (angle3, angle2, angle1) = spiceypy.m2eul(cmat, 3, 2, 1)
+            for angle in [angle3, angle2, angle1]:
+                if np.around(angle,2) != 0:
+                    hga_el = np.rad2deg(angle)
+                    hga_el_bool = True
+
+            if not hga_el_bool:
+                hga_el = 0
+
+        except ValueError as e:
+            print(e)
+            hga_az = 0
+            hga_el = 0
+
     elif sc == 'MTM':
         return []
+
     else:
         hga_zero_frame = sc + '_SPACECRAFT'
 
 
-    hga_el_frame = sc + '_HGA_EL'
-    hga_az_frame = sc + '_HGA_AZ'
-    if sc == 'MPO':
-        hga_frame = 'MPO_HGA_OPTIC'
-    else:
+        hga_el_frame = sc + '_HGA_EL'
+        hga_az_frame = sc + '_HGA_AZ'
         hga_frame = sc + '_HGA'
 
-    sc_id = spiceypy.bodn2c(sc)
+
+        try:
+
+            # Get the rotation matrix between two frames
+            cmat = spiceypy.pxform(hga_zero_frame, hga_el_frame, time)
+
+            (angle3, angle2, angle1) = spiceypy.m2eul(cmat, 3, 2, 1)
+            for angle in [angle3, angle2, angle1]:
+                if angle != 0:
+                    hga_el = np.rad2deg(angle)
+
+
+            cmat = spiceypy.pxform(hga_el_frame, hga_az_frame, time)
+
+            (angle3, angle2, angle1) = spiceypy.m2eul(cmat, 3, 2, 1)
+            for angle in [angle3, angle2, angle1]:
+                if angle != 0:
+                    hga_az = np.rad2deg(angle)
+
+        except:
+            hga_az = 0
+            hga_el = 0
 
     try:
+        (earth_vec, lt) = spiceypy.spkezr('EARTH', time, hga_frame, 'LT+S', sc)
+        hga_earth = np.rad2deg(spiceypy.vsep([0,0,1], earth_vec[:3]))
 
-        # Get the rotation matrix between two frames
-        cmat = spiceypy.pxform(hga_zero_frame, hga_el_frame, time)
-
-        # Get the quaternion elements from the rotation matrix
-        quat = spiceypy.m2q(cmat)
-        hga_el = np.rad2deg(2. * np.arccos(quat[0]))  # in radians
-
-
-        cmat = spiceypy.pxform(hga_el_frame, hga_az_frame, time)
-        quat = spiceypy.m2q(cmat)
-        hga_az = np.rad2deg(2. * np.arccos(quat[0]))  # in radians
-
-
-        (earth_vec, lt) = spiceypy.spkezp(399, time, hga_frame, 'LT+S', sc_id)
-        hga_earth = np.rad2deg(spiceypy.vsep([0,0,1], earth_vec))
-
-
-    except:
+    except: #ValueError as e:
+        #print(e)
         hga_earth = 0
-        hga_az = 0
-        hga_el = 0
 
     return([hga_el, hga_az], hga_earth)
 
@@ -2287,7 +2347,10 @@ def solar_aspect_angles(sc, time):
         return ([saa_sa_p, saa_sa_n], [saa_sc_x, saa_sc_y, saa_sc_z])
 
 
-def solar_array_angle(sa_frame, time):
+def solar_array_angles(sa_frame, time):
+
+    # Rotation axis must be angle 3 to have a range of [-pi, pi], the
+    # rotation axis is derived from the FK.
 
     if 'MPO' in sa_frame:
         sa_zero_frame = 'MPO_SA_SADM'
@@ -2297,19 +2360,25 @@ def solar_array_angle(sa_frame, time):
         sa_zero_frame = sa_frame + '_ZERO'
     try:
 
+    #TODO This works for  JUICE only in principle.
+
+
+
         # Get the rotation matrix between two frames
         cmat = spiceypy.pxform(sa_frame, sa_zero_frame, time)
 
-        # Get the quaternion elements from the rotation matrix
-        quat = spiceypy.m2q(cmat)
-        sa_ang = np.rad2deg(2. * np.arccos(quat[0]))  # in radians
+        (angle3, angle2, angle1) = spiceypy.m2eul(cmat, 2, 3, 1)
 
     except:
 
         #print('No CK information for {}'.format(time))
-        sa_ang = 0
+        angle3 = 0
+        angle2 = 0
+        angle1 = 0
 
-    return(sa_ang)
+    return(np.round(angle3*spiceypy.dpr(),3),
+           np.round(angle2*spiceypy.dpr(),3),
+           np.round(angle1*spiceypy.dpr(),3))
 
 
 def structures_position(sc_frame, kernel, time):
@@ -2494,10 +2563,10 @@ def ck_coverage_timeline(metakernel, sc, notebook=True, html_file_name='test',
 
     p = figure(y_range=ck_kernels, plot_height=plot_height ,plot_width=plot_width,
                 title="CK Kernels Coverage", )
-    p.hbar(y=ck_kernels, height=0.2, left=start_dt, right=finsh_dt, color="lime")
+    p.hbar(y=ck_kernels, height=0.2, left=start_dt, right=finsh_dt, color="lawngreen")
 
     labels = LabelSet(x='start_dt', y='ck_kernels', text='ck_kernels', level='glyph',
-                  x_offset=5, y_offset=-5, source=source)
+                  x_offset=-2, y_offset=5, source=source, render_mode='canvas')
 
     p.xaxis.formatter = DatetimeTickFormatter(seconds=["%Y-%m-%d %H:%M:%S"],
                                               minsec=["%Y-%m-%d %H:%M:%S"],
@@ -2573,10 +2642,10 @@ def spk_coverage_timeline(metakernel, sc, notebook=True, html_file_name='test',
 
     p = figure(y_range=spk_kernels, plot_height=plot_height ,plot_width=plot_width,
                 title="SPK Kernels Coverage", )
-    p.hbar(y=spk_kernels, height=0.2, left=start_dt, right=finsh_dt, color="lime")
+    p.hbar(y=spk_kernels, height=0.2, left=start_dt, right=finsh_dt, color="royalblue")
 
     labels = LabelSet(x='start_dt', y='spk_kernels', text='spk_kernels', level='glyph',
-                  x_offset=5, y_offset=-5, source=source)
+                  x_offset=-2, y_offset=5, source=source, render_mode='canvas')
 
     p.xaxis.formatter = DatetimeTickFormatter(seconds=["%Y-%m-%d %H:%M:%S"],
                                               minsec=["%Y-%m-%d %H:%M:%S"],
@@ -2651,9 +2720,9 @@ def target_center_pixel(et, camera, target, target_frame):
     pixel_size = spiceypy.gdpool('INS{}_PIXEL_SIZE'.format(camera_id), 0, 80)[0]
     ccd_center = spiceypy.gdpool('INS{}_CCD_CENTER'.format(camera_id), 0, 80)
 
-    image  = (1000000000/pixel_size) * image_focal # Pixel Size in Microns
+    image  = image_focal * (1000000000/pixel_size)  # Pixel Size in Microns
 
-    return (image_focal, (ccd_center[0]+image[0], ccd_center[1]+image[1])) # in OSIRIS this was inverted: pixel_samples-image[1], pixel_lines-image[0]
+    return (image_focal, (ccd_center[1]+image[1], ccd_center[0]+image[0]))
 
 
 def pixel_center_distance(et, camera, pixel_x, pixel_y):
@@ -2696,11 +2765,10 @@ def pixel_center_distance(et, camera, pixel_x, pixel_y):
     return pix_cent_dist, target_pixel, pixel_size
 
 
-def simulate_image(utc, metakernel, camera, mission_targets, camera_spk=False,
+def simulate_image(utc, camera, mission_targets, camera_spk=False,
                     pixel_lines=False, pixel_samples=False, dsks=False,
                     generate_image=False, report=False, name=False,
-                    illumination=True,
-                   load_kernels=True, unload_kernels=True, log=False):
+                    illumination=True,  metakernel='', unload_kernels=True, log=False):
     '''
 
     :param utc: Image acquisition time in UTC format e.g.: 2016-01-01T00:00:00
@@ -2733,7 +2801,7 @@ def simulate_image(utc, metakernel, camera, mission_targets, camera_spk=False,
     :return: Name of the output image
     :rtype: str
     '''
-    if load_kernels:
+    if metakernel:
         spiceypy.furnsh(metakernel)
     if dsks:
         for dsk in dsks:
@@ -3155,7 +3223,7 @@ def sc_dsk_view(utc,mk, dsks, observer, sc_targets, sc_frames=False,
     return
 
 
-def getXYforPlanet(time_et, planet, camera):
+def getXYforPlanet(time_et, planet, camera, observer=''):
     """
     compute for all time instances in this class the xy position of a planet
     within a camera_name field-of-view. If not visible, return (-1,-1).
@@ -3164,6 +3232,13 @@ def getXYforPlanet(time_et, planet, camera):
     """
     #
     camera_id = spiceypy.bodn2c(camera)
+
+    #
+    # In case we do not have an SPK for the camera
+    #
+    if not observer:
+        observer = camera
+
     r_planet = (spiceypy.bodvrd(planet, 'RADII', 3))[1][0]
     #
     # get instrument related info
@@ -3176,8 +3251,8 @@ def getXYforPlanet(time_et, planet, camera):
         bounds[bs, :] = spiceypy.mxv(mat, bounds[bs, :])
 
     [pos, ltime] = spiceypy.spkpos(planet, time_et, 'J2000',
-                                    'LT+S', camera)
-    visible = spiceypy.fovray(camera, pos, 'J2000', 'S', planet,
+                                    'LT+S', observer)
+    visible = spiceypy.fovray(camera, pos, 'J2000', 'S', 'MPO',
                                time_et)
     #
     # only get detector position, if target is visible
@@ -3216,7 +3291,7 @@ def getXYforPlanet(time_et, planet, camera):
 
     else:
         print('Planet {} not visible by {} at {}'.format(planet, camera, spiceypy.et2utc(time_et,'ISOC',1,25)))
-        return False
+        return (False, False, False, False)
 
     return (time, x, y, size)
 
@@ -3588,3 +3663,51 @@ def camera_radec(time, camera, units='radians', plot=False):
         plt.show()
 
     return ra_matrix, dec_matrix
+
+
+def groundtrack_velocity(time, observer, target, target_frame):
+
+    radii = spiceypy.bodvrd(target, 'RADII', 3)
+    re = radii[0]  # equatorial
+    rp = radii[2]  # polar
+    f = (re-rp)/re # target flattening factor
+
+    #
+    # compute the state vector (position(1: 3), speed(4: 6)) for each second
+    #
+    (state, lt) = spiceypy.spkezr(observer, et, target_frame, 'NONE', target)
+    (lon, lat, alt) = spiceypy.recgeo(state[:3], re, f)
+
+    #
+    #  for each second compute the Jacobian Matrix to convert the speed to
+    #  a body-fixed reference frame (in this case in Geodetic coordinates)
+    #
+    jacobi = spiceypy.dgeodr(state[0], state[1], state[2],re, f)
+    geodetic_speed = spiceypy.mxv(jacoby, state[4:])
+
+    #
+    #  from the geodetic speed extract the radial component
+    #  radial_speed[i] = geodetic_speed[i,2]
+    #
+    radial_component = geodetic_speed[-1]
+
+    #
+    #  the tangential speed is obtained as product of the local radius of the
+    #  observed body with the tangential angular speed:
+    #
+    #  latitudinal component
+    #  ^  x
+    #  | / tangential component
+    #  |/
+    #  o---> longitudinal component (the cos is to compensate the "shrinking"
+    #        of longitude incerasing the latitude)
+    local_radius = (re * rp) / (
+        np.power(re ^ 2 * math.sin(lat) ^ 2) + (rp ^ 2 * math.cos(lat) ^ 2),0.5)
+
+    #tangential_speed = local_radius * np.power(
+    #    (REFORM(geodetic_speed[i, 0]) * cos(lat[i])) ^ 2 + (
+    #        REFORM(geodetic_speed[i, 1])) ^ 2)
+
+
+    return
+
