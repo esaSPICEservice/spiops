@@ -1,10 +1,26 @@
+import spiops.spiops as spiops
 from spiops.utils.utils import get_latest_kernel
 from spiops.utils.utils import get_sc
 import subprocess
+import platform
+import os
 
 def brief(kernel, utc=False):
 
-    utility = 'brief'
+    #
+    # We determine the platform system and machine for the executables
+    #
+    if platform.system() == 'Darwin':
+        if platform.machine() == 'x86_64':
+            executables_dir = '/exe/macintel_osx_64bit'
+    else:
+        executables_dir = '/exe/pc_linux_64bit'
+
+    root_dir = os.path.dirname(spiops.__file__)
+    dir = root_dir + executables_dir
+
+
+    utility = dir + os.sep + 'brief'
     option = '-c'
 
     skd_path = '/'.join(kernel.split('/')[:-2])
@@ -29,7 +45,21 @@ def brief(kernel, utc=False):
 
 def ckbrief(kernel, utc=False):
 
-    utility = 'ckbrief'
+    #
+    # We determine the platform system and machine for the executables
+    #
+    if platform.system() == 'Darwin':
+        if platform.machine() == 'x86_64':
+            executables_dir = '/exe/macintel_osx_64bit'
+    else:
+        executables_dir = '/exe/pc_linux_64bit'
+
+    root_dir = os.path.dirname(spiops.__file__)
+    dir = root_dir + executables_dir
+
+
+    utility = dir + os.sep + \
+              'ckbrief'
     option = '-rel -n'
 
     skd_path = '/'.join(kernel.split('/')[:-2])
@@ -84,9 +114,22 @@ def optiks(mkernel, utc=False):
     else:
         raise ValueError('OPTIKS utility could not run')
 
-    utility = 'optiks'
-    option = '-half -units degrees -frame {}_SPACECRAFT ' \
-             '-showfovframes'.format(mission)
+    #
+    # We determine the platform system and machine for the executables
+    #
+    if platform.system() == 'Darwin':
+        if platform.machine() == 'x86_64':
+            executables_dir = '/exe/macintel_osx_64bit'
+    else:
+        executables_dir = '/exe/pc_linux_64bit'
+
+    root_dir = os.path.dirname(spiops.__file__)
+    dir = root_dir + executables_dir
+
+
+    utility = dir + os.sep +  'optiks'
+    option =  '-half -units degrees -frame {}_SPACECRAFT ' \
+              '-showfovframes'.format(mission)
 
     if utc:
         option += ' -epoch {}'.format(utc)

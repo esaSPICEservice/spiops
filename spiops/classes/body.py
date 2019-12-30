@@ -236,38 +236,59 @@ class Body(object):
 
         for et in time.window:
 
-            #
-            # Of course we need to include all possible cases including only one
-            # Solar Array
-            #
-            (sa_ang1_p, sa_ang2_p, sa_ang3_p) = spiops.solar_array_angles(plus_array, et)
-            if minus_array:
-                (sa_ang1_n, sa_ang2_n, sa_ang3_n) = spiops.solar_array_angles(minus_array, et)
-            saa = spiops.solar_aspect_angles(self.name, et)
+            try:
+                #
+                # Of course we need to include all possible cases including only one
+                # Solar Array
+                #
+                (sa_ang1_p, sa_ang2_p, sa_ang3_p) = spiops.solar_array_angles(plus_array, et)
+                if minus_array:
+                    (sa_ang1_n, sa_ang2_n, sa_ang3_n) = spiops.solar_array_angles(minus_array, et)
+                saa = spiops.solar_aspect_angles(self.name, et)
 
-            sa_ang1_p_list.append(sa_ang1_p)
-            sa_ang2_p_list.append(sa_ang2_p)
-            sa_ang3_p_list.append(sa_ang3_p)
-            if minus_array:
-                sa_ang1_n_list.append(sa_ang1_n)
-                sa_ang2_n_list.append(sa_ang2_n)
-                sa_ang3_n_list.append(sa_ang3_n)
-                saa_sa_n_list.append(saa[0][1])
-            saa_sa_p_list.append(saa[0][0])
-            saa_sc_x_list.append(saa[1][0])
-            saa_sc_y_list.append(saa[1][1])
-            saa_sc_z_list.append(saa[1][2])
+                sa_ang1_p_list.append(sa_ang1_p)
+                sa_ang2_p_list.append(sa_ang2_p)
+                sa_ang3_p_list.append(sa_ang3_p)
+                if minus_array:
+                    sa_ang1_n_list.append(sa_ang1_n)
+                    sa_ang2_n_list.append(sa_ang2_n)
+                    sa_ang3_n_list.append(sa_ang3_n)
+                    saa_sa_n_list.append(saa[0][1])
+                saa_sa_p_list.append(saa[0][0])
+                saa_sc_x_list.append(saa[1][0])
+                saa_sc_y_list.append(saa[1][1])
+                saa_sc_z_list.append(saa[1][2])
 
-            #
-            # HGA mechanisms
-            #
-            if self.name != 'MTM':
-                (hga_angles_ang, hga_earth_ang) = spiops.hga_angles(self.name, et)
-                hga_earth.append(hga_earth_ang)
-                if self.name == 'MPO':
-                    hga_angles_ang[0] = -1*(hga_angles_ang[0] - 180)
-                hga_angles_el.append(hga_angles_ang[0])
-                hga_angles_az.append(hga_angles_ang[1])
+                #
+                # HGA mechanisms
+                #
+                if self.name != 'MTM':
+                    (hga_angles_ang, hga_earth_ang) = spiops.hga_angles(self.name, et)
+                    hga_earth.append(hga_earth_ang)
+                    if self.name == 'MPO':
+                        hga_angles_ang[0] = -1*(hga_angles_ang[0] - 180)
+                    hga_angles_el.append(hga_angles_ang[0])
+                    hga_angles_az.append(hga_angles_ang[1])
+
+            except:
+
+                sa_ang1_p_list.append(0)
+                sa_ang2_p_list.append(0)
+                sa_ang3_p_list.append(0)
+
+                if minus_array:
+                    sa_ang1_n_list.append(0)
+                    sa_ang2_n_list.append(0)
+                    sa_ang3_n_list.append(0)
+                    saa_sa_n_list.append(0)
+
+                saa_sa_p_list.append(0)
+                saa_sc_x_list.append(0)
+                saa_sc_y_list.append(0)
+                saa_sc_z_list.append(0)
+                hga_earth.append(0)
+                hga_angles_el.append(0)
+                hga_angles_az.append(0)
 
         if minus_array:
             self.sa_ang_p = [sa_ang1_p_list, sa_ang2_p_list, sa_ang3_p_list]

@@ -7,6 +7,7 @@ import re
 
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
 from spiops.utils.utils import replace
+from spiops.utils.files import update_former_versions
 
 def main(test=False, log=False):
     execution_dir = os.getcwd()
@@ -50,6 +51,9 @@ def main(test=False, log=False):
     parser.add_argument('-c', '--clean',
                         help='Remove local meta-kernels',
                         action='store_true')
+    parser.add_argument('-f', '--former',
+                        help='Update the meta-kernels in the former_versions directory.',
+                        action='store_true')
     args = parser.parse_args()
 
     if args.version:
@@ -76,13 +80,13 @@ def main(test=False, log=False):
         for mk_in_dir in mks_in_dir:
             if 'local' not in mk_in_dir.lower():
                 if args.all:
-                    replace(mk_in_dir, "( '..' )",
+                    replace(mk_in_dir, "'..'",
                             "( '" + cwd.split('/kernels')[0] + "/kernels' )")
                     local_mks.append(mk_in_dir)
                 else:
                     not_append = re.search(r".*_v[0-9]{3}_[0-9]{8}_[0-9]{3}.tm", mk_in_dir.lower())
                     if not_append == None:
-                        replace(mk_in_dir, "( '..' )",
+                        replace(mk_in_dir, "'..'",
                                 "( '" + cwd.split('/kernels')[
                                     0] + "/kernels' )")
                         local_mks.append(mk_in_dir)
@@ -94,6 +98,27 @@ def main(test=False, log=False):
         else:
             print(
                 'SPIOPS -- Meta-Kernel Update -- No meta-kernels have been updated.')
+
+    if args.former:
+        cwd = os.getcwd()
+        if 'mk/former_versions' in cwd:
+            mk_dir = os.sep.join(cwd.split(os.sep)[:-1])
+            kernels_dir = os.sep.join(cwd.split(os.sep)[:-2])
+        else:
+            mk_dir = cwd
+            kernels_dir = os.sep.join(cwd.split(os.sep)[:-1])
+        try:
+            updated_mks = update_former_versions(mk_dir, kernels_dir)
+            if updated_mks:
+                print(
+                    'SPIOPS -- Meta-Kernel Update\nThe following former_versions meta-kernels have been updated:')
+                for mk in updated_mks:
+                    print(f'   {mk}')
+            else:
+                print(
+                        'SPIOPS -- Meta-Kernel Update -- No meta-kernels have been updated.')
+        except Exception as e: print(e)
+
 
     return
 

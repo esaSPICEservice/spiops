@@ -18,6 +18,8 @@ from spiops.utils.naif import brief
 from spiops.utils.naif import ckbrief
 from spiops.utils.naif import optiks
 
+from spiops.utils.files import update_former_versions
+
 import imageio
 #from scipy.misc import imsave
 import matplotlib as mpl
