@@ -1378,6 +1378,7 @@ def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance
         spiceypy.unload(ck2)
     except:
         print('WARNING: No Time Window could be determined')
+        return
 
     windows_intersected = spiceypy.wnintd(windows_ck1, windows_ck2)
 
