@@ -7,11 +7,16 @@ import os
 import numpy as np
 from spiceypy.utils.support_types import *
 
+
 from spiops.utils import time
 from spiops.utils.utils import plot
 from spiops.utils.utils import target2frame
 from spiops.utils.utils import findIntersection
 from spiops.utils.utils import findNearest
+
+from spiops.classes.observation import TimeWindow
+from spiops.classes.body import Target
+from spiops.classes.body import Observer
 
 from spiops.utils.naif import optiks
 from spiops.utils.naif import brief
