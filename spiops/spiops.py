@@ -7,8 +7,6 @@ import os
 import numpy as np
 from spiceypy.utils.support_types import *
 
-import spiops
-
 from spiops.utils import time
 from spiops.utils.utils import plot
 from spiops.utils.utils import target2frame
@@ -31,6 +29,7 @@ from spiops.utils.time import et_to_datetime
 
 """
 The MIT License (MIT)
+Copyright (c) [2015-2017] [Andrew Annex]
 Copyright (c) [2015-2017] [Andrew Annex]
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

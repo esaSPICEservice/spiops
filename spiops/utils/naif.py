@@ -1,4 +1,3 @@
-import spiops.spiops as spiops
 from spiops.utils.utils import get_latest_kernel
 from spiops.utils.utils import get_sc
 import subprocess
@@ -16,8 +15,8 @@ def brief(kernel, utc=False):
     else:
         executables_dir = '/exe/pc_linux_64bit'
 
-    root_dir = os.path.dirname(spiops.__file__)
-    dir = root_dir + executables_dir
+    root_dir = os.path.dirname(__file__)
+    dir = root_dir + '/..' + executables_dir
 
 
     utility = dir + os.sep + 'brief'
@@ -54,8 +53,8 @@ def ckbrief(kernel, utc=False):
     else:
         executables_dir = '/exe/pc_linux_64bit'
 
-    root_dir = os.path.dirname(spiops.__file__)
-    dir = root_dir + executables_dir
+    root_dir = os.path.dirname(__file__)
+    dir = root_dir + '/..' + executables_dir
 
 
     utility = dir + os.sep + \
@@ -123,8 +122,8 @@ def optiks(mkernel, utc=False):
     else:
         executables_dir = '/exe/pc_linux_64bit'
 
-    root_dir = os.path.dirname(spiops.__file__)
-    dir = root_dir + executables_dir
+    root_dir = os.path.dirname(__file__)
+    dir = root_dir + '/..' + executables_dir
 
 
     utility = dir + os.sep +  'optiks'
