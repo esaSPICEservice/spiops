@@ -1,46 +1,33 @@
 #!/usr/bin/env python3
 
 import math
-import numpy as np
 import spiceypy
 import logging
 import os
 import numpy as np
 from spiceypy.utils.support_types import *
+
+import spiops
+
 from spiops.utils import time
 from spiops.utils.utils import plot
 from spiops.utils.utils import target2frame
 from spiops.utils.utils import findIntersection
 from spiops.utils.utils import findNearest
-from spiops.utils.utils import get_latest_kernel
 
-from spiops.utils.naif import brief
-from spiops.utils.naif import ckbrief
 from spiops.utils.naif import optiks
-
-from spiops.utils.files import update_former_versions
+from spiops.utils.naif import brief
 
 import imageio
 #from scipy.misc import imsave
 import matplotlib as mpl
-from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 
 from spiceypy import support_types as stypes
 
-
-from bokeh.io import output_file, show
 from bokeh.plotting import figure, output_file, output_notebook, show
 from bokeh.models import ColumnDataSource, DatetimeTickFormatter, LabelSet
-from math import pi
-
-import spiops
 from spiops.utils.time import et_to_datetime
-
-from spiops.classes.observation import TimeWindow
-from spiops.classes.body import Target
-from spiops.classes.body import Observer
-from spiops.core.objview import draw_obj_and_points
 
 """
 The MIT License (MIT)

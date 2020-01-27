@@ -9,6 +9,7 @@ from argparse import ArgumentParser, RawDescriptionHelpFormatter
 from spiops.utils.utils import replace
 from spiops.utils.files import update_former_versions
 
+
 def main(test=False, log=False):
     execution_dir = os.getcwd()
 
