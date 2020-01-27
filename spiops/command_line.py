@@ -81,14 +81,14 @@ def main(test=False, log=False):
             if 'local' not in mk_in_dir.lower():
                 if args.all:
                     replace(mk_in_dir, "'..'",
-                            "( '" + cwd.split('/kernels')[0] + "/kernels' )")
+                            "'" + cwd.split('/kernels')[0] + "/kernels'")
                     local_mks.append(mk_in_dir)
                 else:
                     not_append = re.search(r".*_v[0-9]{3}_[0-9]{8}_[0-9]{3}.tm", mk_in_dir.lower())
                     if not_append == None:
                         replace(mk_in_dir, "'..'",
-                                "( '" + cwd.split('/kernels')[
-                                    0] + "/kernels' )")
+                                "'" + cwd.split('/kernels')[
+                                    0] + "/kernels'")
                         local_mks.append(mk_in_dir)
 
         if local_mks:
