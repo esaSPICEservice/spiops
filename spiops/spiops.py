@@ -1370,11 +1370,14 @@ def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance
     if mk:
         spiceypy.furnsh(mk)
 
-    windows_ck1 = cov_ck_ker(ck1, object=spacecraft_frame, time_format='SPICE')
-    spiceypy.unload(ck1)
+    try:
+        windows_ck1 = cov_ck_ker(ck1, object=spacecraft_frame, time_format='SPICE')
+        spiceypy.unload(ck1)
 
-    windows_ck2 = cov_ck_ker(ck2, object=spacecraft_frame, time_format='SPICE')
-    spiceypy.unload(ck2)
+        windows_ck2 = cov_ck_ker(ck2, object=spacecraft_frame, time_format='SPICE')
+        spiceypy.unload(ck2)
+    except:
+        print('WARNING: No Time Window could be determined')
 
     windows_intersected = spiceypy.wnintd(windows_ck1, windows_ck2)
 
