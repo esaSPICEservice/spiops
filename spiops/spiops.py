@@ -684,7 +684,7 @@ def cov_ck_ker(ck, object, support_ker=list(), time_format= 'UTC',
     object_id = spiceypy.namfrm(object)
     MAXIV = 20000
     WINSIZ = 2 * MAXIV
-    MAXOBJ = 100000
+    MAXOBJ = 500000
 
     ck_ids = spiceypy.support_types.SPICEINT_CELL(MAXOBJ)
     ck_ids = spiceypy.ckobj(ck, outCell=ck_ids)
