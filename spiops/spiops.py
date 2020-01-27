@@ -2529,10 +2529,11 @@ def ck_coverage_timeline(metakernel, sc, notebook=True, html_file_name='test',
 
     for kernel in kernels:
         try:
-            cov = cov_ck_ker(path+kernel, sc_frame, support_ker=metakernel,
-                                time_format='TDB')
+            cov = cov_ck_ker(path + kernel, sc_frame, support_ker=metakernel,
+                             time_format='TDB')
         except:
-            pass
+            print(f'WARNING: Kernel {kernel} coverage cannot be determined.')
+            cov = []
 
         if cov:
             cov_start.append(cov[0])
