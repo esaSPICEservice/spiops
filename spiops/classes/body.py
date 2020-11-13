@@ -52,7 +52,8 @@ class Body(object):
                       'saa_sa',
                       'saa_sc',
                       'hga_earth',
-                      'hga_angles']:
+                      'hga_angles',
+                      'roll_angles']:
             self.__Structures()
             return object.__getattribute__(self, item)
         else:
@@ -228,12 +229,13 @@ class Body(object):
         hga_earth = []
         hga_angles_el = []
         hga_angles_az = []
+        roll_angle_1 = []
+        roll_angle_2 = []
+        roll_angle_3 = []
 
         #
         # High Gain Antennas
         #
-
-
         for et in time.window:
 
             try:
@@ -267,8 +269,16 @@ class Body(object):
                     hga_earth.append(hga_earth_ang)
                     if self.name == 'MPO':
                         hga_angles_ang[0] = -1*(hga_angles_ang[0] - 180)
-                    hga_angles_el.append(hga_angles_ang[0])
-                    hga_angles_az.append(hga_angles_ang[1])
+                    hga_angles_el.append(hga_angles_ang[1])
+                    hga_angles_az.append(hga_angles_ang[0])
+
+                #
+                # Roll angle
+                #
+                roll_angle = spiops.roll(et)
+                roll_angle_1.append(roll_angle[0])
+                roll_angle_2.append(roll_angle[1])
+                roll_angle_3.append(roll_angle[2])
 
             except:
 
@@ -290,6 +300,10 @@ class Body(object):
                 hga_angles_el.append(0)
                 hga_angles_az.append(0)
 
+                roll_angle_1.append(0)
+                roll_angle_2.append(0)
+                roll_angle_3.append(0)
+
         if minus_array:
             self.sa_ang_p = [sa_ang1_p_list, sa_ang2_p_list, sa_ang3_p_list]
             self.sa_ang_n = [sa_ang1_n_list, sa_ang2_n_list, sa_ang3_n_list]
@@ -304,6 +318,7 @@ class Body(object):
 
         self.hga_earth = hga_earth
         self.hga_angles = [hga_angles_el, hga_angles_az]
+        self.roll_angles = [roll_angle_1, roll_angle_2, roll_angle_3]
 
         self.structures_flag = True
         self.previous_tw = self.time.window
@@ -328,6 +343,8 @@ class Body(object):
         subpoint_pcc = []
         zaxis_target_angle = []
         myaxis_target_angle = []
+        yaxis_target_angle = []
+        xaxis_target_angle = []
         beta_angle = []
 
         qs, qx, qy, qz = [], [], [] ,[]
@@ -476,6 +493,8 @@ class Body(object):
                                                        self.name)
                 obs_zaxis  = [0,  0, 1]
                 obs_myaxis = [0, -1, 0]
+                obs_yaxis = [0, 1, 0]
+                obs_xaxis = [1, 0, 0]
 
                 #
                 # We need to account for when there is no CK attitude available.
@@ -493,6 +512,17 @@ class Body(object):
                     myax_target_angle *= spiceypy.dpr()
                     myaxis_target_angle.append(myax_target_angle)
 
+                    y_vecout = spiceypy.mxv(matrix, obs_myaxis)
+                    yax_target_angle = spiceypy.vsep(y_vecout, obs_tar)
+                    yax_target_angle *= spiceypy.dpr()
+                    yaxis_target_angle.append(yax_target_angle)
+
+                    x_vecout = spiceypy.mxv(matrix, obs_myaxis)
+                    xax_target_angle = spiceypy.vsep(x_vecout, obs_tar)
+                    xax_target_angle *= spiceypy.dpr()
+                    xaxis_target_angle.append(xax_target_angle)
+
+
                     quat = spiceypy.m2q(spiceypy.invert(matrix))
                     qs.append(quat[0])
                     qx.append(-1*quat[1])
@@ -502,6 +532,8 @@ class Body(object):
                 except:
                     zaxis_target_angle.append(0.0)
                     myaxis_target_angle.append(0.0)
+                    yaxis_target_angle.append(0.0)
+                    xaxis_target_angle.append(0.0)
                     qs.append(0.0)
                     qx.append(0.0)
                     qy.append(0.0)
@@ -521,6 +553,8 @@ class Body(object):
                 subpoint_pcc =  [0,0,0]
                 zaxis_target_angle = 0
                 myaxis_target_angle = 0
+                yaxis_target_angle = 0
+                xaxis_target_angle = 0
                 beta_angle = 0
                 (qx, qy, qz, qs) = 0, 0, 0, 0
                 (x, y, z) = 0, 0, 0
@@ -536,6 +570,8 @@ class Body(object):
         self.subpoint_pcc = subpoint_pcc
         self.zaxis_target_angle = zaxis_target_angle
         self.myaxis_target_angle = myaxis_target_angle
+        self.yaxis_target_angle = yaxis_target_angle
+        self.xaxis_target_angle = xaxis_target_angle
         self.beta_angle = beta_angle
         self.quaternions = [qx, qy, qz, qs]
         self.trajectory = [x,y,z]
@@ -645,6 +681,9 @@ class Body(object):
         elif yaxis == 'hga_angles':
             yaxis_name = ['hga_el', 'hga_az']
             yaxis_units = 'deg'
+        elif yaxis == 'roll_angles':
+            yaxis_name = ['roll_1', 'roll_2', 'roll_3']
+            yaxis_units = 'deg'
         elif yaxis == 'hga_earth':
             yaxis_name = 'hga_earth'
             yaxis_units = 'deg'
@@ -658,6 +697,12 @@ class Body(object):
             yaxis_name = 'Delta Clock Counts SC-Ground'
             yaxis_units = 's'
         elif yaxis == 'zaxis_target_angle':
+            yaxis_units = 'deg'
+            yaxis_name = yaxis
+        elif yaxis == 'yaxis_target_angle':
+            yaxis_units = 'deg'
+            yaxis_name = yaxis
+        elif yaxis == 'xaxis_target_angle':
             yaxis_units = 'deg'
             yaxis_name = yaxis
         else:

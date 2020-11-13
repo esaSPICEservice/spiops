@@ -688,8 +688,8 @@ def cov_ck_ker(ck, object, support_ker=list(), time_format= 'UTC',
 
     object_id = spiceypy.namfrm(object)
     MAXIV = 200000
-    WINSIZ = 3 * MAXIV
-    MAXOBJ = 500000
+    WINSIZ = 2 * MAXIV
+    MAXOBJ = 100000
 
     ck_ids = spiceypy.support_types.SPICEINT_CELL(MAXOBJ)
     ck_ids = spiceypy.ckobj(ck, outCell=ck_ids)
@@ -1317,7 +1317,7 @@ def ckdiff(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance,
                                                         format=plot_style,
                                                         notebook=notebook)
     else:
-        plot(et_list, [bsight_ck], yaxis_name=['Degrees', 'Degrees'],
+        plot(et_list, [bsight_ck1], yaxis_name=['Degrees', 'Degrees'],
              title='+Z Axis Angle Difference {}'.format(title_name),
              format=plot_style,
              notebook=notebook)
@@ -1886,259 +1886,259 @@ def read_ik_with_sectors(sensor_name):
     return sensnm, sensid, secnum, secsiz, secsis, secfrm, secdir
 
 
-def mex_tgo_occultations(interval, refval):
-    (out, radii) = spiceypy.bodvrd('MARS', 'RADII', 3)
-
-    # Compute flattening coefficient.
-    re = radii[0]
-    rp = radii[2]
-    f = (re - rp) / re
-
-    a = re
-    b = radii[1]
-    c = rp
-
-    MAXIVL = 10000
-    MAXWIN = 2 * MAXIVL
-    TDBFMT = 'YYYY MON DD HR:MN:SC.### (TDB) ::TDB'
-
-    # Initialize the "confinement" window with the interval
-    # over which we'll conduct the search.
-    cnfine = stypes.SPICEDOUBLE_CELL(2)
-    spiceypy.wninsd(interval.start, interval.finish, cnfine)
-
-    #
-    # In the call below, the maximum number of window
-    # intervals gfposc can store internally is set to MAXIVL.
-    # We set the cell size to MAXWIN to achieve this.
-    #
-    riswin = stypes.SPICEDOUBLE_CELL(MAXWIN)
-
-    #
-    # Now search for the time period, within our confinement
-    # window, during which the apparent target has elevation
-    # at least equal to the elevation limit.
-    #
-    #   VARIABLE        I/O  DESCRIPTION
-    #   --------------- ---  -------------------------------------------------
-    #   SPICE_GF_CNVTOL  P   Convergence tolerance.
-    #   occtyp           I   Type of occultation.
-    #   front            I   Name of body occulting the other.
-    #   fshape           I   Type of shape model used for front body.
-    #   fframe           I   Body-fixed, body-centered frame for front body.
-    #   back             I   Name of body occulted by the other.
-    #   bshape           I   Type of shape model used for back body.
-    #   bframe           I   Body-fixed, body-centered frame for back body.
-    #   abcorr           I   Aberration correction flag.
-    #   obsrvr           I   Name of the observing body.
-    #   step             I   Step size in seconds for finding occultation
-    #                        events.
-    #   cnfine          I-O  SPICE window to which the search is restricted.
-    #   result           O   SPICE window containing results.
-    #
-    spiceypy.gfoclt('ANY', 'MARS', 'ELLIPSOID', 'IAU_MARS', 'MEX',
-                    'POINT', '', 'NONE', 'TGO', 60, cnfine, riswin)
-
-    #
-    # Now we perform another search to constrain the number of occultations by a
-    # distance criteria
-    #
-    cnfine = riswin
-
-    riswin = stypes.SPICEDOUBLE_CELL(MAXWIN)
-
-    #
-    # We're not using the adjustment feature, so
-    # we set `adjust' to zero.
-    #
-    adjust = 0.0
-
-    #
-    # We use a step size of 1 hour
-    #
-    step = 60 * 60
-
-    # nintvls  =  2*n  +  ( m / step )
-    #
-    # where
-    #
-    #    n     is the number of intervals in the confinement
-    #          window
-    #
-    #    m     is the measure of the confinement window, in
-    #          units of seconds
-    #
-    #    step  is the search step size in seconds
-    #
-    ndays = 100
-    nintvls = int(2 * 1 + (ndays * 24 * 60 * 60 / step))
-
-    #
-    # Now search for the time period, within our confinement
-    # window, during which the apparent target has elevation
-    # at least equal to the elevation limit.
-    #
-    #   VARIABLE         I/O  DESCRIPTION
-    #   ---------------  ---  ------------------------------------------------
-    #   SPICE_GF_CNVTOL   P   Convergence tolerance
-    #   target            I   Name of the target body.
-    #   abcorr            I   Aberration correction flag.
-    #   obsrvr            I   Name of the observing body.
-    #   relate            I   Relational operator.
-    #   refval            I   Reference value.
-    #   adjust            I   Adjustment value for absolute extrema searches.
-    #   step              I   Step size used for locating extrema and roots.
-    #   nintvls           I   Workspace window interval count.
-    #
-    #   cnfine           I-O  SPICE window to which the search is confined.
-    #   result            O   SPICE window containing results.
-    #
-    spiceypy.gfdist('MEX', 'NONE', 'TGO', '<', refval, adjust, step, nintvls,
-                    cnfine, riswin)
-
-    #
-    # The function wncard returns the number of intervals
-    # in a SPICE window.
-    #
-    winsiz = spiceypy.wncard(riswin)
-
-    lat_mid_list = []
-    lon_mid_list = []
-    dist_mid_list = []
-
-    lat_list = []
-    lon_list = []
-    dist_list = []
-
-    x, y, z = [], [], []
-
-    if winsiz == 0:
-        print('No events were found.')
-
-    else:
-
-        #
-        # Display the visibility time periods.
-        #
-        print(
-                'Occultation times of {0:s} as seen from {1:s} when the distance is '
-                'less than {2:f} km:\n'.format('MEX', 'TGO', refval))
-
-        for i in range(winsiz):
-            #
-            # Fetch the start and stop times of
-            # the ith interval from the search result
-            # window riswin.
-            #
-            [intbeg, intend] = spiceypy.wnfetd(riswin, i)
-
-            #
-            # Convert the rise time to a TDB calendar string.
-            #
-            timstr = spiceypy.timout(intbeg, TDBFMT)
-            et_rise = intbeg
-
-            #
-            # Write the string to standard output.
-            #
-            # if i == 0:
-            #
-            #    print('Occultation start time:'
-            #          '  {:s}'.format(timstr))
-            # else:
-            #
-            #    print('Occultation start time:'
-            #          '  {:s}'.format(timstr))
-            #
-            #
-            # Convert the set time to a TDB calendar string.
-            #
-            timstr = spiceypy.timout(intend, TDBFMT)
-            et_set = intend
-
-            #
-            # Write the string to standard output.
-            #
-            # if i == (winsiz - 1):
-            #
-            #    print('Occultation or window stop time: '
-            #          '  {:s}'.format(timstr))
-            # else:
-            #
-            #    print('Occultation stop time: '
-            #          '  {:s}'.format(timstr))
-            #
-            # print(' ')
-
-            #
-            # Generate a Time Window with the rise and set times
-            #
-            utc_rise = spiceypy.et2utc(et_rise, 'ISOC', 3)
-            utc_set = spiceypy.et2utc(et_set, 'ISOC', 3)
-
-            time_window = spiops.TimeWindow(utc_rise, utc_set, resolution=1)
-
-            interval = time_window.window
-            num = 0
-            for et in interval:
-
-                num += 1
-
-                (linept, lt) = spiceypy.spkpos('MARS', et, 'IAU_MARS', 'NONE',
-                                               'TGO')
-                (linedr, lt) = spiceypy.spkpos('MEX', et, 'IAU_MARS', 'NONE',
-                                               'TGO')
-
-                #
-                #  Variable  I/O  Description
-                #  --------  ---  --------------------------------------------------
-                #  a          I   Length of ellipsoid's semi-axis in the x direction
-                #  b          I   Length of ellipsoid's semi-axis in the y direction
-                #  c          I   Length of ellipsoid's semi-axis in the z direction
-                #  linept     I   Point on line
-                #  linedr     I   Direction vector of line
-                #  pnear      O   Nearest point on ellipsoid to line
-                #  dist       O   Distance of ellipsoid from line
-                #
-                (pnear, dist) = spiceypy.npedln(a, b, c, linept, linedr)
-
-                (lon, lat, alt) = spiceypy.recpgr('MARS', pnear, re, f)
-
-                lon = spiceypy.dpr() * lon
-                lat = spiceypy.dpr() * lat
-
-                lon_list.append(lon)
-                lat_list.append(lat)
-                dist_list.append(spiceypy.vnorm(linedr))
-
-                if num == int(len(interval) / 2):
-                    lon_mid_list.append(lon)
-                    lat_mid_list.append(lat)
-                    dist_mid_list.append(spiceypy.vnorm(linedr))
-
-    spiops.plot(lon_mid_list, [lat_mid_list],
-                xaxis_name='Longitude [deg]',
-                yaxis_name=['Latitude [deg]'],
-                title='TGO-MEX Occultation Groundtrack for MEX-TGO Distance < {}km'.format(
-                    refval),
-                plot_height=500,
-                plot_width=900,
-                format='circle',
-                background_image=True,
-                line_width=6)
-
-    spiops.plot(lon_list, [lat_list],
-                xaxis_name='Longitude [deg]',
-                yaxis_name=['Latitude [deg]'],
-                title='TGO-MEX Occultation Groundtrack for MEX-TGO Distance < {}km'.format(
-                    refval),
-                plot_height=500,
-                plot_width=900,
-                format='circle',
-                background_image=True,
-                line_width=1)
-
-    return
+#def mex_tgo_occultations(interval, refval):
+#    (out, radii) = spiceypy.bodvrd('MARS', 'RADII', 3)
+#
+#    # Compute flattening coefficient.
+#    re = radii[0]
+#    rp = radii[2]
+#    f = (re - rp) / re
+#
+#    a = re
+#    b = radii[1]
+#    c = rp
+#
+#    MAXIVL = 10000
+#    MAXWIN = 2 * MAXIVL
+#    TDBFMT = 'YYYY MON DD HR:MN:SC.### (TDB) ::TDB'
+#
+#    # Initialize the "confinement" window with the interval
+#    # over which we'll conduct the search.
+#    cnfine = stypes.SPICEDOUBLE_CELL(2)
+#    spiceypy.wninsd(interval.start, interval.finish, cnfine)
+#
+#    #
+#    # In the call below, the maximum number of window
+#    # intervals gfposc can store internally is set to MAXIVL.
+#    # We set the cell size to MAXWIN to achieve this.
+#    #
+#    riswin = stypes.SPICEDOUBLE_CELL(MAXWIN)
+#
+#    #
+#    # Now search for the time period, within our confinement
+#    # window, during which the apparent target has elevation
+#    # at least equal to the elevation limit.
+#    #
+#    #   VARIABLE        I/O  DESCRIPTION
+#    #   --------------- ---  -------------------------------------------------
+#    #   SPICE_GF_CNVTOL  P   Convergence tolerance.
+#    #   occtyp           I   Type of occultation.
+#    #   front            I   Name of body occulting the other.
+#    #   fshape           I   Type of shape model used for front body.
+#    #   fframe           I   Body-fixed, body-centered frame for front body.
+#    #   back             I   Name of body occulted by the other.
+#    #   bshape           I   Type of shape model used for back body.
+#    #   bframe           I   Body-fixed, body-centered frame for back body.
+#    #   abcorr           I   Aberration correction flag.
+#    #   obsrvr           I   Name of the observing body.
+#    #   step             I   Step size in seconds for finding occultation
+#    #                        events.
+#    #   cnfine          I-O  SPICE window to which the search is restricted.
+#    #   result           O   SPICE window containing results.
+#    #
+#    spiceypy.gfoclt('ANY', 'MARS', 'ELLIPSOID', 'IAU_MARS', 'MEX',
+#                    'POINT', '', 'NONE', 'TGO', 60, cnfine, riswin)
+#
+#    #
+#    # Now we perform another search to constrain the number of occultations by a
+#    # distance criteria
+#    #
+#    cnfine = riswin
+#
+#    riswin = stypes.SPICEDOUBLE_CELL(MAXWIN)
+#
+#    #
+#    # We're not using the adjustment feature, so
+#    # we set `adjust' to zero.
+#    #
+#    adjust = 0.0
+#
+#    #
+#    # We use a step size of 1 hour
+#    #
+#    step = 60 * 60
+#
+#    # nintvls  =  2*n  +  ( m / step )
+#    #
+#    # where
+#    #
+#    #    n     is the number of intervals in the confinement
+#    #          window
+#    #
+#    #    m     is the measure of the confinement window, in
+#    #          units of seconds
+#    #
+#    #    step  is the search step size in seconds
+#    #
+#    ndays = 100
+#    nintvls = int(2 * 1 + (ndays * 24 * 60 * 60 / step))
+#
+#    #
+#    # Now search for the time period, within our confinement
+#    # window, during which the apparent target has elevation
+#    # at least equal to the elevation limit.
+#    #
+#    #   VARIABLE         I/O  DESCRIPTION
+#    #   ---------------  ---  ------------------------------------------------
+#    #   SPICE_GF_CNVTOL   P   Convergence tolerance
+#    #   target            I   Name of the target body.
+#    #   abcorr            I   Aberration correction flag.
+#    #   obsrvr            I   Name of the observing body.
+#    #   relate            I   Relational operator.
+#    #   refval            I   Reference value.
+#    #   adjust            I   Adjustment value for absolute extrema searches.
+#    #   step              I   Step size used for locating extrema and roots.
+#    #   nintvls           I   Workspace window interval count.
+#    #
+#    #   cnfine           I-O  SPICE window to which the search is confined.
+#    #   result            O   SPICE window containing results.
+#    #
+#    spiceypy.gfdist('MEX', 'NONE', 'TGO', '<', refval, adjust, step, nintvls,
+#                    cnfine, riswin)
+#
+#    #
+#    # The function wncard returns the number of intervals
+#    # in a SPICE window.
+#    #
+#    winsiz = spiceypy.wncard(riswin)
+#
+#    lat_mid_list = []
+#    lon_mid_list = []
+#    dist_mid_list = []
+#
+#    lat_list = []
+#    lon_list = []
+#    dist_list = []
+#
+#    x, y, z = [], [], []
+#
+#    if winsiz == 0:
+#        print('No events were found.')
+#
+#    else:
+#
+#        #
+#        # Display the visibility time periods.
+#        #
+#        print(
+#                'Occultation times of {0:s} as seen from {1:s} when the distance is '
+#                'less than {2:f} km:\n'.format('MEX', 'TGO', refval))
+#
+#        for i in range(winsiz):
+#            #
+#            # Fetch the start and stop times of
+#            # the ith interval from the search result
+#            # window riswin.
+#            #
+#            [intbeg, intend] = spiceypy.wnfetd(riswin, i)
+#
+#            #
+#            # Convert the rise time to a TDB calendar string.
+#            #
+#            timstr = spiceypy.timout(intbeg, TDBFMT)
+#            et_rise = intbeg
+#
+#            #
+#            # Write the string to standard output.
+#            #
+#            # if i == 0:
+#            #
+#            #    print('Occultation start time:'
+#            #          '  {:s}'.format(timstr))
+#            # else:
+#            #
+#            #    print('Occultation start time:'
+#            #          '  {:s}'.format(timstr))
+#            #
+#            #
+#            # Convert the set time to a TDB calendar string.
+#            #
+#            timstr = spiceypy.timout(intend, TDBFMT)
+#            et_set = intend
+#
+#            #
+#            # Write the string to standard output.
+#            #
+#            # if i == (winsiz - 1):
+#            #
+#            #    print('Occultation or window stop time: '
+#            #          '  {:s}'.format(timstr))
+#            # else:
+#            #
+#            #    print('Occultation stop time: '
+#            #          '  {:s}'.format(timstr))
+#            #
+#            # print(' ')
+#
+#            #
+#            # Generate a Time Window with the rise and set times
+#            #
+#            utc_rise = spiceypy.et2utc(et_rise, 'ISOC', 3)
+#            utc_set = spiceypy.et2utc(et_set, 'ISOC', 3)
+#
+#            time_window = spiops.TimeWindow(utc_rise, utc_set, resolution=1)
+#
+#            interval = time_window.window
+#            num = 0
+#            for et in interval:
+#
+#                num += 1
+#
+#                (linept, lt) = spiceypy.spkpos('MARS', et, 'IAU_MARS', 'NONE',
+#                                               'TGO')
+#                (linedr, lt) = spiceypy.spkpos('MEX', et, 'IAU_MARS', 'NONE',
+#                                               'TGO')
+#
+#                #
+#                #  Variable  I/O  Description
+#                #  --------  ---  --------------------------------------------------
+#                #  a          I   Length of ellipsoid's semi-axis in the x direction
+#                #  b          I   Length of ellipsoid's semi-axis in the y direction
+#                #  c          I   Length of ellipsoid's semi-axis in the z direction
+#                #  linept     I   Point on line
+#                #  linedr     I   Direction vector of line
+#                #  pnear      O   Nearest point on ellipsoid to line
+#                #  dist       O   Distance of ellipsoid from line
+#                #
+#                (pnear, dist) = spiceypy.npedln(a, b, c, linept, linedr)
+#
+#                (lon, lat, alt) = spiceypy.recpgr('MARS', pnear, re, f)
+#
+#                lon = spiceypy.dpr() * lon
+#                lat = spiceypy.dpr() * lat
+#
+#                lon_list.append(lon)
+#                lat_list.append(lat)
+#                dist_list.append(spiceypy.vnorm(linedr))
+#
+#                if num == int(len(interval) / 2):
+#                    lon_mid_list.append(lon)
+#                    lat_mid_list.append(lat)
+#                    dist_mid_list.append(spiceypy.vnorm(linedr))
+#
+#    spiops.plot(lon_mid_list, [lat_mid_list],
+#                xaxis_name='Longitude [deg]',
+#                yaxis_name=['Latitude [deg]'],
+#                title='TGO-MEX Occultation Groundtrack for MEX-TGO Distance < {}km'.format(
+#                    refval),
+#                plot_height=500,
+#                plot_width=900,
+#                format='circle',
+#                background_image=True,
+#                line_width=6)
+#
+#    spiops.plot(lon_list, [lat_list],
+#                xaxis_name='Longitude [deg]',
+#                yaxis_name=['Latitude [deg]'],
+#                title='TGO-MEX Occultation Groundtrack for MEX-TGO Distance < {}km'.format(
+#                    refval),
+#                plot_height=500,
+#                plot_width=900,
+#                format='circle',
+#                background_image=True,
+#                line_width=1)
+#
+#    return
 
 
 def sensor_with_sectors(sensor, mk, fk=''):
@@ -2193,6 +2193,7 @@ def sensor_with_sectors(sensor, mk, fk=''):
 
     return
 
+
 def hga_angles(sc, time):
 
     if sc == 'MPO':
@@ -2201,8 +2202,6 @@ def hga_angles(sc, time):
         hga_el_frame = sc + '_HGA_EL'
         hga_az_frame = sc + '_HGA_AZ'
         hga_frame = sc + '_HGA'
-
-        sc_id = spiceypy.bodn2c(sc)
 
         hga_el_bool = False
         hga_az_bool = False
@@ -2214,15 +2213,12 @@ def hga_angles(sc, time):
             (angle3, angle2, angle1) = spiceypy.m2eul(cmat,3,2,1)
             for angle in [angle3, angle2, angle1]:
                 if np.around(angle,2) !=0:
-                    hga_az = np.rad2deg(angle) - 180
+                    hga_az = np.rad2deg(angle)# - 180
                     hga_az_bool = True
 
             if not hga_az_bool:
                 hga_az = 0
 
-            # Get the quaternion elements from the rotation matrix
-            #quat = spiceypy.m2q(cmat)
-            #hga_az = np.rad2deg(2. * np.arccos(quat[0]))  # in radians
 
             cmat = spiceypy.pxform(hga_az_frame, hga_el_frame, time)
 
@@ -2282,7 +2278,7 @@ def hga_angles(sc, time):
         #print(e)
         hga_earth = 0
 
-    return([hga_el, hga_az], hga_earth)
+    return([hga_az, hga_el], hga_earth)
 
 
 def solar_aspect_angles(sc, time):
@@ -3673,7 +3669,7 @@ def groundtrack_velocity(time, observer, target, target_frame):
     #
     # compute the state vector (position(1: 3), speed(4: 6)) for each second
     #
-    (state, lt) = spiceypy.spkezr(observer, et, target_frame, 'NONE', target)
+    (state, lt) = spiceypy.spkezr(observer, time, target_frame, 'NONE', target)
     (lon, lat, alt) = spiceypy.recgeo(state[:3], re, f)
 
     #
@@ -3681,7 +3677,7 @@ def groundtrack_velocity(time, observer, target, target_frame):
     #  a body-fixed reference frame (in this case in Geodetic coordinates)
     #
     jacobi = spiceypy.dgeodr(state[0], state[1], state[2],re, f)
-    geodetic_speed = spiceypy.mxv(jacoby, state[4:])
+    geodetic_speed = spiceypy.mxv(jacobi, state[4:])
 
     #
     #  from the geodetic speed extract the radial component
@@ -3709,3 +3705,23 @@ def groundtrack_velocity(time, observer, target, target_frame):
 
     return
 
+def roll(time):
+
+    # Rotation axis must be angle 3 to have a range of [-pi, pi], the
+    # rotation axis is derived from the FK.
+    try:
+    # Get the rotation matrix between two frames
+        cmat = spiceypy.pxform('SOLO_SRF', 'SOLO_ORBIT_NORM', time)
+
+        (angle3, angle2, angle1) = spiceypy.m2eul(cmat, 2, 3, 1)
+
+    except:
+
+        #print('No CK information for {}'.format(time))
+        angle3 = 0
+        angle2 = 0
+        angle1 = 0
+
+    return(np.round(angle3*spiceypy.dpr(),3),
+           np.round(angle2*spiceypy.dpr(),3),
+           np.round(angle1*spiceypy.dpr(),3))

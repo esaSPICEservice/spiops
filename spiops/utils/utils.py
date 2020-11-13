@@ -192,9 +192,9 @@ def plot(xaxis, yaxis, xaxis_name = 'Date', yaxis_name='', title='', format='lin
         y_ext = external_data[1]
 
         if format == 'circle':
-            p.circle(x_ext, y_ext, legend='External Data', size=5, color='red')
+            p.circle(x_ext, y_ext, size=5, color='red')
         elif format == 'line':
-            p.line(x_ext, y_ext, legend='External Data', line_width=2,
+            p.line(x_ext, y_ext, line_width=2,
                    color='red')
 
     # add a line renderer with legend and line thickness
@@ -218,8 +218,7 @@ def plot(xaxis, yaxis, xaxis_name = 'Date', yaxis_name='', title='', format='lin
             p.circle(x, element, size=3, color='red')
 
         elif format == 'line':
-            p.line(x, element, legend=yaxis_name[index].upper(),
-                       line_width=line_width, color=color_list[index])
+            p.line(x, element, line_width=line_width, color=color_list[index])
         index += 1
 
 
