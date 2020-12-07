@@ -38,6 +38,12 @@ run ``pip install spiops`` to install from pypi.
 If you wish to install spiceypy from source first download or clone the project. Then run ``python setup.py install``.
 To uninstall run ``pip uninstall spiceypy``.
 
+jupyter labextension install @jupyterlab/plotly-extension
+
+jupyter labextension list
+
+jupyter lab build
+
 Documentation
 -------------
 
