@@ -584,7 +584,10 @@ def cov_ck_obj(mk, object, time_format= 'UTC', global_boundary=False,
 
         ck_ids = spiceypy.support_types.SPICEINT_CELL(MAXOBJ)
         ck_kernel = spiceypy.kdata(ck_count, 'CK', 155, 155, 155)
-        ck_ids = spiceypy.ckobj(ck=ck_kernel[0], outCell=ck_ids)
+        try:
+            ck_ids = spiceypy.ckobj(ck=ck_kernel[0], outCell=ck_ids)
+        except:
+            ck_ids = spiceypy.ckobj(ck=ck_kernel[0])
 
         for id in ck_ids:
             if id == object_id:
@@ -692,7 +695,10 @@ def cov_ck_ker(ck, object, support_ker=list(), time_format= 'UTC',
     MAXOBJ = 100000
 
     ck_ids = spiceypy.support_types.SPICEINT_CELL(MAXOBJ)
-    ck_ids = spiceypy.ckobj(ck, outCell=ck_ids)
+    try:
+        ck_ids = spiceypy.ckobj(ck, outCell=ck_ids)
+    except:
+        ck_ids = spiceypy.ckobj(ck)
 
     if object_id in ck_ids:
 
@@ -706,6 +712,16 @@ def cov_ck_ker(ck, object, support_ker=list(), time_format= 'UTC',
     else:
         #print('{} with ID {} is not present in {}.'.format(object,
          #                                                  object_id, ck))
+        if unload:
+            spiceypy.unload(ck)
+            if support_ker:
+
+                if isinstance(support_ker, str):
+                    support_ker = [support_ker]
+
+                for ker in support_ker:
+                    spiceypy.unload(ker)
+
         return False
 
     if time_format == 'SPICE':
@@ -2497,7 +2513,7 @@ def beta_angle(observer, target, time):
 
 
 def ck_coverage_timeline(metakernel, sc, notebook=True, html_file_name='test',
-                         plot_width=975,plot_height=500):
+                         plot_width=975,plot_height=700):
 
     if notebook:
         output_notebook()
@@ -2528,19 +2544,15 @@ def ck_coverage_timeline(metakernel, sc, notebook=True, html_file_name='test',
         sc_frame = '{}_SPACECRAFT'.format(sc.upper())
 
     for kernel in kernels:
-        try:
-            cov = cov_ck_ker(path + kernel, sc_frame, support_ker=metakernel,
+        cov = cov_ck_ker(path + kernel, sc_frame, support_ker=metakernel,
                              time_format='TDB')
-        except:
-            print(f'WARNING: Kernel {kernel} coverage cannot be determined.')
-            cov = []
 
         if cov:
             cov_start.append(cov[0])
             cov_finsh.append(cov[-1])
             ck_kernels.append(kernel)
 
-
+    spiceypy.furnsh(metakernel)
     date_format = 'UTC'
     start_dt =[]
     finsh_dt =[]
@@ -2555,7 +2567,7 @@ def ck_coverage_timeline(metakernel, sc, notebook=True, html_file_name='test',
                                         finsh_dt=finsh_dt,
                                         ck_kernels=ck_kernels))
 
-    p = figure(y_range=ck_kernels, plot_height=plot_height ,plot_width=plot_width,
+    p = figure(y_range=ck_kernels, plot_height=plot_height, plot_width=plot_width,
                 title="CK Kernels Coverage", )
     p.hbar(y=ck_kernels, height=0.2, left=start_dt, right=finsh_dt, color="lawngreen")
 
@@ -2609,11 +2621,8 @@ def spk_coverage_timeline(metakernel, sc, notebook=True, html_file_name='test',
 
     for kernel in kernels:
 
-        try:
-            cov = cov_spk_ker(path+kernel, sc.upper(), support_ker=metakernel,
+        cov = cov_spk_ker(path+kernel, sc.upper(), support_ker=metakernel,
                                 time_format='TDB')
-        except:
-            pass
         if cov:
             cov_start.append(cov[0][0])
             cov_finsh.append(cov[0][-1])
