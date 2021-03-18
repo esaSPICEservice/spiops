@@ -9,6 +9,7 @@ import numpy as np
 from bokeh.plotting import figure, output_file, output_notebook, show
 from bokeh.models import HoverTool
 from bokeh.models import DatetimeTickFormatter
+from bokeh.models import Range1d
 from tempfile import mkstemp
 from shutil import move
 import os
@@ -202,25 +203,29 @@ def plot(xaxis, yaxis, xaxis_name = 'Date', yaxis_name='', title='', format='lin
     index = 0
 
     if background_image:
-        if background_image == 'mars':
+        if 'TGO' in mission.upper() or 'MEX' in mission.upper():
             image = 'Mars_Viking_MDIM21_ClrMosaic_global_1024.jpg'
         else:
             image = 'Earth_Contemporary_Basic.png'
         p.image_url(url=[os.path.join(os.path.dirname(images.__file__),image)], x=-180, y=-90,
                 w=360, h=180, anchor="bottom_left", global_alpha=0.6)
+        left, right, bottom, top = -180, 180, -90, 90
+        p.x_range = Range1d(left, right)
+        p.y_range = Range1d(bottom, top)
 
     for element in y:
         if format == 'circle':
-            p.line(x, element, line_width=line_width, color=color_list[index])
+            p.line(x, element, line_width=line_width, color=color_list[index], legend_label=yaxis_name[index].upper())
             p.circle(x, element, fill_color="white", size=8)
 
         if format == 'circle_only':
-            p.circle(x, element, size=3, color='red')
+            p.circle(x, element, size=3, color='red', legend_label=yaxis_name[index].upper())
 
         elif format == 'line':
-            p.line(x, element, line_width=line_width, color=color_list[index])
+            p.line(x, element, line_width=line_width, color=color_list[index], legend_label=yaxis_name[index].upper())
         index += 1
 
+    p.legend.click_policy = "hide"
 
     # show the results
     show(p)

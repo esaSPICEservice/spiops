@@ -524,6 +524,15 @@ def cov_spk_ker(spk, object=False, time_format='TDB', support_ker ='',
             if report:
                 print('{} with ID {} is not present in {}.'.format(object,
                                                              id, spk))
+            if unload:
+                spiceypy.unload(spk)
+                if support_ker:
+
+                    if isinstance(support_ker, str):
+                        support_ker = [support_ker]
+
+                    for ker in support_ker:
+                        spiceypy.unload(ker)
             return False
 
         if time_format == 'SPICE':
@@ -1501,7 +1510,7 @@ def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance
 
     # Attitude Error
     else:
-        plot(et_list, angle_diff, yaxis_units='arcsec',
+        plot(et_list, angle_diff, yaxis_name='ang_diff', yaxis_units='arcsec',
              title='Attitude Error',
              format=plot_style,
              notebook=notebook)
@@ -2213,7 +2222,7 @@ def sensor_with_sectors(sensor, mk, fk=''):
 def hga_angles(sc, time):
 
     if sc == 'MPO':
-        hga_zero_frame = sc + '_HGA_AZ_ZERO'
+        hga_zero_frame = sc + '_HGA_APM'
 
         hga_el_frame = sc + '_HGA_EL'
         hga_az_frame = sc + '_HGA_AZ'
@@ -2512,17 +2521,13 @@ def beta_angle(observer, target, time):
     return beta
 
 
-def ck_coverage_timeline(metakernel, sc, notebook=True, html_file_name='test',
-                         plot_width=975,plot_height=700):
+def ck_coverage_timeline(metakernel, frame_list, notebook=True, html_file_name='test',
+                         plot_width=975, plot_height=700):
 
     if notebook:
         output_notebook()
-        plot_width = 975
-        plot_height = 300
     else:
         output_file(html_file_name + '.html')
-        plot_width = plot_width
-        plot_height = plot_height
 
     cov_start = []
     cov_finsh = []
@@ -2537,20 +2542,25 @@ def ck_coverage_timeline(metakernel, sc, notebook=True, html_file_name='test',
 
     kernels = list(reversed(kernels))
     ck_kernels = []
-
-    if sc.upper() == 'MEX':
-        sc_frame = 'MEX_SC_REF'
-    else:
-        sc_frame = '{}_SPACECRAFT'.format(sc.upper())
+    colors = []
 
     for kernel in kernels:
-        cov = cov_ck_ker(path + kernel, sc_frame, support_ker=metakernel,
-                             time_format='TDB')
+        for frame in frame_list:
+            cov = cov_ck_ker(path + kernel, frame, support_ker=metakernel, time_format='TDB')
 
-        if cov:
-            cov_start.append(cov[0])
-            cov_finsh.append(cov[-1])
-            ck_kernels.append(kernel)
+            if cov:
+                color = "lawngreen"
+                if 'MPO' in frame or 'MMO' in frame or 'MTM' in frame or 'TGO' in frame:
+                    type = kernel.split('_')[3]
+                    if type[2] == 'p': color = 'orange'
+                    elif type[2] == 'r': color = 'green'
+                    elif type[2] == 't': color = 'red'
+                    elif type[2] == 'c': color = 'purple'
+                    elif type[2] == 'm': color = 'blue'
+                cov_start.append(cov[0])
+                cov_finsh.append(cov[-1])
+                ck_kernels.append(kernel)
+                colors.append(color)
 
     spiceypy.furnsh(metakernel)
     date_format = 'UTC'
@@ -2567,9 +2577,13 @@ def ck_coverage_timeline(metakernel, sc, notebook=True, html_file_name='test',
                                         finsh_dt=finsh_dt,
                                         ck_kernels=ck_kernels))
 
-    p = figure(y_range=ck_kernels, plot_height=plot_height, plot_width=plot_width,
-                title="CK Kernels Coverage", )
-    p.hbar(y=ck_kernels, height=0.2, left=start_dt, right=finsh_dt, color="lawngreen")
+    title = "CK Kernels Coverage"
+    if 'ops' in metakernel.lower():
+        title += ' - OPS Metakernel'
+    elif 'plan' in metakernel.lower():
+        title += ' - PLAN Metakernel'
+    p = figure(y_range=ck_kernels, plot_height=plot_height, plot_width=plot_width, title=title, )
+    p.hbar(y=ck_kernels, height=0.2, left=start_dt, right=finsh_dt, color=colors)
 
     labels = LabelSet(x='start_dt', y='ck_kernels', text='ck_kernels', level='glyph',
                   x_offset=-2, y_offset=5, source=source, render_mode='canvas')
@@ -2593,17 +2607,13 @@ def ck_coverage_timeline(metakernel, sc, notebook=True, html_file_name='test',
     show(p)
 
 
-def spk_coverage_timeline(metakernel, sc, notebook=True, html_file_name='test',
+def spk_coverage_timeline(metakernel, sc_list, notebook=True, html_file_name='test',
                          plot_width=975, plot_height=500):
 
     if notebook:
         output_notebook()
-        plot_width = 975
-        plot_height = 300
     else:
         output_file(html_file_name + '.html')
-        plot_width = plot_width
-        plot_height = plot_height
 
     cov_start = []
     cov_finsh = []
@@ -2618,17 +2628,32 @@ def spk_coverage_timeline(metakernel, sc, notebook=True, html_file_name='test',
 
     kernels = list(reversed(kernels))
     spk_kernels = []
+    colors = []
 
     for kernel in kernels:
-
-        cov = cov_spk_ker(path+kernel, sc.upper(), support_ker=metakernel,
+        for sc in sc_list:
+            cov = cov_spk_ker(path+kernel, sc.upper(), support_ker=metakernel,
                                 time_format='TDB')
-        if cov:
-            cov_start.append(cov[0][0])
-            cov_finsh.append(cov[0][-1])
-            spk_kernels.append(kernel)
+            if cov:
+                color = "lawngreen"
+                if 'MPO' in sc or 'MMO' in sc or 'MTM' in sc:
+                    type = kernel.split('_')[2]
+                    if type[2] == 'p':
+                        color = 'orange'
+                    elif type[2] == 'r':
+                        color = 'green'
+                    elif type[2] == 't':
+                        color = 'red'
+                    elif type[2] == 'c':
+                        color = 'purple'
+                    elif type[2] == 'm':
+                        color = 'blue'
+                cov_start.append(cov[0][0])
+                cov_finsh.append(cov[0][-1])
+                spk_kernels.append(kernel)
+                colors.append(color)
 
-
+    spiceypy.furnsh(metakernel)
     date_format = 'UTC'
     start_dt =[]
     finsh_dt =[]
@@ -2643,9 +2668,13 @@ def spk_coverage_timeline(metakernel, sc, notebook=True, html_file_name='test',
                                         finsh_dt=finsh_dt,
                                         spk_kernels=spk_kernels))
 
-    p = figure(y_range=spk_kernels, plot_height=plot_height ,plot_width=plot_width,
-                title="SPK Kernels Coverage", )
-    p.hbar(y=spk_kernels, height=0.2, left=start_dt, right=finsh_dt, color="royalblue")
+    title = "SPK Kernels Coverage"
+    if 'ops' in metakernel.lower():
+        title += ' - OPS Metakernel'
+    elif 'plan' in metakernel.lower():
+        title += ' - PLAN Metakernel'
+    p = figure(y_range=spk_kernels,  plot_height=plot_height, plot_width=plot_width, title=title, )
+    p.hbar(y=spk_kernels, height=0.2, left=start_dt, right=finsh_dt, color=colors)
 
     labels = LabelSet(x='start_dt', y='spk_kernels', text='spk_kernels', level='glyph',
                   x_offset=-2, y_offset=5, source=source, render_mode='canvas')
