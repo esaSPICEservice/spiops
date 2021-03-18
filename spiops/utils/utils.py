@@ -215,14 +215,14 @@ def plot(xaxis, yaxis, xaxis_name = 'Date', yaxis_name='', title='', format='lin
 
     for element in y:
         if format == 'circle':
-            p.line(x, element, line_width=line_width, color=color_list[index], legend_label=yaxis_name[index].upper())
+            p.line(x, element, line_width=line_width, color=color_list[index], legend=yaxis_name[index].upper())
             p.circle(x, element, fill_color="white", size=8)
 
         if format == 'circle_only':
-            p.circle(x, element, size=3, color='red', legend_label=yaxis_name[index].upper())
+            p.circle(x, element, size=3, color='red', legend=yaxis_name[index].upper())
 
         elif format == 'line':
-            p.line(x, element, line_width=line_width, color=color_list[index], legend_label=yaxis_name[index].upper())
+            p.line(x, element, line_width=line_width, color=color_list[index], legend=yaxis_name[index].upper())
         index += 1
 
     p.legend.click_policy = "hide"
