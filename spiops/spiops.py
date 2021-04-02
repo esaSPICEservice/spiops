@@ -13,6 +13,8 @@ from spiops.utils.utils import plot
 from spiops.utils.utils import target2frame
 from spiops.utils.utils import findIntersection
 from spiops.utils.utils import findNearest
+from spiops.utils.files import downloadFromFtp
+from spiops.utils.files import getFromServer
 
 from spiops.classes.observation import TimeWindow
 from spiops.classes.body import Target
@@ -551,6 +553,62 @@ def cov_spk_ker(spk, object=False, time_format='TDB', support_ker ='',
                 spiceypy.unload(ker)
 
     return boundaries
+
+
+def spkVsOem(sc, spk, plot_style='line', notebook=False):
+
+    spiceypy.timdef('SET', 'SYSTEM', 10, 'TDB')
+
+    if sc == 'MPO':
+        file = spk.split('/')[-1].replace('\n', '').replace('bc_mpo_fcp_', '').split('_')[0]
+        file = 'BCCruiseOrbit__' + file + '.bc'
+        if notebook:
+            path = 'esaspice@spiops.n1data.lan:/home/esaspice/bc/processed/fdy/'
+            getFromServer(path, file)
+        else:
+            path = '/data/ANCDR/BEPICOLOMBO/fdy/'
+            downloadFromFtp(path, file)
+    oemfile = open(file)
+    error = []
+    for line in oemfile.readlines():
+        if 'CENTER_NAME' in line:
+            center = line.split('= ')[1].replace('\n', '')
+        if line[:2] == '20':
+            data = line.replace('\n', '').split()
+            et = spiceypy.str2et(data[0])
+            state = spiceypy.spkezr('MPO', et, 'J2000', 'NONE', center)[0]
+            error.append([et,
+                          abs(state[0] - float(data[1])),
+                          abs(state[1] - float(data[2])),
+                          abs(state[2] - float(data[3])),
+                          abs(state[3] - float(data[4])),
+                          abs(state[4] - float(data[5])),
+                          abs(state[5] - float(data[6]))])
+    error = np.asarray(error)
+    print('Avg X error: ', np.mean(error[:, 1]))
+    print('Avg Y error: ', np.mean(error[:, 2]))
+    print('Avg Z error: ', np.mean(error[:, 3]))
+    print('Avg VX error: ', np.mean(error[:, 4]))
+    print('Avg VY error: ', np.mean(error[:, 5]))
+    print('Avg VZ error: ', np.mean(error[:, 6]))
+    plot((error[:, 0] - error[0, 0])/3600/24,
+         [error[:, 1], error[:, 2], error[:, 3]],
+         yaxis_name=['X', 'Y', 'Z'],
+         title='Source OEM to generated SPK position difference',
+         format=plot_style,
+         yaxis_units='Position error Km',
+         notebook=notebook)
+    plot((error[:, 0] - error[0, 0]) / 3600 / 24,
+         [error[:, 4], error[:, 5], error[:, 6]],
+         yaxis_name=['VX', 'VY', 'VZ'],
+         title='Source OEM to generated SPK velocity difference',
+         format=plot_style,
+         yaxis_units='Km/s',
+         notebook=notebook)
+
+    os.remove(file)
+    spiceypy.timdef('SET', 'SYSTEM', 10, 'UTC')
+    return
 
 
 def cov_ck_obj(mk, object, time_format= 'UTC', global_boundary=False,

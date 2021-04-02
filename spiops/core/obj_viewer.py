@@ -61,5 +61,4 @@ def obj_viewer(obj_file):
     plt.show()
 
 
-
-obj_viewer('/Users/mcosta/SPICE/JUICE/kernels/dsk/juice_sc_bus_v02.obj')
+obj_viewer('/Users/aescalante/spice/missions/juice/juice/misc/models/juice_sc_bus_v03.obj')

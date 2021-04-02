@@ -2,6 +2,7 @@ import os
 import glob
 from tempfile import mkstemp
 from shutil import move
+from ftplib import FTP
 
 def replace(file_path, pattern, subst):
 
@@ -94,3 +95,19 @@ def update_former_versions(mk_path, kernels_path, updated_mk=False):
             updated_mk_flag = False
 
     return updated_mk
+
+
+def downloadFromFtp(path, file):
+    ftp = FTP('spiftp.esac.esa.int')
+    ftp.login()
+    ftp.cwd(path)
+    handle = open(file, 'wb')
+    ftp.retrbinary('RETR %s' % file, handle.write)
+    handle.close()
+    return
+
+
+def getFromServer(path, file):
+    os.system('scp ' + path + file + ' ' + file)
+    return
+
