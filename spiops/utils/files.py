@@ -108,6 +108,6 @@ def downloadFromFtp(path, file):
 
 
 def getFromServer(path, file):
-    os.system('scp ' + path + file + ' ' + file)
+    os.system('scp ' + path + file + ' ./' + file)
     return
 
