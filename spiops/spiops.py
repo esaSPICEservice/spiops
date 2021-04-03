@@ -562,8 +562,7 @@ def spkVsOem(sc, spk, plot_style='line', notebook=False):
     if sc == 'MPO':
         file = spk.split('/')[-1].replace('\n', '').replace('bc_mpo_fcp_', '').split('_')[0]
         file = 'BCCruiseOrbit__' + file + '.bc'
-        # if notebook:
-        if False:
+        if notebook:
             path = 'esaspice@spiftp.n1data.lan:/home/esaspice/ftp/data/ANCDR/BEPICOLOMBO/fdy/'
             getFromServer(path, file)
         else:
