@@ -558,6 +558,7 @@ def cov_spk_ker(spk, object=False, time_format='TDB', support_ker ='',
 def spkVsOem(sc, spk, plot_style='line', notebook=True):
 
     spiceypy.timdef('SET', 'SYSTEM', 10, 'TDB')
+    spiceypy.furnsh(spk)
 
     if sc == 'MPO':
         file = spk.split('/')[-1].replace('\n', '').replace('bc_mpo_fcp_', '').split('_')[0]
