@@ -562,12 +562,14 @@ def spkVsOem(sc, spk, plot_style='line', notebook=False):
     if sc == 'MPO':
         file = spk.split('/')[-1].replace('\n', '').replace('bc_mpo_fcp_', '').split('_')[0]
         file = 'BCCruiseOrbit__' + file + '.bc'
-        if notebook:
-            path = 'esaspice@spiops.n1data.lan:/home/esaspice/bc/processed/fdy/'
+        # if notebook:
+        if False:
+            path = 'esaspice@spiftp.n1data.lan:/home/esaspice/ftp/data/ANCDR/BEPICOLOMBO/fdy/'
             getFromServer(path, file)
         else:
             path = '/data/ANCDR/BEPICOLOMBO/fdy/'
             downloadFromFtp(path, file)
+    print('OEM file: ' + file)
     oemfile = open(file)
     error = []
     for line in oemfile.readlines():
@@ -591,14 +593,14 @@ def spkVsOem(sc, spk, plot_style='line', notebook=False):
     print('Avg VX error: ', np.mean(error[:, 4]))
     print('Avg VY error: ', np.mean(error[:, 5]))
     print('Avg VZ error: ', np.mean(error[:, 6]))
-    plot((error[:, 0] - error[0, 0])/3600/24,
+    plot(error[:, 0],
          [error[:, 1], error[:, 2], error[:, 3]],
          yaxis_name=['X', 'Y', 'Z'],
          title='Source OEM to generated SPK position difference',
          format=plot_style,
          yaxis_units='Position error Km',
          notebook=notebook)
-    plot((error[:, 0] - error[0, 0]) / 3600 / 24,
+    plot(error[:, 0],
          [error[:, 4], error[:, 5], error[:, 6]],
          yaxis_name=['VX', 'VY', 'VZ'],
          title='Source OEM to generated SPK velocity difference',
