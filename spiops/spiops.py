@@ -578,7 +578,7 @@ def spkVsOem(sc, spk, plot_style='line', notebook=True):
         if line[:2] == '20':
             data = line.replace('\n', '').split()
             et = spiceypy.str2et(data[0])
-            state = spiceypy.spkezr('MPO', et, 'J2000', 'NONE', center)[0]
+            state = spiceypy.spkezr(sc, et, 'J2000', 'NONE', center)[0]
             error.append([et,
                           abs(state[0] - float(data[1])),
                           abs(state[1] - float(data[2])),
@@ -610,6 +610,57 @@ def spkVsOem(sc, spk, plot_style='line', notebook=True):
 
     os.remove(file)
     spiceypy.timdef('SET', 'SYSTEM', 10, 'UTC')
+    return
+
+
+def ckVsAocs(sc, ck, plot_style='line', notebook=True):
+
+    spiceypy.timdef('SET', 'SYSTEM', 10, 'UTC')
+    spiceypy.furnsh(ck)
+
+    if sc == 'MPO':
+        file = ck.split('/')[-1].replace('\n', '').split('_')[5]
+        file = 'mpo_raw_hk_aocs_measured_attitude_' + file + '.tab'
+        try:
+            if notebook:
+                path = 'esaspice@spiops.n1data.lan:/home/esaspice/ftp/data/ANCDR/BEPICOLOMBO/hkt/'
+                getFromServer(path, file)
+            else:
+                path = '/data/ANCDR/BEPICOLOMBO/hkt/'
+                downloadFromFtp(path, file)
+        except:
+            print('Warning: Could not find source AOCS TAB file')
+    print('AOCS tab file: ' + file)
+    tabfile = open(file)
+    error = []
+    for line in tabfile.readlines():
+        data = line.replace('\n', '').replace(',', ' ').split()
+        et = spiceypy.str2et(data[0].replace('Z', ''))
+        q = spiceypy.m2q(spiceypy.pxform('J2000', sc + '_SPACECRAFT', et))
+        print(np.rad2deg(spiceypy.m2eul(spiceypy.pxform('J2000', sc + '_SPACECRAFT', et), 3, 2, 1)))
+        if float(data[2]) > 0:
+            sign = 1
+        else:
+            sign = -1
+        error.append([et,
+                      abs(sign * q[0] - float(data[2])),
+                      abs(sign * q[1] + float(data[3])),
+                      abs(sign * q[2] + float(data[4])),
+                      abs(sign * q[3] + float(data[5]))])
+    error = np.asarray(error)
+    print('Avg QX error: ', np.mean(error[:, 1]))
+    print('Avg QY error: ', np.mean(error[:, 2]))
+    print('Avg QZ error: ', np.mean(error[:, 3]))
+    print('Avg QW error: ', np.mean(error[:, 4]))
+    plot(error[:, 0],
+         [error[:, 1], error[:, 2], error[:, 3], error[:, 4]],
+         yaxis_name=['QX', 'QY', 'QZ', 'QW'],
+         title='Source AOCS Measured Quaternions to generated CK orientation difference',
+         format=plot_style,
+         yaxis_units='Q [-]',
+         notebook=notebook)
+
+    os.remove(file)
     return
 
 
