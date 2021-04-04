@@ -637,7 +637,6 @@ def ckVsAocs(sc, ck, plot_style='line', notebook=True):
         data = line.replace('\n', '').replace(',', ' ').split()
         et = spiceypy.str2et(data[0].replace('Z', ''))
         q = spiceypy.m2q(spiceypy.pxform('J2000', sc + '_SPACECRAFT', et))
-        print(np.rad2deg(spiceypy.m2eul(spiceypy.pxform('J2000', sc + '_SPACECRAFT', et), 3, 2, 1)))
         if float(data[2]) > 0:
             sign = 1
         else:
