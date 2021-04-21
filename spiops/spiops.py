@@ -570,8 +570,15 @@ def spkVsOem(sc, spk, plot_style='line', notebook=True):
             path = '/data/ANCDR/BEPICOLOMBO/fdy/'
             downloadFromFtp(path, file)
     print('OEM file: ' + file)
+
+    if not os.path.isfile(file):
+        print('OEM file cannot be downloaded!')
+        return None, None
+
     oemfile = open(file)
     error = []
+    max_pos_norm_error = 0
+    max_vel_norm_error = 0
     for line in oemfile.readlines():
         if 'CENTER_NAME' in line:
             center = line.split('= ')[1].replace('\n', '')
@@ -579,13 +586,19 @@ def spkVsOem(sc, spk, plot_style='line', notebook=True):
             data = line.replace('\n', '').split()
             et = spiceypy.str2et(data[0])
             state = spiceypy.spkezr(sc, et, 'J2000', 'NONE', center)[0]
-            error.append([et,
+            curr_error = [et,
                           abs(state[0] - float(data[1])),
                           abs(state[1] - float(data[2])),
                           abs(state[2] - float(data[3])),
                           abs(state[3] - float(data[4])),
                           abs(state[4] - float(data[5])),
-                          abs(state[5] - float(data[6]))])
+                          abs(state[5] - float(data[6]))]
+            error.append(curr_error)
+            pos = np.asarray(curr_error[1:4])
+            vel = np.asarray(curr_error[4:7])
+            max_pos_norm_error = max(max_pos_norm_error, np.sqrt(pos.dot(pos)))
+            max_vel_norm_error = max(max_vel_norm_error, np.sqrt(vel.dot(vel)))
+
     error = np.asarray(error)
     print('Avg X error: ', np.mean(error[:, 1]))
     print('Avg Y error: ', np.mean(error[:, 2]))
@@ -610,7 +623,7 @@ def spkVsOem(sc, spk, plot_style='line', notebook=True):
 
     os.remove(file)
     spiceypy.timdef('SET', 'SYSTEM', 10, 'UTC')
-    return
+    return max_pos_norm_error, max_vel_norm_error
 
 
 def ckVsAocs(sc, ck, plot_style='line', notebook=True):
@@ -631,6 +644,11 @@ def ckVsAocs(sc, ck, plot_style='line', notebook=True):
         except:
             print('Warning: Could not find source AOCS TAB file')
     print('AOCS tab file: ' + file)
+
+    if not os.path.isfile(file):
+        print('AOCS tab file cannot be downloaded!')
+        return
+
     tabfile = open(file)
     error = []
     for line in tabfile.readlines():
