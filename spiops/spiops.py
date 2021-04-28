@@ -647,7 +647,7 @@ def ckVsAocs(sc, ck, plot_style='line', notebook=True):
 
     if not os.path.isfile(file):
         print('AOCS tab file cannot be downloaded!')
-        return
+        return None
 
     tabfile = open(file)
     error = []
@@ -678,7 +678,7 @@ def ckVsAocs(sc, ck, plot_style='line', notebook=True):
          notebook=notebook)
 
     os.remove(file)
-    return
+    return np.max(error)
 
 
 def cov_ck_obj(mk, object, time_format= 'UTC', global_boundary=False,
@@ -1531,7 +1531,7 @@ def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance
         spiceypy.unload(ck2)
     except:
         print('WARNING: No Time Window could be determined')
-        return
+        return None
 
     windows_intersected = spiceypy.wnintd(windows_ck1, windows_ck2)
 
@@ -1658,7 +1658,7 @@ def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance
 
     spiceypy.unload(ck2)
 
-    return
+    return np.max(angle_diff)
 
 
 def ckplot(ck1, spacecraft_frame, target_frame, resolution,
