@@ -673,7 +673,9 @@ def ckVsAocs(sc, ck, plot_style='line', notebook=True):
         ang_error = spiceypy.vsep([0, 0, 1], vz)
         max_ang_error = max(max_ang_error, ang_error)
 
-        error.append([et].extend(q_error))
+        curr_error = [et]
+        curr_error.extend(q_error)
+        error.append(curr_error)
 
     max_ang_error = np.rad2deg(max_ang_error) / 1000
 
@@ -682,7 +684,7 @@ def ckVsAocs(sc, ck, plot_style='line', notebook=True):
     print('Avg QY error: ', np.mean(error[:, 2]))
     print('Avg QZ error: ', np.mean(error[:, 3]))
     print('Avg QW error: ', np.mean(error[:, 4]))
-    print('Max angular error [mdeg]: ' + max_ang_error)
+    print('Max angular error [mdeg]: ' + str(max_ang_error))
 
     plot(error[:, 0],
          [error[:, 1], error[:, 2], error[:, 3], error[:, 4]],
