@@ -1,7 +1,7 @@
 import shutil
 
 
-def update_path(files):
+def move2former(files):
     for file in files:
         mk = open(file, 'r')
         new_mk = []
@@ -14,10 +14,6 @@ def update_path(files):
         for line in new_mk:
             mk.write(line)
         mk.close()
-    return
-
-
-def move2formerv(files):
     for file in files:
         shutil.move(file, 'former_versions/' + file)
     return
