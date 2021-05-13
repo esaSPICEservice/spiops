@@ -28,6 +28,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 from spiceypy import support_types as stypes
+from spiceypy.utils.exceptions import NotFoundError, SpiceyError
 
 from bokeh.plotting import figure, output_file, output_notebook, show
 from bokeh.models import ColumnDataSource, DatetimeTickFormatter, LabelSet
