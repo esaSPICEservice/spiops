@@ -1077,7 +1077,7 @@ def flyby_ca_altitudes(sc, target, spk_expression, num_spk_files, from_date, to_
          title=target + ' Flyby CA spk number vs time',
          format="scatter",
          yaxis_name=['SPK Number'],
-         yaxis_units='Time',
+         yaxis_units='SPK Number',
          notebook=notebook)
 
     # Plot Flyby altitude evolution vs time per SPK
