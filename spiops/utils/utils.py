@@ -102,10 +102,8 @@ def plot(xaxis, yaxis, xaxis_name = 'Date', yaxis_name='', title='', format='lin
         yaxis_name = [yaxis_name]
         yaxis = [yaxis]
 
-
     if not title:
         title = '{} {}'.format(mission, yaxis_name).title().upper()
-
 
         html_file_name = 'plot_{}_{}_{}-{}.html'.format('Time', yaxis_name,
                                                         mission,
@@ -199,8 +197,10 @@ def plot(xaxis, yaxis, xaxis_name = 'Date', yaxis_name='', title='', format='lin
                    color='red')
 
     # add a line renderer with legend and line thickness
-    color_list = ['red', 'green', 'blue','orange']
+    color_list = ['red', 'green', 'blue', 'orange', "black", 'darkgoldenrod', 'chocolate', 'aqua', 'coral',
+                  'darkcyan', 'cornflowerblue' 'aquamarine', 'darkturquoise', 'cornsilk']
     index = 0
+    color_idx = 0
 
     if background_image:
         if 'TGO' in mission.upper() or 'MEX' in mission.upper():
@@ -213,17 +213,23 @@ def plot(xaxis, yaxis, xaxis_name = 'Date', yaxis_name='', title='', format='lin
         p.x_range = Range1d(left, right)
         p.y_range = Range1d(bottom, top)
 
-    for element in y:
-        if format == 'circle':
-            p.line(x, element, line_width=line_width, color=color_list[index], legend=yaxis_name[index].upper())
-            p.circle(x, element, fill_color="white", size=8)
+    if format == 'scatter':
+        for idx in range(len(y)):
+            p.circle([x[idx]], [y[idx]], size=3, color=color_list[color_idx], legend=yaxis_name[idx].upper())
+            color_idx = idx % len(color_list)
+    else:
+        for element in y:
+            if format == 'circle':
+                p.line(x, element, line_width=line_width, color=color_list[color_idx], legend=yaxis_name[index].upper())
+                p.circle(x, element, fill_color="white", size=8)
 
-        if format == 'circle_only':
-            p.circle(x, element, size=3, color='red', legend=yaxis_name[index].upper())
+            if format == 'circle_only':
+                p.circle(x, element, size=3, color=color_list[color_idx], legend=yaxis_name[index].upper())
 
-        elif format == 'line':
-            p.line(x, element, line_width=line_width, color=color_list[index], legend=yaxis_name[index].upper())
-        index += 1
+            elif format == 'line':
+                p.line(x, element, line_width=line_width, color=color_list[color_idx], legend=yaxis_name[index].upper())
+            index += 1
+            color_idx = index % len(color_list)
 
     p.legend.click_policy = "hide"
 

@@ -13,8 +13,8 @@ from spiops.utils.utils import plot
 from spiops.utils.utils import target2frame
 from spiops.utils.utils import findIntersection
 from spiops.utils.utils import findNearest
-from spiops.utils.files import downloadFromFtp
-from spiops.utils.files import getFromServer
+from spiops.utils.files import download_file
+from spiops.utils.files import list_files_from_ftp
 
 from spiops.classes.observation import TimeWindow
 from spiops.classes.body import Target
@@ -24,7 +24,6 @@ from spiops.utils.naif import optiks
 from spiops.utils.naif import brief
 
 import imageio
-#from scipy.misc import imsave
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
@@ -563,14 +562,12 @@ def spkVsOem(sc, spk, plot_style='line', notebook=True):
     if sc == 'MPO':
         file = spk.split('/')[-1].replace('\n', '').replace('bc_mpo_fcp_', '').split('_')[0]
         file = 'BCCruiseOrbit__' + file + '.bc'
-        if notebook:
-            path = 'esaspice@spiops.n1data.lan:/home/esaspice/ftp/data/ANCDR/BEPICOLOMBO/fdy/'
-            getFromServer(path, file)
-        else:
-            path = '/data/ANCDR/BEPICOLOMBO/fdy/'
-            downloadFromFtp(path, file)
-    print('OEM file: ' + file)
+        download_file("/data/ANCDR/BEPICOLOMBO/fdy", file)
+    else:
+        print('Unsupported spacecraft: ' + sc)
+        return None, None
 
+    print('OEM file: ' + file)
     if not os.path.isfile(file):
         print('OEM file cannot be downloaded!')
         return None, None
@@ -625,6 +622,8 @@ def spkVsOem(sc, spk, plot_style='line', notebook=True):
 
     os.remove(file)
     spiceypy.timdef('SET', 'SYSTEM', 10, 'UTC')
+    spiceypy.unload(spk)
+
     return max_pos_norm_error, max_vel_norm_error
 
 
@@ -636,17 +635,12 @@ def ckVsAocs(sc, ck, plot_style='line', notebook=True):
     if sc == 'MPO':
         file = ck.split('/')[-1].replace('\n', '').split('_')[5]
         file = 'mpo_raw_hk_aocs_measured_attitude_' + file + '.tab'
-        try:
-            if notebook:
-                path = 'esaspice@spiops.n1data.lan:/home/esaspice/ftp/data/ANCDR/BEPICOLOMBO/hkt/'
-                getFromServer(path, file)
-            else:
-                path = '/data/ANCDR/BEPICOLOMBO/hkt/'
-                downloadFromFtp(path, file)
-        except:
-            print('Warning: Could not find source AOCS TAB file')
-    print('AOCS tab file: ' + file)
+        download_file("/data/ANCDR/BEPICOLOMBO/hkt", file)
+    else:
+        print('Unsupported spacecraft: ' + sc)
+        return None
 
+    print('AOCS tab file: ' + file)
     if not os.path.isfile(file):
         print('AOCS tab file cannot be downloaded!')
         return None
@@ -695,6 +689,8 @@ def ckVsAocs(sc, ck, plot_style='line', notebook=True):
          notebook=notebook)
 
     os.remove(file)
+    spiceypy.unload(ck)
+
     return max_ang_error
 
 
@@ -799,7 +795,7 @@ def cov_ck_obj(mk, object, time_format= 'UTC', global_boundary=False,
     return boundaries_list
 
 
-def cov_ck_ker(ck, object, support_ker=list(), time_format= 'UTC',
+def cov_ck_ker(ck, object, support_ker=list(), time_format='UTC',
                report=False, unload=True):
     """
     Provides time coverage summary for a given object for a given CK file.
@@ -841,7 +837,6 @@ def cov_ck_ker(ck, object, support_ker=list(), time_format= 'UTC',
 
         for ker in support_ker:
             spiceypy.furnsh(ker)
-
 
     object_id = spiceypy.namfrm(object)
     MAXIV = 200000
@@ -897,8 +892,187 @@ def cov_ck_ker(ck, object, support_ker=list(), time_format= 'UTC',
             for ker in support_ker:
                 spiceypy.unload(ker)
 
-    return (boundaries)
+    return boundaries
 
+
+def time_correlation(sc, ck, plot_style='line', notebook=True):
+
+    # Downloads a telemetry file of a given CK and computes
+    # the time difference between the UTC time (1st column)
+    # and the clock string (2nd column) in milliseconds
+
+    spiceypy.timdef('SET', 'SYSTEM', 10, 'UTC')
+
+    if sc == 'MPO':
+        file = ck.split('/')[-1].replace('\n', '').split('_')[5]
+        file = 'mpo_raw_hk_aocs_measured_attitude_' + file + '.tab'
+        download_file("/data/ANCDR/BEPICOLOMBO/hkt", file)
+    else:
+        print('Unsupported spacecraft: ' + sc)
+        return None
+
+    print('AOCS tab file: ' + file)
+    if not os.path.isfile(file):
+        print('AOCS tab file cannot be downloaded!')
+        return None
+
+    tabfile = open(file)
+    times = []
+    time_diff = []
+
+    try:
+        sc_id = spiceypy.bodn2c(sc)
+    except SpiceyError:
+        print('Spacecraft not found: ' + sc)
+        return None
+
+    for line in tabfile.readlines():
+        data = line.replace('\n', '').replace(',', ' ').split()
+        utc_et = spiceypy.str2et(data[0].replace('Z', ''))
+        scs_et = spiceypy.scs2e(sc_id, data[1])
+
+        times.append(utc_et)
+        time_diff.append((utc_et - scs_et) * 1000)
+
+    time_diff = np.abs(np.asarray(time_diff))
+    max_time_diff = np.max(time_diff)
+    print('Avg time difference [ms]: ' + str(np.mean(time_diff)))
+    print('Max time difference [ms]: ' + str(max_time_diff))
+
+    plot(times, time_diff,
+         yaxis_name='Time diff (UTC - SCS)',
+         title='Time difference between UTC and Clock String in milliseconds',
+         format=plot_style,
+         yaxis_units='milliseconds',
+         notebook=notebook)
+
+    os.remove(file)
+
+    return max_time_diff
+
+
+def flyby_ca_altitudes(sc, target, spk_expression, num_spk_files, from_date, to_date,
+                       distance_flyby, num_samples, plot_style='line', notebook=True):
+
+    spiceypy.timdef('SET', 'SYSTEM', 10, 'TDB')
+
+    target = target.upper()
+    target_frame = "IAU_" + target
+    start_time = spiceypy.utc2et(from_date)
+    stop_time = spiceypy.utc2et(to_date)
+    times = np.linspace(start_time, stop_time, num_samples)
+    maxwin = 200000
+
+    if sc == 'MPO':
+        spk_path = "/data/SPICE/BEPICOLOMBO/kernels/spk/"
+    else:
+        print('Unsupported spacecraft: ' + sc)
+        return None
+
+    # Download num_spk_files and find the flyby for each one
+    spk_files = list_files_from_ftp(spk_path, spk_expression)
+    spk_files = spk_files[-num_spk_files:]
+
+    flybys_spks = []
+    flybys_ets = []
+    flybys_alts = []
+    flybys_alt_list = []
+
+    for spk_file in spk_files:
+
+        # Download spk file
+        download_file(spk_path, spk_file)
+
+        if not os.path.isfile(spk_file):
+            print('OEM file cannot be downloaded!')
+            return None
+
+        # Obtain the flyby data
+        spiceypy.furnsh(spk_file)
+
+        cnfine = SPICEDOUBLE_CELL(maxwin)
+        result = SPICEDOUBLE_CELL(maxwin)
+
+        spiceypy.scard(0, cnfine)
+        spiceypy.wninsd(start_time, stop_time, cnfine)
+
+        spiceypy.gfdist(target=target,
+                      abcorr='NONE',
+                      obsrvr=sc,
+                      relate='<',
+                      refval=distance_flyby,
+                      step=spiceypy.spd() / 4.,
+                      nintvls=maxwin,
+                      cnfine=cnfine,
+                      adjust=0.0,
+                      result=result)
+
+        final = SPICEDOUBLE_CELL(maxwin)
+
+        spiceypy.gfdist(target=target,
+                      abcorr='NONE',
+                      obsrvr=sc,
+                      relate='LOCMIN',
+                      refval=distance_flyby,
+                      step=spiceypy.spd() / 4.,
+                      nintvls=maxwin,
+                      cnfine=result,
+                      adjust=0.0,
+                      result=final)
+
+        number_of_results = spiceypy.wncard(final)
+
+        if number_of_results == 0:
+            print('No ' + target + ' flyby found for that period at SPK: ' + spk_file)
+            return None
+
+        if number_of_results > 1:
+            print('Error: Multiple ' + target + ' flybys found for that period at SPK: ' + spk_file)
+            return None
+
+        # Get the flyby closest approach time and distance
+        flyby_et = spiceypy.wnfetd(final, 0)[0]
+        (state, lt) = spiceypy.spkezr(target, flyby_et, target_frame, 'NONE', sc)
+        spoint = spiceypy.sincpt('ELLIPSOID', target, flyby_et, target_frame,
+                                 'NONE', sc, target_frame, state[:3])[0]
+        flyby_altitude = spiceypy.vnorm(spoint + state[:3])
+
+        flybys_spks.append(spk_file)
+        flybys_ets.append(flyby_et)
+        flybys_alts.append(flyby_altitude)
+
+        # Get the flyby closest approach distance evolution
+        altitudes = []
+        for et in times:
+            (state, lt) = spiceypy.spkezr(target, et, target_frame, 'NONE', sc)
+            spoint = spiceypy.sincpt('ELLIPSOID', target, et, target_frame,
+                                     'NONE', sc, target_frame, state[:3])[0]
+            altitudes.append(spiceypy.vnorm(spoint + state[:3]))
+        flybys_alt_list.append(altitudes)
+
+        # Unload and clean spk file
+        spiceypy.unload(spk_file)
+        os.remove(spk_file)
+
+    # Plot Flyby CA altitude vs time per SPK
+    plot(flybys_ets,
+         flybys_alts,
+         yaxis_name=flybys_spks,
+         title=target + ' Flyby CA altitude vs time',
+         format="scatter",
+         yaxis_units='Km',
+         notebook=notebook)
+
+    # Plot Flyby altitude evolution vs time per SPK
+    plot(times,
+         flybys_alt_list,
+         yaxis_name=flybys_spks,
+         title=target + ' Flyby altitude evolution vs time',
+         format=plot_style,
+         yaxis_units='Km',
+         notebook=notebook)
+
+    return np.max(flybys_alts)
 
 
 def fk_body_ifj2000(mission, body, pck, body_spk, frame_id, report=False,
@@ -1067,9 +1241,7 @@ def fk_body_ifj2000(mission, body, pck, body_spk, frame_id, report=False,
     return
 
 
-
 def eul_angle_report(et_list, eul_ck1, eul_ck2, eul_num, tolerance, name=''):
-
 
     eul_error = list(numpy.degrees(abs(numpy.array(eul_ck1) - numpy.array(eul_ck2))))
 
@@ -1080,7 +1252,6 @@ def eul_angle_report(et_list, eul_ck1, eul_ck2, eul_num, tolerance, name=''):
     with open('euler_angle_{}_{}_report.txt'.format(eul_num, name), 'w+') as f:
         f.write('EULER ANGLE {} REPORT \n'.format(eul_num))
         f.write('==================== \n')
-
 
         for element in eul_error:
 
@@ -1112,7 +1283,6 @@ def eul_angle_report(et_list, eul_ck1, eul_ck2, eul_num, tolerance, name=''):
 
 def attitude_error_report(et_list, ang_ck1, ang_ck2, tolerance, name=''):
 
-
     ang_error = list(abs(numpy.array(ang_ck1) - numpy.array(ang_ck2)))
 
     count = 0
@@ -1122,7 +1292,6 @@ def attitude_error_report(et_list, ang_ck1, ang_ck2, tolerance, name=''):
     with open('attitude_error_{}_report.txt'.format(name), 'w+') as f:
         f.write('ATTITUDE ERROR REPORT \n')
         f.write('==================== \n')
-
 
         for element in ang_error:
 
@@ -1151,9 +1320,9 @@ def attitude_error_report(et_list, ang_ck1, ang_ck2, tolerance, name=''):
 
     return
 
+
 def state_report(et_list, pos_spk1, pos_spk2, vel_spk1, vel_spk2, pos_tolerance,
                  vel_tolerance, name=''):
-
 
     pos_error = list(abs(numpy.array(pos_spk1) - numpy.array(pos_spk2)))
     vel_error = list(abs(numpy.array(vel_spk1) - numpy.array(vel_spk2)))
@@ -1191,7 +1360,6 @@ def state_report(et_list, pos_spk1, pos_spk2, vel_spk1, vel_spk2, pos_tolerance,
         interval_bool = False
         vel_tol_list = []
 
-
         for element in vel_error:
 
             if element >= vel_tolerance:
@@ -1215,11 +1383,9 @@ def state_report(et_list, pos_spk1, pos_spk2, vel_spk1, vel_spk2, pos_tolerance,
         f.write('MIN Error:   {} KM\n'.format(str(min(pos_error))))
         f.write('MEAN Error: {} KM\n'.format(str(numpy.mean(pos_error))))
 
-
         f.write('\nMAX Error:  {} KM/S\n'.format(str(max(vel_error))))
         f.write('MIN Error:   {} KM/S\n'.format(str(min(vel_error))))
         f.write('MEAN Error: {} KM/S\n'.format(str(numpy.mean(vel_error))))
-
 
     return
 
@@ -1258,6 +1424,7 @@ def ckdiff_euler(mk, ck1, ck2, spacecraft_frame, target_frame, resolution, toler
     :rtype: list
     """
 
+    # Compute time windows
     spiceypy.furnsh(mk)
 
     windows_ck1 = cov_ck_ker(ck1, object=spacecraft_frame, time_format='SPICE')
@@ -1285,7 +1452,6 @@ def ckdiff_euler(mk, ck1, ck2, spacecraft_frame, target_frame, resolution, toler
 
         et_list = numpy.append(et_list, numpy.arange(et_start, et_finish, resolution))
 
-
     if utc_start:
         et_start = spiceypy.utc2et(utc_start)
 
@@ -1293,7 +1459,7 @@ def ckdiff_euler(mk, ck1, ck2, spacecraft_frame, target_frame, resolution, toler
         et_finish = spiceypy.utc2et(utc_finish)
         et_list = numpy.arange(et_start, et_finish, resolution)
 
-
+    # Process CK1
     spiceypy.furnsh(ck1)
 
     eul1_ck1 = []
@@ -1301,13 +1467,15 @@ def ckdiff_euler(mk, ck1, ck2, spacecraft_frame, target_frame, resolution, toler
     eul3_ck1 = []
     for et in et_list:
 
-        rot_mat = spiceypy.pxform(spacecraft_frame,  target_frame,et)
+        rot_mat = spiceypy.pxform(spacecraft_frame,  target_frame, et)
         euler = (spiceypy.m2eul(rot_mat, 1, 2, 3))
         eul1_ck1.append(math.degrees(euler[0]))
         eul2_ck1.append(math.degrees(euler[1]))
         eul3_ck1.append(math.degrees(euler[2]))
 
     spiceypy.unload(ck1)
+
+    # Process CK2
     spiceypy.furnsh(ck2)
 
     eul1_ck2 = []
@@ -1320,7 +1488,9 @@ def ckdiff_euler(mk, ck1, ck2, spacecraft_frame, target_frame, resolution, toler
         eul2_ck2.append(math.degrees(euler[1]))
         eul3_ck2.append(math.degrees(euler[2]))
 
+    spiceypy.unload(ck2)
 
+    # Plot angles
     ck1_filename = ck1.split('/')[-1].split('.')[0]
     ck2_filename = ck2.split('/')[-1].split('.')[0]
 
@@ -1328,30 +1498,29 @@ def ckdiff_euler(mk, ck1, ck2, spacecraft_frame, target_frame, resolution, toler
     eul2_name = '{}_{}'.format(ck1_filename, ck2_filename)
     eul3_name = '{}_{}'.format(ck1_filename, ck2_filename)
 
-    plot(et_list, [eul1_ck1,eul1_ck2], yaxis_name=['Euler Angle 1 CK1',
+    plot(et_list, [eul1_ck1, eul1_ck2], yaxis_name=['Euler Angle 1 CK1',
                                                    'Euler Angle 1 CK2'],
                                                     title='Euler Angle 1 {}'.format(eul1_name),
                                                     format=plot_style,
                                                     notebook=notebook)
 
-    plot(et_list, [eul2_ck1,eul2_ck2], yaxis_name=['Euler Angle 2 CK1',
+    plot(et_list, [eul2_ck1, eul2_ck2], yaxis_name=['Euler Angle 2 CK1',
                                                    'Euler Angle 2 CK2'],
                                                     title='Euler Angle 2 {}'.format(eul2_name),
                                                     format=plot_style,
                                                     notebook=notebook)
 
-    plot(et_list, [eul3_ck1,eul3_ck2], yaxis_name=['Euler Angle 3 CK1',
+    plot(et_list, [eul3_ck1, eul3_ck2], yaxis_name=['Euler Angle 3 CK1',
                                                    'Euler Angle 3 CK2'],
                                                     title='Euler Angle 3 {}'.format(eul3_name),
                                                     format=plot_style,
                                                     notebook=notebook)
 
+    # Generate reports
     if report:
         eul_angle_report(et_list, eul1_ck1, eul1_ck2, 1, tolerance, name=eul1_name)
         eul_angle_report(et_list, eul2_ck1, eul2_ck2, 2, tolerance, name=eul2_name)
         eul_angle_report(et_list, eul3_ck1, eul3_ck2, 3, tolerance, name=eul3_name)
-
-    spiceypy.unload(ck2)
 
     return
 
@@ -1418,7 +1587,6 @@ def ckdiff(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance,
 
         et_list = numpy.append(et_list, numpy.arange(et_start, et_finish, resolution))
 
-
     if utc_start:
         et_start = spiceypy.utc2et(utc_start)
 
@@ -1426,9 +1594,7 @@ def ckdiff(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance,
         et_finish = spiceypy.utc2et(utc_finish)
         et_list = numpy.arange(et_start, et_finish, resolution)
 
-
     spiceypy.furnsh(ck1)
-
     eul1_ck1 = []
     eul2_ck1 = []
     eul3_ck1 = []
@@ -1444,11 +1610,9 @@ def ckdiff(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance,
         bsight = spiceypy.mxv(rot_mat, boresight)
         bsight_ang = spiceypy.vsep(bsight, boresight)
         bsight_ck1.append(bsight_ang*spiceypy.dpr())
-
-
     spiceypy.unload(ck1)
-    spiceypy.furnsh(ck2)
 
+    spiceypy.furnsh(ck2)
     eul1_ck2 = []
     eul2_ck2 = []
     eul3_ck2 = []
@@ -1463,7 +1627,7 @@ def ckdiff(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance,
         bsight = spiceypy.mxv(rot_mat, boresight)
         bsight_ang = spiceypy.vsep(bsight, boresight)
         bsight_ck2.append(bsight_ang*spiceypy.dpr())
-
+    spiceypy.unload(ck2)
 
     ck1_filename = ck1.split('/')[-1].split('.')[0]
     ck2_filename = ck2.split('/')[-1].split('.')[0]
@@ -1492,15 +1656,41 @@ def ckdiff(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance,
              format=plot_style,
              notebook=notebook)
 
-
     if report:
         eul_angle_report(et_list, eul1_ck1, eul1_ck2, 1, tolerance, name=title_name)
         eul_angle_report(et_list, eul2_ck1, eul2_ck2, 2, tolerance, name=title_name)
         eul_angle_report(et_list, eul3_ck1, eul3_ck2, 3, tolerance, name=title_name)
 
-    spiceypy.unload(ck2)
-
     return
+
+
+def get_euler_boresights_angles(ck, et_list, spacecraft_frame,
+                               target_frame, boresight):
+    spiceypy.furnsh(ck)
+
+    eul1 = []
+    eul2 = []
+    eul3 = []
+    bsights = []
+    angles = []
+
+    for et in et_list:
+        rot_mat = spiceypy.pxform(spacecraft_frame, target_frame, et)
+        euler = (spiceypy.m2eul(rot_mat, 1, 2, 3))
+        eul1.append(math.degrees(euler[0]))
+        eul2.append(math.degrees(euler[1]))
+        eul3.append(math.degrees(euler[2]))
+
+        bsight = spiceypy.mxv(rot_mat, boresight)
+        bsight_ang = spiceypy.vsep(bsight, boresight)
+        bsights.append(spiceypy.convrt(bsight_ang, 'RADIANS', 'ARCSECONDS'))
+
+        (rot_axis, rot_angle) = spiceypy.raxisa(rot_mat)
+        angles.append(spiceypy.convrt(rot_angle, 'RADIANS', 'ARCSECONDS'))
+
+    spiceypy.unload(ck)
+
+    return eul1, eul2, eul3, bsights, angles
 
 
 def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance,
@@ -1554,6 +1744,10 @@ def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance
 
     number_of_intervals = list(range(spiceypy.wncard(windows_intersected)))
 
+    if not len(number_of_intervals):
+        print('WARNING: No Time Windows intersected')
+        return None
+
     et_boundaries_list = []
     for element in number_of_intervals:
         et_boundaries = spiceypy.wnfetd(windows_intersected, element)
@@ -1569,7 +1763,6 @@ def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance
 
         et_list = numpy.append(et_list, numpy.arange(et_start, et_finish, resolution))
 
-
     if utc_start:
         et_start = spiceypy.utc2et(utc_start)
 
@@ -1577,103 +1770,76 @@ def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance
         et_finish = spiceypy.utc2et(utc_finish)
         et_list = numpy.arange(et_start, et_finish, resolution)
 
+    if not len(et_list):
+        print('WARNING: No valid time period')
+        return None
 
-    spiceypy.furnsh(ck1)
+    eul1_ck1, eul2_ck1, eul3_ck1, bsight_ck1, angle_ck1 = get_euler_boresights_angles(ck1, et_list, spacecraft_frame,
+                                                                                      target_frame, boresight)
 
-    eul1_ck1 = []
-    eul2_ck1 = []
-    eul3_ck1 = []
-    bsight_ck1 = []
-    angle_ck1 = []
-    for et in et_list:
-
-        rot_mat = spiceypy.pxform(spacecraft_frame,  target_frame,et)
-        euler = (spiceypy.m2eul(rot_mat, 1, 2, 3))
-        eul1_ck1.append(math.degrees(euler[0]))
-        eul2_ck1.append(math.degrees(euler[1]))
-        eul3_ck1.append(math.degrees(euler[2]))
-
-        bsight = spiceypy.mxv(rot_mat, boresight)
-        bsight_ang = spiceypy.vsep(bsight, boresight)
-        bsight_ck1.append(spiceypy.convrt(bsight_ang,'RADIANS','ARCSECONDS'))
-
-        (rot_axis, rot_angle) = spiceypy.raxisa(rot_mat)
-        angle_ck1.append(spiceypy.convrt(rot_angle,'RADIANS','ARCSECONDS'))
-
-    spiceypy.unload(ck1)
-    spiceypy.furnsh(ck2)
-
-    eul1_ck2 = []
-    eul2_ck2 = []
-    eul3_ck2 = []
-    bsight_ck2 = []
-    angle_ck2 = []
-    for et in et_list:
-
-        rot_mat = spiceypy.pxform(spacecraft_frame, target_frame, et)
-        euler = (spiceypy.m2eul(rot_mat, 1, 2, 3))
-        eul1_ck2.append(math.degrees(euler[0]))
-        eul2_ck2.append(math.degrees(euler[1]))
-        eul3_ck2.append(math.degrees(euler[2]))
-
-        bsight = spiceypy.mxv(rot_mat, boresight)
-        bsight_ang = spiceypy.vsep(bsight, boresight)
-        bsight_ck2.append(spiceypy.convrt(bsight_ang,'RADIANS','ARCSECONDS'))
-
-        (rot_axis, rot_angle) = spiceypy.raxisa(rot_mat)
-        angle_ck2.append(spiceypy.convrt(rot_angle,'RADIANS','ARCSECONDS'))
-
-    eul1_diff = [i - j for i, j in zip(eul1_ck1, eul1_ck2)]
-    eul2_diff = [i - j for i, j in zip(eul2_ck1, eul2_ck2)]
-    eul3_diff = [i - j for i, j in zip(eul3_ck1, eul3_ck2)]
-
-    bsight_diff = [np.abs(i - j) for i, j in zip(bsight_ck1, bsight_ck2)]
+    eul1_ck2, eul2_ck2, eul3_ck2, bsight_ck2, angle_ck2 = get_euler_boresights_angles(ck2, et_list, spacecraft_frame,
+                                                                                      target_frame, boresight)
 
     angle_diff = [abs(i - j) for i, j in zip(angle_ck1, angle_ck2)]
 
-    ck1_filename = ck1.split('/')[-1].split('.')[0]
-    ck2_filename = ck2.split('/')[-1].split('.')[0]
-
-    eul1_name = '{}_{}'.format(ck1_filename, ck2_filename)
-    eul2_name = '{}_{}'.format(ck1_filename, ck2_filename)
-    eul3_name = '{}_{}'.format(ck1_filename, ck2_filename)
-    bsight_name = '{}_{}'.format(ck1_filename, ck2_filename)
-
     if output == 'euler_angles':
 
+        eul1_diff = [i - j for i, j in zip(eul1_ck1, eul1_ck2)]
+        eul2_diff = [i - j for i, j in zip(eul2_ck1, eul2_ck2)]
+        eul3_diff = [i - j for i, j in zip(eul3_ck1, eul3_ck2)]
 
-        plot(et_list, [eul1_diff, eul2_diff, eul3_diff], yaxis_name=['Degrees','Degrees','Degrees'],
-                                                        title='Euler Angle Differences',
-                                                        format=plot_style, yaxis_units='deg',
-                                                        notebook=notebook)
+        plot(et_list, [eul1_diff, eul2_diff, eul3_diff],
+             yaxis_name=['Degrees', 'Degrees', 'Degrees'],
+             title='Euler Angle Differences',
+             format=plot_style, yaxis_units='deg',
+             notebook=notebook)
 
     elif output == 'boresight':
-        plot(et_list, bsight_diff, yaxis_name='',
+
+        bsight_diff = [np.abs(i - j) for i, j in zip(bsight_ck1, bsight_ck2)]
+
+        plot(et_list, bsight_diff,
+             yaxis_name='',
              title='Boresight Angle Difference',
              format=plot_style, yaxis_units='arcsec',
              notebook=notebook)
 
     # Attitude Error
     else:
-        plot(et_list, angle_diff, yaxis_name='ang_diff', yaxis_units='arcsec',
+
+        plot(et_list, angle_diff,
+             yaxis_name='ang_diff',
              title='Attitude Error',
-             format=plot_style,
+             format=plot_style, yaxis_units='arcsec',
              notebook=notebook)
 
     if report:
-        attitude_error_report(et_list, bsight_ck1, bsight_ck2, tolerance,
-                              name=bsight_name)
+
+        ck1_filename = ck1.split('/')[-1].split('.')[0]
+        ck2_filename = ck2.split('/')[-1].split('.')[0]
+
+        bsight_name = '{}_{}'.format(ck1_filename, ck2_filename)
+
+        attitude_error_report(et_list, bsight_ck1, bsight_ck2, tolerance, name=bsight_name)
 
         if output == 'euler_angles':
+
+            eul1_name = '{}_{}'.format(ck1_filename, ck2_filename)
+            eul2_name = '{}_{}'.format(ck1_filename, ck2_filename)
+            eul3_name = '{}_{}'.format(ck1_filename, ck2_filename)
+
             eul_angle_report(et_list, eul1_ck1, eul1_ck2, 1, tolerance, name=eul1_name)
             eul_angle_report(et_list, eul2_ck1, eul2_ck2, 2, tolerance, name=eul2_name)
             eul_angle_report(et_list, eul3_ck1, eul3_ck2, 3, tolerance, name=eul3_name)
 
-        if output == 'rotaxis':
-            attitude_error_report(et_list, angle_ck1, angle_ck2, tolerance,
-                                  name=eul1_name)
+        elif output == 'rotaxis':
 
-    spiceypy.unload(ck2)
+            rotaxis_name = '{}_{}'.format(ck1_filename, ck2_filename)
+
+            attitude_error_report(et_list, angle_ck1, angle_ck2, tolerance, name=rotaxis_name)
+
+    if mk:
+        spiceypy.unload(mk)
 
     return np.max(angle_diff)
 
@@ -2364,47 +2530,49 @@ def sensor_with_sectors(sensor, mk, fk=''):
     return
 
 
-def hga_angles(sc, time):
+def get_angle(frame1, frame2, et):
+
+    angle = 0
+    angle_bool = False
+
+    try:
+        # Get the rotation matrix between two frames
+        cmat = spiceypy.pxform(frame1, frame2, et)
+
+        (angle3, angle2, angle1) = spiceypy.m2eul(cmat, 3, 2, 1)
+        for tmp_angle in [angle3, angle2, angle1]:
+            if np.around(tmp_angle, 2) != 0:
+                angle = np.rad2deg(tmp_angle)
+                angle_bool = True
+
+    except ValueError as e:
+        print(e)
+
+    return angle, angle_bool
+
+
+def get_earth_angle(frame, et, obs):
+    try:
+        (earth_vec, lt) = spiceypy.spkezr('EARTH', et, frame, 'LT+S', obs)
+        return np.rad2deg(spiceypy.vsep([0, 0, 1], earth_vec[:3]))
+
+    except:
+        return 0
+
+
+def hga_angles(sc, et):
+
+    hga_el_frame = sc + '_HGA_EL'
+    hga_az_frame = sc + '_HGA_AZ'
+    hga_frame = sc + '_HGA'
 
     if sc == 'MPO':
-        hga_zero_frame = sc + '_HGA_APM'
 
-        hga_el_frame = sc + '_HGA_EL'
-        hga_az_frame = sc + '_HGA_AZ'
-        hga_frame = sc + '_HGA'
-
-        hga_el_bool = False
-        hga_az_bool = False
-        try:
-
-            # Get the rotation matrix between two frames
-            cmat = spiceypy.pxform(hga_zero_frame, hga_az_frame, time)
-
-            (angle3, angle2, angle1) = spiceypy.m2eul(cmat,3,2,1)
-            for angle in [angle3, angle2, angle1]:
-                if np.around(angle,2) !=0:
-                    hga_az = np.rad2deg(angle)# - 180
-                    hga_az_bool = True
-
-            if not hga_az_bool:
-                hga_az = 0
-
-
-            cmat = spiceypy.pxform(hga_az_frame, hga_el_frame, time)
-
-            (angle3, angle2, angle1) = spiceypy.m2eul(cmat, 3, 2, 1)
-            for angle in [angle3, angle2, angle1]:
-                if np.around(angle,2) != 0:
-                    hga_el = np.rad2deg(angle)
-                    hga_el_bool = True
-
-            if not hga_el_bool:
-                hga_el = 0
-
-        except ValueError as e:
-            print(e)
-            hga_az = 0
-            hga_el = 0
+        # First azimuth and then the elevation
+        hga_az, hga_az_bool = get_angle('MPO_HGA_APM', hga_az_frame, et)
+        if hga_az_bool:
+            hga_az = -hga_az + 180  # Invert azimuth and add half revolution
+        hga_el, hga_el_bool = get_angle(hga_az_frame, hga_el_frame, et)
 
     elif sc == 'MTM':
         return []
@@ -2412,43 +2580,27 @@ def hga_angles(sc, time):
     else:
         hga_zero_frame = sc + '_SPACECRAFT'
 
+        # First elevation and then the azimuth
+        hga_el, hga_el_bool = get_angle(hga_zero_frame, hga_el_frame, et)
+        hga_az, hga_az_bool = get_angle(hga_el_frame, hga_az_frame, et)
 
-        hga_el_frame = sc + '_HGA_EL'
-        hga_az_frame = sc + '_HGA_AZ'
-        hga_frame = sc + '_HGA'
+    hga_earth = get_earth_angle(hga_frame, et, sc)
 
-
-        try:
-
-            # Get the rotation matrix between two frames
-            cmat = spiceypy.pxform(hga_zero_frame, hga_el_frame, time)
-
-            (angle3, angle2, angle1) = spiceypy.m2eul(cmat, 3, 2, 1)
-            for angle in [angle3, angle2, angle1]:
-                if angle != 0:
-                    hga_el = np.rad2deg(angle)
+    return [hga_az, hga_el], hga_earth
 
 
-            cmat = spiceypy.pxform(hga_el_frame, hga_az_frame, time)
+def mga_angles(sc, et):
 
-            (angle3, angle2, angle1) = spiceypy.m2eul(cmat, 3, 2, 1)
-            for angle in [angle3, angle2, angle1]:
-                if angle != 0:
-                    hga_az = np.rad2deg(angle)
+    if sc == 'MPO':
 
-        except:
-            hga_az = 0
-            hga_el = 0
+        # First azimuth and then the elevation
+        mga_az, mga_az_bool = get_angle('MPO_MGA_BOOM-H', 'MPO_MGA_BOOM', et)
+        mga_el, mga_el_bool = get_angle('MPO_MGA_ZERO', 'MPO_MGA', et)
+        mga_earth = get_earth_angle('MPO_MGA', et, 'MPO')
 
-    try:
-        (earth_vec, lt) = spiceypy.spkezr('EARTH', time, hga_frame, 'LT+S', sc)
-        hga_earth = np.rad2deg(spiceypy.vsep([0,0,1], earth_vec[:3]))
+        return [mga_az, mga_el], mga_earth
 
-    except: #ValueError as e:
-        #print(e)
-        hga_earth = 0
-
-    return([hga_az, hga_el], hga_earth)
+    return [0, 0], 0
 
 
 def solar_aspect_angles(sc, time):
@@ -2523,9 +2675,7 @@ def solar_array_angles(sa_frame, time):
         sa_zero_frame = sa_frame + '_ZERO'
     try:
 
-    #TODO This works for  JUICE only in principle.
-
-
+        #TODO This works for  JUICE only in principle.
 
         # Get the rotation matrix between two frames
         cmat = spiceypy.pxform(sa_frame, sa_zero_frame, time)
@@ -2534,7 +2684,7 @@ def solar_array_angles(sa_frame, time):
 
     except:
 
-        #print('No CK information for {}'.format(time))
+        # print('No CK information for {}'.format(time))
         angle3 = 0
         angle2 = 0
         angle1 = 0
@@ -2559,7 +2709,6 @@ def body_distance_to_plane(body_distance, body_plane, time):
 
     id_1 = spiceypy.bodn2c(body_1)
     id_2 = spiceypy.bodn2c(body_2)
-
 
     mat = spiceypy.pxform('MEX_SIDING_SPRING_PLANE','IAU_MARS', time)
     vec1_1 = spiceypy.mxv(mat, [1,0,0])
@@ -2604,7 +2753,6 @@ def angle_between_planes(body_1, body_2, time):
 
 
 def plane_ellipsoid(body_1, body_2, time):
-
 
     id_1 = spiceypy.bodn2c(body_1)
     id_2 = spiceypy.bodn2c(body_2)
@@ -2840,6 +2988,8 @@ def spk_coverage_timeline(metakernel, sc_list, notebook=True, html_file_name='te
     p.add_layout(labels)
 
     show(p)
+
+    spiceypy.unload(metakernel)
 
 
 #
@@ -3908,3 +4058,137 @@ def roll(time):
     return(np.round(angle3*spiceypy.dpr(),3),
            np.round(angle2*spiceypy.dpr(),3),
            np.round(angle1*spiceypy.dpr(),3))
+
+
+def check_rotation_matrices():
+
+    # Tests that all defined frames of class 4 and spec=Matrix contains
+    # a proper rotation matrix
+    frame_class = 4
+    frame_ids = spiceypy.kplfrm(frame_class)
+    all_matrices_ok = True
+    isrot_ntol = 1e-3
+    isrot_dtol = 1e-3
+
+    for frame_id in frame_ids:
+        frame_name = spiceypy.frmnam(frame_id)
+
+        # Find the TKFRAME SPEC variable, first using frame Id
+        frame_spec = ""
+        frame_id_spec = "TKFRAME_{}_SPEC".format(frame_id)
+        frame_name_spec = "TKFRAME_{}_SPEC".format(frame_name)
+        try:
+            if spiceypy.dtpool(frame_id_spec):
+                frame_spec = frame_id_spec
+            else:
+                all_matrices_ok = False  # Supposed to be not reachable
+
+        except NotFoundError as e:
+            frame_spec = ""
+
+            # Find the TKFRAME SPEC variable, first using frame name
+            try:
+                if spiceypy.dtpool(frame_name_spec):
+                    frame_spec = frame_name_spec
+                else:
+                    all_matrices_ok = False  # Supposed to be not reachable
+
+            except NotFoundError as e:
+                print("Error: " + frame_id_spec + " or " + frame_name_spec +
+                      " not found in frame definition: "
+                      + str(frame_id) + " - " + frame_name)
+
+                all_matrices_ok = False
+
+                continue
+
+        try:
+            # Check if TKFRAME SPEC is MATRIX
+            if str(spiceypy.gcpool(frame_spec, 0, 80)[0]) == 'MATRIX':
+
+                # Find the TKFRAME MATRIX variable
+                frame_matrix = "TKFRAME_{}_MATRIX".format(frame_id) \
+                                    if frame_spec == frame_id_spec \
+                                    else "TKFRAME_{}_MATRIX".format(frame_name)
+
+                try:
+                    if spiceypy.dtpool(frame_matrix):
+
+                        try:
+
+                            rot_matrix = spiceypy.gdpool(frame_matrix, 0, 9)
+                            rot_matrix = np.asarray(rot_matrix).reshape(3, 3)
+                            rot_matrix = np.transpose(rot_matrix)
+                            rot_matrix = np.asarray(rot_matrix.tolist())  # To avoid error: strided arrays not supported
+                            if spiceypy.isrot(rot_matrix, isrot_ntol, isrot_dtol):
+                                print(str(frame_id) + " - " + frame_name + " -> OK!")
+                            else:
+                                print(str(frame_id) + " - " + frame_name + " -> FAIL!")
+                                all_matrices_ok = False
+
+                        except Exception as e:
+                            print("Error: Cannot obtain the value from " + frame_matrix
+                                  + ", err: " + str(e))
+
+                            all_matrices_ok = False
+
+                            pass
+                    else:
+                        all_matrices_ok = False  # Supposed to be not reachable
+
+                except NotFoundError as e:
+                    print("Error: " + frame_matrix +
+                          " not found in frame definition: "
+                          + str(frame_id) + " - " + frame_name)
+
+                    all_matrices_ok = False
+
+                    pass
+
+        except Exception as e:
+            print(e)
+
+            all_matrices_ok = False
+
+            pass
+
+    if all_matrices_ok:
+        print("ALL ROTATION MATRICES OK!")
+    else:
+        print("SOME ROTATION MATRICES ARE WRONG!")
+
+    return all_matrices_ok
+
+
+def check_frame_chain(start_time, end_time, num_samples):
+
+    # Tests that any frame defined can be transformed to J2000
+    # from start to end with given interval
+    all_frames_ok = True
+
+    et_start = spiceypy.utc2et(start_time)
+    et_finish = spiceypy.utc2et(end_time)
+    times = np.linspace(et_start, et_finish, num_samples)
+
+    ref_frame = "J2000"
+    frame_ids = spiceypy.kplfrm(-1)
+    failed_frames = []
+
+    for et in times:
+        for frame_id in frame_ids:
+            if frame_id not in failed_frames:
+                frame_name = spiceypy.frmnam(frame_id)
+
+                try:
+                    cmat = spiceypy.pxform(frame_name, ref_frame, et)
+                except Exception as e:
+                    print("Error: Cannot transform the frame: " + frame_name + " to J2000 " +
+                          "at time: " + spiceypy.et2utc(et, 'ISOC', 2) + ", err: " + str(e))
+                    all_frames_ok = False
+                    failed_frames.append(frame_id)
+                    pass
+
+        if len(frame_ids) == len(failed_frames):
+            break
+
+    return all_frames_ok

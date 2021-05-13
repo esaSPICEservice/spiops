@@ -53,6 +53,8 @@ class Body(object):
                       'saa_sc',
                       'hga_earth',
                       'hga_angles',
+                      'mga_earth',
+                      'mga_angles',
                       'roll_angles']:
             self.__Structures()
             return object.__getattribute__(self, item)
@@ -221,14 +223,21 @@ class Body(object):
         sa_ang2_n_list = []
         sa_ang3_p_list = []
         sa_ang3_n_list = []
+
         saa_sa_p_list = []
         saa_sa_n_list = []
         saa_sc_x_list = []
         saa_sc_y_list = []
         saa_sc_z_list = []
+
         hga_earth = []
         hga_angles_el = []
         hga_angles_az = []
+
+        mga_earth = []
+        mga_angles_el = []
+        mga_angles_az = []
+
         roll_angle_1 = []
         roll_angle_2 = []
         roll_angle_3 = []
@@ -265,12 +274,19 @@ class Body(object):
                 # HGA mechanisms
                 #
                 if self.name != 'MTM':
-                    (hga_angles_ang, hga_earth_ang) = spiops.hga_angles(self.name, et)
-                    hga_earth.append(hga_earth_ang)
-                    if self.name == 'MPO':
-                        hga_angles_ang[0] = -1*(hga_angles_ang[0] - 180)
+                    hga_angles_ang, hga_earth_ang = spiops.hga_angles(self.name, et)
                     hga_angles_el.append(hga_angles_ang[1])
                     hga_angles_az.append(hga_angles_ang[0])
+                    hga_earth.append(hga_earth_ang)
+
+                #
+                # MGA mechanisms
+                #
+                if self.name != 'MTM':
+                    mga_angles_ang, mga_earth_ang = spiops.mga_angles(self.name, et)
+                    mga_angles_el.append(mga_angles_ang[1])
+                    mga_angles_az.append(mga_angles_ang[0])
+                    mga_earth.append(mga_earth_ang)
 
                 #
                 # Roll angle
@@ -296,9 +312,14 @@ class Body(object):
                 saa_sc_x_list.append(0)
                 saa_sc_y_list.append(0)
                 saa_sc_z_list.append(0)
+
                 hga_earth.append(0)
                 hga_angles_el.append(0)
                 hga_angles_az.append(0)
+
+                mga_earth.append(0)
+                mga_angles_el.append(0)
+                mga_angles_az.append(0)
 
                 roll_angle_1.append(0)
                 roll_angle_2.append(0)
@@ -318,6 +339,10 @@ class Body(object):
 
         self.hga_earth = hga_earth
         self.hga_angles = [hga_angles_el, hga_angles_az]
+
+        self.mga_earth = mga_earth
+        self.mga_angles = [mga_angles_el, mga_angles_az]
+
         self.roll_angles = [roll_angle_1, roll_angle_2, roll_angle_3]
 
         self.structures_flag = True
@@ -681,11 +706,17 @@ class Body(object):
         elif yaxis == 'hga_angles':
             yaxis_name = ['hga_el', 'hga_az']
             yaxis_units = 'deg'
+        elif yaxis == 'mga_angles':
+            yaxis_name = ['mga_el', 'mga_az']
+            yaxis_units = 'deg'
         elif yaxis == 'roll_angles':
             yaxis_name = ['roll_1', 'roll_2', 'roll_3']
             yaxis_units = 'deg'
         elif yaxis == 'hga_earth':
             yaxis_name = 'hga_earth'
+            yaxis_units = 'deg'
+        elif yaxis == 'mga_earth':
+            yaxis_name = 'mga_earth'
             yaxis_units = 'deg'
         elif yaxis == 'quaternions':
             yaxis_name = ['qx','qy','qz','qs']

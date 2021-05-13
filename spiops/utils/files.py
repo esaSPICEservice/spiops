@@ -1,8 +1,19 @@
 import os
 import glob
+import platform
+import subprocess
+import fnmatch
 from tempfile import mkstemp
 from shutil import move
 from ftplib import FTP
+
+
+# SOME CONSTANTS, consider move it to a config file
+SERVER_HOST_NAME = "spiops.n1data.lan"
+SERVER_HOST_USER = "esaspice"
+SERVER_HOST_FTP_PATH = "/home/esaspice/ftp"
+FTP_HOST = "spiftp.esac.esa.int"
+
 
 def replace(file_path, pattern, subst):
 
@@ -97,8 +108,20 @@ def update_former_versions(mk_path, kernels_path, updated_mk=False):
     return updated_mk
 
 
-def downloadFromFtp(path, file):
-    ftp = FTP('spiftp.esac.esa.int')
+def download_file(path, file):
+    try:
+        if ping(SERVER_HOST_NAME):
+            path = os.path.join(SERVER_HOST_FTP_PATH, path)
+            path = SERVER_HOST_USER + "@" + SERVER_HOST_NAME + ":" + path
+            get_from_server(path, file)
+        else:
+            download_from_ftp(path, file)
+    except:
+        print('Warning: Error downloading file: ' + file)
+
+
+def download_from_ftp(path, file):
+    ftp = FTP(FTP_HOST)
     ftp.login()
     ftp.cwd(path)
     handle = open(file, 'wb')
@@ -107,7 +130,44 @@ def downloadFromFtp(path, file):
     return
 
 
-def getFromServer(path, file):
-    os.system('scp ' + path + file + ' ./' + file)
+def get_from_server(path, file):
+    os.system('scp ' + os.path.join(path, file) + ' ./' + file)
     return
 
+
+def ping(host):
+    """
+    Returns True if host (str) responds to a ping request.
+    Remember that a host may not respond to a ping (ICMP) request even if the host name is valid.
+    From: https://stackoverflow.com/questions/2953462/pinging-servers-in-python
+    """
+
+    # Option for the number of packets as a function of
+    param = '-n' if platform.system().lower()=='windows' else '-c'
+
+    # Building the command. Ex: "ping -c 1 google.com"
+    command = ['ping', param, '1', host]
+
+    return subprocess.call(command) == 0
+
+
+def list_files_from_ftp(path, file_expression):
+    ftp = FTP(FTP_HOST)
+    ftp.login()
+    ftp.cwd(path)
+    files = []
+
+    try:
+        files = ftp.nlst()
+    except FTP.error_perm as resp:
+        if str(resp) == "550 No files found":
+            print("No files in this directory")
+        else:
+            raise
+
+    selected_files = []
+    for file in files:
+        if fnmatch.fnmatch(file, file_expression):
+            selected_files.append(file)
+
+    return selected_files
