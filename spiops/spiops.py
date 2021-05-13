@@ -562,7 +562,7 @@ def spkVsOem(sc, spk, plot_style='line', notebook=True):
     if sc == 'MPO':
         file = spk.split('/')[-1].replace('\n', '').replace('bc_mpo_fcp_', '').split('_')[0]
         file = 'BCCruiseOrbit__' + file + '.bc'
-        download_file("/data/ANCDR/BEPICOLOMBO/fdy", file)
+        download_file("data/ANCDR/BEPICOLOMBO/fdy", file)
     else:
         print('Unsupported spacecraft: ' + sc)
         return None, None
@@ -635,7 +635,7 @@ def ckVsAocs(sc, ck, plot_style='line', notebook=True):
     if sc == 'MPO':
         file = ck.split('/')[-1].replace('\n', '').split('_')[5]
         file = 'mpo_raw_hk_aocs_measured_attitude_' + file + '.tab'
-        download_file("/data/ANCDR/BEPICOLOMBO/hkt", file)
+        download_file("data/ANCDR/BEPICOLOMBO/hkt", file)
     else:
         print('Unsupported spacecraft: ' + sc)
         return None
@@ -906,7 +906,7 @@ def time_correlation(sc, ck, plot_style='line', notebook=True):
     if sc == 'MPO':
         file = ck.split('/')[-1].replace('\n', '').split('_')[5]
         file = 'mpo_raw_hk_aocs_measured_attitude_' + file + '.tab'
-        download_file("/data/ANCDR/BEPICOLOMBO/hkt", file)
+        download_file("data/ANCDR/BEPICOLOMBO/hkt", file)
     else:
         print('Unsupported spacecraft: ' + sc)
         return None
@@ -964,7 +964,7 @@ def flyby_ca_altitudes(sc, target, spk_expression, num_spk_files, from_date, to_
     maxwin = 200000
 
     if sc == 'MPO':
-        spk_path = "/data/SPICE/BEPICOLOMBO/kernels/spk/"
+        spk_path = "data/SPICE/BEPICOLOMBO/kernels/spk/"
     else:
         print('Unsupported spacecraft: ' + sc)
         return None
