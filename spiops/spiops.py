@@ -28,7 +28,6 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 from spiceypy import support_types as stypes
-from spiceypy.utils.exceptions import NotFoundError, SpiceyError
 
 from bokeh.plotting import figure, output_file, output_notebook, show
 from bokeh.models import ColumnDataSource, DatetimeTickFormatter, LabelSet
@@ -923,8 +922,8 @@ def time_correlation(sc, ck, plot_style='line', notebook=True):
 
     try:
         sc_id = spiceypy.bodn2c(sc)
-    except SpiceyError:
-        print('Spacecraft not found: ' + sc)
+    except Exception as e:
+        print('Spacecraft not found: ' + sc + ", err: " + str(e))
         return None
 
     for line in tabfile.readlines():
@@ -4084,7 +4083,7 @@ def check_rotation_matrices():
             else:
                 all_matrices_ok = False  # Supposed to be not reachable
 
-        except NotFoundError as e:
+        except Exception as e:
             frame_spec = ""
 
             # Find the TKFRAME SPEC variable, first using frame name
@@ -4094,10 +4093,10 @@ def check_rotation_matrices():
                 else:
                     all_matrices_ok = False  # Supposed to be not reachable
 
-            except NotFoundError as e:
+            except Exception as e:
                 print("Error: " + frame_id_spec + " or " + frame_name_spec +
                       " not found in frame definition: "
-                      + str(frame_id) + " - " + frame_name)
+                      + str(frame_id) + " - " + frame_name + ", err: " + str(e))
 
                 all_matrices_ok = False
 
@@ -4137,10 +4136,10 @@ def check_rotation_matrices():
                     else:
                         all_matrices_ok = False  # Supposed to be not reachable
 
-                except NotFoundError as e:
+                except Exception as e:
                     print("Error: " + frame_matrix +
                           " not found in frame definition: "
-                          + str(frame_id) + " - " + frame_name)
+                          + str(frame_id) + " - " + frame_name + ", err: " + str(e))
 
                     all_matrices_ok = False
 
