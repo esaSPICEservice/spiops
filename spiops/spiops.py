@@ -1054,19 +1054,36 @@ def flyby_ca_altitudes(sc, target, spk_expression, num_spk_files, from_date, to_
         spiceypy.unload(spk_file)
         os.remove(spk_file)
 
-    # Plot Flyby CA altitude vs time per SPK
-    plot(flybys_ets,
+    # Reduce the SPK names to only the SPK number to reduce the legend size
+    spk_numbers = []
+    if sc == 'MPO':
+        for spk in flybys_spks:
+            spk_number = int(spk.split("_")[3])
+            spk_numbers.append(spk_number)
+
+    # Plot Flyby CA altitude vs spk number
+    plot(spk_numbers,
          flybys_alts,
-         yaxis_name=flybys_spks,
-         title=target + ' Flyby CA altitude vs time',
+         title=target + ' Flyby CA altitude vs spk number',
          format="scatter",
+         xaxis_name='SPK Number',
+         yaxis_name=['Altitude'],
          yaxis_units='Km',
+         notebook=notebook)
+
+    # Plot Flyby CA time vs spk number
+    plot(flybys_ets,
+         spk_numbers,
+         title=target + ' Flyby CA spk number vs time',
+         format="scatter",
+         yaxis_name=['SPK Number'],
+         yaxis_units='Time',
          notebook=notebook)
 
     # Plot Flyby altitude evolution vs time per SPK
     plot(times,
          flybys_alt_list,
-         yaxis_name=flybys_spks,
+         yaxis_name=spk_numbers,
          title=target + ' Flyby altitude evolution vs time',
          format=plot_style,
          yaxis_units='Km',
@@ -1076,7 +1093,7 @@ def flyby_ca_altitudes(sc, target, spk_expression, num_spk_files, from_date, to_
 
 
 def fk_body_ifj2000(mission, body, pck, body_spk, frame_id, report=False,
-              unload=False, file=True):
+                    unload=False, file=True):
     """
     Generates a given Solar System Natural Body Inertial frame at J2000. This
     function is based on a FORTRAN subroutine provided by Boris Semenov

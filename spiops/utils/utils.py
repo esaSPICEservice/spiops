@@ -92,7 +92,7 @@ def convert_OEM2data():
     return
 
 
-def plot(xaxis, yaxis, xaxis_name = 'Date', yaxis_name='', title='', format='line',
+def plot(xaxis, yaxis, xaxis_name='Date', yaxis_name='', title='', format='line',
          external_data=[], notebook=False, mission='', target='', yaxis_units='',
          date_format='TDB', plot_width=1000, plot_height=500,
          fill_color=[], fill_alpha=0, background_image=False,
@@ -150,34 +150,31 @@ def plot(xaxis, yaxis, xaxis_name = 'Date', yaxis_name='', title='', format='lin
     else:
         x_axis_type = "auto"
 
-    p = figure(#title=title,
-                plot_width=plot_width,
-                plot_height=plot_height,
-                x_axis_label=xaxis_name.upper(),
-                y_axis_label=yaxis_units,
-                x_axis_type=x_axis_type)
+    p = figure(title=title,
+               plot_width=plot_width,
+               plot_height=plot_height,
+               x_axis_label=xaxis_name.upper(),
+               y_axis_label=yaxis_units,
+               x_axis_type=x_axis_type)
 
     if xaxis_name == 'Date':
 
         p.xaxis.formatter = DatetimeTickFormatter(
-            seconds=["%Y-%m-%d %H:%M:%S"],
-            minsec=["%Y-%m-%d %H:%M:%S"],
-            minutes=["%Y-%m-%d %H:%M:%S"],
-            hourmin=["%Y-%m-%d %H:%M:%S"],
-            hours=["%Y-%m-%d %H:%M:%S"],
-            days=["%Y-%m-%d %H:%M:%S"],
-            months=["%Y-%m-%d %H:%M:%S"],
-            years=["%Y-%m-%d %H:%M:%S"],
-    )
+                                                    seconds=["%Y-%m-%d %H:%M:%S"],
+                                                    minsec=["%Y-%m-%d %H:%M:%S"],
+                                                    minutes=["%Y-%m-%d %H:%M:%S"],
+                                                    hourmin=["%Y-%m-%d %H:%M:%S"],
+                                                    hours=["%Y-%m-%d %H:%M:%S"],
+                                                    days=["%Y-%m-%d %H:%M:%S"],
+                                                    months=["%Y-%m-%d %H:%M:%S"],
+                                                    years=["%Y-%m-%d %H:%M:%S"],
+                                                )
 
     hover = HoverTool(
-                 tooltips=[ (xaxis_name, '@x{0.000}'),
-                            (title, '@y{0.000}'),
-                          ],
+                 tooltips=[(xaxis_name, '@x{0.000}'),
+                           (title, '@y{0.000}')],
                  formatters={xaxis_name: 'numeral',
-                             title: 'numeral',
-                            })
-
+                             title: 'numeral'})
     p.add_tools(hover)
 
     if external_data:
@@ -207,27 +204,30 @@ def plot(xaxis, yaxis, xaxis_name = 'Date', yaxis_name='', title='', format='lin
             image = 'Mars_Viking_MDIM21_ClrMosaic_global_1024.jpg'
         else:
             image = 'Earth_Contemporary_Basic.png'
-        p.image_url(url=[os.path.join(os.path.dirname(images.__file__),image)], x=-180, y=-90,
-                w=360, h=180, anchor="bottom_left", global_alpha=0.6)
+        p.image_url(url=[os.path.join(os.path.dirname(images.__file__), image)], x=-180, y=-90,
+                    w=360, h=180, anchor="bottom_left", global_alpha=0.6)
         left, right, bottom, top = -180, 180, -90, 90
         p.x_range = Range1d(left, right)
         p.y_range = Range1d(bottom, top)
 
     if format == 'scatter':
+        is_multi_legend = len(y) <= len(yaxis_name)
         for idx in range(len(y)):
-            p.circle([x[idx]], [y[idx]], size=3, color=color_list[color_idx], legend=yaxis_name[idx].upper())
+            p.circle([x[idx]], [y[idx]], size=3,
+                     color=color_list[color_idx] if is_multi_legend else color_list[0],
+                     legend=str(yaxis_name[idx]).upper() if is_multi_legend else str(yaxis_name[0]).upper())
             color_idx = idx % len(color_list)
     else:
         for element in y:
             if format == 'circle':
-                p.line(x, element, line_width=line_width, color=color_list[color_idx], legend=yaxis_name[index].upper())
+                p.line(x, element, line_width=line_width, color=color_list[color_idx], legend=str(yaxis_name[index]).upper())
                 p.circle(x, element, fill_color="white", size=8)
 
             if format == 'circle_only':
-                p.circle(x, element, size=3, color=color_list[color_idx], legend=yaxis_name[index].upper())
+                p.circle(x, element, size=3, color=color_list[color_idx], legend=str(yaxis_name[index]).upper())
 
             elif format == 'line':
-                p.line(x, element, line_width=line_width, color=color_list[color_idx], legend=yaxis_name[index].upper())
+                p.line(x, element, line_width=line_width, color=color_list[color_idx], legend=str(yaxis_name[index]).upper())
             index += 1
             color_idx = index % len(color_list)
 
