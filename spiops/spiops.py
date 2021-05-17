@@ -327,8 +327,7 @@ def fov_illum(mk, sensor, time=None, angle='DEGREES', abcorr='LT+S',
     else:
         instid = sensor
 
-    shape, frame, bsight, n, bounds = spiceypy.getfov(instid, room, shapelen,
-                                                    framelen)
+    shape, frame, bsight, n, bounds = spiceypy.getfov(instid, room, shapelen, framelen)
 
     rotation = spiceypy.pxform(frame, 'J2000', time)
 
@@ -1087,6 +1086,7 @@ def flyby_ca_altitudes(sc, target, spk_expression, num_spk_files, from_date, to_
          title=target + ' Flyby altitude evolution vs time',
          format=plot_style,
          yaxis_units='Km',
+         plot_height=400,
          notebook=notebook)
 
     return np.max(flybys_alts)

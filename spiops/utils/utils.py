@@ -94,7 +94,7 @@ def convert_OEM2data():
 
 def plot(xaxis, yaxis, xaxis_name='Date', yaxis_name='', title='', format='line',
          external_data=[], notebook=False, mission='', target='', yaxis_units='',
-         date_format='TDB', plot_width=1000, plot_height=500,
+         date_format='TDB', plot_width=975, plot_height=300,
          fill_color=[], fill_alpha=0, background_image=False,
          line_width=2):
 
@@ -138,12 +138,8 @@ def plot(xaxis, yaxis, xaxis_name='Date', yaxis_name='', title='', format='line'
 
     if notebook:
         output_notebook()
-        plot_width = 975
-        plot_height = 300
     else:
         output_file(html_file_name + '.html')
-        plot_width = plot_width
-        plot_height = plot_height
 
     if xaxis_name == 'Date':
         x_axis_type = "datetime"
