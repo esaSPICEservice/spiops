@@ -575,11 +575,20 @@ def spkVsOem(sc, spk, plot_style='line', notebook=True):
     error = []
     pos_norm_error = []
     vel_norm_error = []
+    data_list = []
     for line in oemfile.readlines():
         if 'CENTER_NAME' in line:
             center = line.split('= ')[1].replace('\n', '')
         if line[:2] == '20':
             data = line.replace('\n', '').split()
+            data_list.append(data)
+    for i in range(0, len(data_list)-1, 1):
+        #
+        # skip OEM lines with repeated time tags (typically at the end of a
+        # segment) as are superseeded by the latest line with that time tag
+        #
+        if data_list[i][0] != data_list[i+1][0]:
+            data = data_list[i]
             et = spiceypy.str2et(data[0])
             state = spiceypy.spkezr(sc, et, 'J2000', 'NONE', center)[0]
             curr_error = [et,
