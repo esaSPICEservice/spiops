@@ -271,6 +271,23 @@ def plot3d(data, observer, target):
     return
 
 
+def plot_attitude_error(error, max_ang_error, title, plot_style, notebook):
+
+    print('Avg QX error: ', np.mean(error[:, 1]))
+    print('Avg QY error: ', np.mean(error[:, 2]))
+    print('Avg QZ error: ', np.mean(error[:, 3]))
+    print('Avg QW error: ', np.mean(error[:, 4]))
+    print('Max angular error [mdeg]: ' + str(max_ang_error))
+
+    plot(error[:, 0],
+         [error[:, 1], error[:, 2], error[:, 3], error[:, 4]],
+         yaxis_name=['QX', 'QY', 'QZ', 'QW'],
+         title=title,
+         format=plot_style,
+         yaxis_units='Q [-]',
+         notebook=notebook)
+
+
 def replace(file_path, pattern, subst):
 
     replaced = False

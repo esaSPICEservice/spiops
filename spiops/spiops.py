@@ -10,11 +10,14 @@ from spiceypy.utils.support_types import *
 
 from spiops.utils import time
 from spiops.utils.utils import plot
+from spiops.utils.utils import plot_attitude_error
 from spiops.utils.utils import target2frame
 from spiops.utils.utils import findIntersection
 from spiops.utils.utils import findNearest
 from spiops.utils.files import download_file
 from spiops.utils.files import list_files_from_ftp
+from spiops.utils.files import get_aem_quaternions
+from spiops.utils.files import get_aocs_quaternions
 
 from spiops.classes.observation import TimeWindow
 from spiops.classes.body import Target
@@ -592,8 +595,8 @@ def spkVsOem(sc, spk, plot_style='line', notebook=True):
             error.append(curr_error)
             pos = np.asarray(curr_error[1:4])
             vel = np.asarray(curr_error[4:7])
-            pos_norm_error.append(np.sqrt(pos.dot(pos)))
-            vel_norm_error.append(np.sqrt(vel.dot(vel)))
+            pos_norm_error.append(spiceypy.vnorm(pos))
+            vel_norm_error.append(spiceypy.vnorm(vel))
 
     max_pos_norm_error = max(pos_norm_error)
     max_vel_norm_error = max(vel_norm_error)
@@ -626,6 +629,45 @@ def spkVsOem(sc, spk, plot_style='line', notebook=True):
     return max_pos_norm_error, max_vel_norm_error
 
 
+def ckVsAEM(sc, ck, plot_style='line', notebook=True):
+
+    spiceypy.timdef('SET', 'SYSTEM', 10, 'TDB')
+    spiceypy.furnsh(ck)
+
+    if sc == 'MPO':
+        file = ck.split('/')[-1].replace('\n', '').split('_')[4]
+        file = 'AttitudePredictionST__' + file + '.bc'
+        download_file("data/ANCDR/BEPICOLOMBO/fdy", file)
+    else:
+        print('Unsupported spacecraft: ' + sc)
+        return None
+
+    print('AEM file: ' + file)
+    if not os.path.isfile(file):
+        print('AEM file cannot be downloaded!')
+        return None
+
+    aem_guats = get_aem_quaternions(file)
+
+    if len(aem_guats):
+        # If any quaternion inserted, remove the first element to create a
+        # margin with the start of the CK
+        aem_guats.pop(0)
+
+    error, max_ang_error = get_quats_ang_error(aem_guats, sc)
+
+    plot_attitude_error(np.asarray(error),
+                        max_ang_error,
+                        'Source AEM Quaternions to generated CK orientation difference',
+                        plot_style,
+                        notebook)
+
+    os.remove(file)
+    spiceypy.unload(ck)
+
+    return max_ang_error
+
+
 def ckVsAocs(sc, ck, plot_style='line', notebook=True):
 
     spiceypy.timdef('SET', 'SYSTEM', 10, 'UTC')
@@ -644,53 +686,66 @@ def ckVsAocs(sc, ck, plot_style='line', notebook=True):
         print('AOCS tab file cannot be downloaded!')
         return None
 
-    tabfile = open(file)
-    error = []
-    max_ang_error = 0
-    for line in tabfile.readlines():
-        data = line.replace('\n', '').replace(',', ' ').split()
-        et = spiceypy.str2et(data[0].replace('Z', ''))
-        q = spiceypy.m2q(spiceypy.pxform('J2000', sc + '_SPACECRAFT', et))
-        if float(data[2]) > 0:
-            sign = 1
-        else:
-            sign = -1
+    aocs_quats = get_aocs_quaternions(file)
 
-        q_error = [abs(sign * q[0] - float(data[2])),
-                   abs(sign * q[1] + float(data[3])),
-                   abs(sign * q[2] + float(data[4])),
-                   abs(sign * q[3] + float(data[5]))]
+    error, max_ang_error = get_quats_ang_error(aocs_quats, sc)
 
-        mrot = spiceypy.q2m(q_error)
-        vz = spiceypy.mxv(mrot, [0, 0, 1])
-        ang_error = spiceypy.vsep([0, 0, 1], vz)
-        max_ang_error = max(max_ang_error, ang_error)
-
-        curr_error = [et]
-        curr_error.extend(q_error)
-        error.append(curr_error)
-
-    max_ang_error = np.rad2deg(max_ang_error) / 1000
-
-    error = np.asarray(error)
-    print('Avg QX error: ', np.mean(error[:, 1]))
-    print('Avg QY error: ', np.mean(error[:, 2]))
-    print('Avg QZ error: ', np.mean(error[:, 3]))
-    print('Avg QW error: ', np.mean(error[:, 4]))
-    print('Max angular error [mdeg]: ' + str(max_ang_error))
-
-    plot(error[:, 0],
-         [error[:, 1], error[:, 2], error[:, 3], error[:, 4]],
-         yaxis_name=['QX', 'QY', 'QZ', 'QW'],
-         title='Source AOCS Measured Quaternions to generated CK orientation difference',
-         format=plot_style,
-         yaxis_units='Q [-]',
-         notebook=notebook)
+    plot_attitude_error(error,
+                        max_ang_error,
+                        'Source AOCS Measured Quaternions to generated CK orientation difference',
+                        plot_style,
+                        notebook)
 
     os.remove(file)
     spiceypy.unload(ck)
 
     return max_ang_error
+
+
+def get_quats_ang_error(quats, sc):
+    error = []
+    max_ang_error = 0
+
+    for quat in quats:
+        et = quat[0]
+        q_spice = spiceypy.m2q(spiceypy.pxform('J2000', sc + '_SPACECRAFT', et))
+
+        if quat[1] < 0:
+            q_spice[0] *= -1
+            q_spice[1] *= -1
+            q_spice[2] *= -1
+            q_spice[3] *= -1
+
+        quat[2] *= -1
+        quat[3] *= -1
+        quat[4] *= -1
+
+        q_error = [abs(q_spice[0] - quat[1]),
+                   abs(q_spice[1] - quat[2]),
+                   abs(q_spice[2] - quat[3]),
+                   abs(q_spice[3] - quat[4])]
+
+        mrot_spice = spiceypy.q2m(q_spice)
+        mrot_quats = spiceypy.q2m(quat[1:5])
+
+        vz_spice = spiceypy.mxv(mrot_spice, [0, 0, 1])
+        vz_quats = spiceypy.mxv(mrot_quats, [0, 0, 1])
+
+        ang_error = spiceypy.vsep(vz_spice, vz_quats)
+        max_ang_error = max(max_ang_error, abs(ang_error))
+
+        if np.rad2deg(ang_error) > 30:
+            print(spiceypy.timout(et, 'YYYY-MON-DD HR:MN:SC.### ::TDB', 41))
+            print("q_spice: " + str(q_spice))
+            print("quat: " + str(quat))
+            print("  ")
+
+        curr_error = [et]
+        curr_error.extend(q_error)
+        error.append(curr_error)
+
+    max_ang_error = np.rad2deg(max_ang_error) * 1000
+    return np.asarray(error), max_ang_error
 
 
 def cov_ck_obj(mk, object, time_format= 'UTC', global_boundary=False,

@@ -6,7 +6,7 @@ import fnmatch
 from tempfile import mkstemp
 from shutil import move
 from ftplib import FTP
-
+from spiceypy import spiceypy
 
 # SOME CONSTANTS, consider move it to a config file
 SERVER_HOST_NAME = "spiops.n1data.lan"
@@ -171,3 +171,57 @@ def list_files_from_ftp(path, file_expression):
             selected_files.append(file)
 
     return selected_files
+
+
+def get_aocs_quaternions(aocs_file):
+    aocs_file_data = open(aocs_file)
+    quats = []
+
+    for line in aocs_file_data.readlines():
+        data = line.replace('\n', '').replace(',', ' ').split()
+        et = spiceypy.str2et(data[0].replace('Z', ''))
+
+        quat_entry = [et, float(data[2]), float(data[3]), float(data[4]), float(data[5])]
+        quats.append(quat_entry)
+
+    return quats
+
+
+def get_aem_quaternions(aem_file, def_time_system="TDB"):
+    aem_file_data = open(aem_file)
+    inside_data_section = False
+    curr_time_system = def_time_system
+    prev_et = 0
+    quats = []
+
+    for line in aem_file_data.readlines():
+        if 'TIME_SYSTEM' in line:
+            time_system = line.split("=")[1].strip()
+            if time_system != curr_time_system:
+                spiceypy.timdef('SET', 'SYSTEM', 10, time_system)
+                curr_time_system = time_system
+
+        elif 'DATA_START' in line:
+            inside_data_section = True
+
+        elif inside_data_section:
+
+            if 'DATA_STOP' in line:
+                # Data section stopped, continue with next line
+                inside_data_section = False
+                continue
+
+            data = line.replace('\n', '').split()
+
+            et = spiceypy.str2et(data[0])
+
+            if prev_et == et:
+                # In case of segment end and next segment start matches, take only the
+                # next segment start, so remove last entry
+                quats.pop()
+
+            quat_entry = [et, float(data[4]), float(data[1]), float(data[2]), float(data[3])]
+            quats.append(quat_entry)
+            prev_et = et
+
+    return quats
