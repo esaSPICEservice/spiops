@@ -225,3 +225,44 @@ def get_aem_quaternions(aem_file, def_time_system="TDB"):
             prev_et = et
 
     return quats
+
+
+def get_tm_data(file, delimiter, columns, data_factors):
+    file_data = open(file)
+    data = []
+    for line in file_data.readlines():
+        fields = line.split(delimiter)
+
+        et = spiceypy.str2et(fields[0].replace('Z', ''))
+        line_data = [et]
+
+        df_idx = 0
+        for column in columns:
+            value = float(fields[column]) * data_factors[df_idx]
+            line_data.append(value)
+            df_idx += 1
+
+        data.append(line_data)
+
+    return data
+
+
+# For each file, download it, add data to array, and remove it
+def download_tm_data(files, path, delimiter, columns, data_factors):
+
+    tm_data = None
+
+    for file in files:
+
+        download_file(path, file)
+
+        if not os.path.isfile(file):
+            print('File cannot be downloaded: ' + file)
+            return None
+
+        tm_data = get_tm_data(file, delimiter, columns, data_factors)
+
+        # Remove downloaded file
+        os.remove(file)
+
+    return tm_data

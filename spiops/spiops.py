@@ -18,6 +18,8 @@ from spiops.utils.files import download_file
 from spiops.utils.files import list_files_from_ftp
 from spiops.utils.files import get_aem_quaternions
 from spiops.utils.files import get_aocs_quaternions
+from spiops.utils.files import get_tm_data
+from spiops.utils.files import download_tm_data
 
 from spiops.classes.observation import TimeWindow
 from spiops.classes.body import Target
@@ -35,6 +37,7 @@ from spiceypy import support_types as stypes
 from bokeh.plotting import figure, output_file, output_notebook, show
 from bokeh.models import ColumnDataSource, DatetimeTickFormatter, LabelSet
 from spiops.utils.time import et_to_datetime
+from spiops.utils.webmust.webmust_handler import WebmustHandler
 
 """
 The MIT License (MIT)
@@ -743,18 +746,170 @@ def get_quats_ang_error(quats, sc):
         ang_error = spiceypy.vsep(vz_spice, vz_quats)
         max_ang_error = max(max_ang_error, abs(ang_error))
 
-        if np.rad2deg(ang_error) > 30:
-            print(spiceypy.timout(et, 'YYYY-MON-DD HR:MN:SC.### ::TDB', 41))
-            print("q_spice: " + str(q_spice))
-            print("quat: " + str(quat))
-            print("  ")
-
         curr_error = [et]
         curr_error.extend(q_error)
         error.append(curr_error)
 
     max_ang_error = np.rad2deg(max_ang_error) * 1000
     return np.asarray(error), max_ang_error
+
+
+def saa_vs_hk_sa_position(sc, plot_style='line', notebook=True):
+
+    spiceypy.timdef('SET', 'SYSTEM', 10, 'UTC')
+
+    sa_angles = []  # Read angles from TM, List of items as [et, angle_deg]
+
+    if sc == 'MPO':
+
+        # Set some mission specific constants
+        sadm_frame = 'MPO_SA'               # SA Rotating Frame
+        sadm_ref_frame = 'MPO_SA_SADM'      # SA Fixed Frame
+        ref_vector = np.asarray([0, 0, 1])  # SA Rotating Plane normal
+        ref_cross_vector = np.asarray([0, 1, 0])  # Common rotation vector btw SA Rotating Frm and Fixed Frm
+
+        # For MPO SA the TM files are given in daily basis, so we need to
+        # concatenate N of them to obtain a greater period coverage.
+        hkt_path = "data/ANCDR/BEPICOLOMBO/hkt/"
+        hkt_expression = 'mpo_raw_hk_sa_position_????????.tab'
+        num_sa_files = 7  # Compare last week
+
+        # Determine files to use to fetch TM data
+        sa_files = list_files_from_ftp(hkt_path, hkt_expression)
+        sa_files = sa_files[-num_sa_files:]
+
+        # For each file, download it, add data to array, and remove it
+        sa_angles = download_tm_data(sa_files, hkt_path, ",", [2], [180.0 / math.pi])
+        if not sa_angles:
+            print("Cannot obtain required TM data, aborting.")
+            return None
+
+    elif sc == 'MTM':
+
+        # Set some mission specific constants
+        sadm_frame = 'MTM_SA+X'               # SA Rotating Frame
+        sadm_ref_frame = 'MTM_SA+X_ZERO'      # SA Fixed Frame
+        ref_vector = np.asarray([0, 1, 0])    # SA Rotating Plane normal
+        ref_cross_vector = np.asarray([1, 0, 0])  # Common rotation vector btw SA Rotating Frm and Fixed Frm
+
+        # For MTM SA the TM files are given in daily basis, so we need to
+        # concatenate N of them to obtain a greater period coverage.
+        hkt_path = "data/ANCDR/BEPICOLOMBO/hkt/"
+        hkt_expression = 'mtm_raw_hk_sa_position_????????.tab'
+        num_sa_files = 7  # Compare last week
+
+        # Determine files to use to fetch TM data
+        sa_files = list_files_from_ftp(hkt_path, hkt_expression)
+        sa_files = sa_files[-num_sa_files:]
+
+        # For each file, download it, add data to array, and remove it
+        sa_angles = download_tm_data(sa_files, hkt_path, ",", [2], [180.0 / math.pi])
+        if not sa_angles:
+            print("Cannot obtain required TM data, aborting.")
+            return None
+
+    else:
+        print('Unsupported spacecraft: ' + sc)
+        return None
+
+    # Compare with SPICE SA Angles
+    error = []
+    max_ang_error = 0
+
+    for sa_angle in sa_angles:
+
+        et = sa_angle[0]
+        hk_sa_angle = sa_angle[1]
+
+        # Determine the rotation matrix to pass from the SA Rotating Frame
+        # to the SA Fixed frame
+        sadm_rot = spiceypy.pxform(sadm_frame, sadm_ref_frame, et)
+
+        # Covert the SA reference vector in the rotating frame into
+        # the SA fixed frame
+        sadm_vector = spiceypy.mxv(sadm_rot, ref_vector)
+        sadm_angle = np.rad2deg(spiceypy.vsep(ref_vector, sadm_vector))
+
+        # Because vsep always is positive, we are going to get the cross product to
+        # determine if is a positive or negative rotation
+        sadm_cross_vector = np.cross(ref_vector, sadm_vector)
+
+        # The dot product of the normalised vectors shall be or 1 or -1.
+        sadm_angle = np.dot(spiceypy.unorm(ref_cross_vector)[0], spiceypy.unorm(sadm_cross_vector)[0]) * sadm_angle
+
+        ang_error = abs(sadm_angle - hk_sa_angle) * 1000  # mdeg
+        max_ang_error = max(max_ang_error, ang_error)
+
+        error.append([et, ang_error])
+
+    # Plot error
+    error = np.asarray(error)
+    print('Max angular error [mdeg]: ' + str(max_ang_error))
+
+    plot(error[:, 0],
+         [error[:, 1]],
+         yaxis_name=['Angular error'],
+         title=sc + " SA angular error between TM and SPICE",
+         format=plot_style,
+         yaxis_units='mdeg',
+         notebook=notebook)
+
+    return max_ang_error
+
+
+def sadmCkVsMust(sc, start_time, end_time, plot_style='line', notebook=True):
+
+    # TODO: METHOD NOT FINISHED!!!
+
+    if sc == 'MPO':
+        must_sadm_param = 'NCADAF41'  # TODO: Set correct parameter for SADM
+        sadm_frame = 'MPO_SA'
+        sadm_ref_frame = 'MPO_SA_SADM'
+        ref_vector = np.asarray([0, 0, 1])
+        mission_phase = 'BEPICRUISE'
+    else:
+        print('Unsupported spacecraft: ' + sc)
+        return None
+
+    et_start = spiceypy.utc2et(start_time)
+    et_end = spiceypy.utc2et(end_time)
+
+    start_time = et_to_datetime(et_start).strftime('%Y-%b-%d %H:%M:%S')
+    end_time = et_to_datetime(et_end).strftime('%Y-%b-%d %H:%M:%S')
+
+    error = []
+    max_ang_error = 0
+
+    tm = WebmustHandler(mission_phase=mission_phase)
+    df_0 = tm.get_tm([must_sadm_param], start_time, end_time)
+
+    for row in df_0:
+        utc = row[0]
+        must_angle = row[1]  # TODO: Must be in degrees
+        et = spiceypy.utc2et(utc)
+
+        sadm_rot = spiceypy.pxform(sadm_ref_frame, sadm_frame, et)
+        sadm_vector = spiceypy.mxv(sadm_rot, ref_vector)
+        sadm_angle = np.rad2deg(spiceypy.vsep(ref_vector, sadm_vector))
+
+        ang_error = abs(sadm_angle - must_angle) * 1000  # mdeg
+        max_ang_error = max(max_ang_error, ang_error)
+
+        error.append([et, ang_error])
+
+    # Plot error
+    error = np.asarray(error)
+    print('Max angular error [mdeg]: ' + str(max_ang_error))
+
+    plot(error[:, 0],
+         [error[:, 1]],
+         yaxis_name=['Angular error'],
+         title=sc + " SA angular error between WebMUST and SPICE",
+         format=plot_style,
+         yaxis_units='mdeg',
+         notebook=notebook)
+
+    return max_ang_error
 
 
 def cov_ck_obj(mk, object, time_format= 'UTC', global_boundary=False,
