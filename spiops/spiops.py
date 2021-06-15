@@ -37,7 +37,7 @@ from spiceypy import support_types as stypes
 from bokeh.plotting import figure, output_file, output_notebook, show
 from bokeh.models import ColumnDataSource, DatetimeTickFormatter, LabelSet
 from spiops.utils.time import et_to_datetime
-from spiops.utils.webmust.webmust_handler import WebmustHandler
+#from spiops.utils.webmust.webmust_handler import WebmustHandler
 
 """
 The MIT License (MIT)
@@ -857,6 +857,7 @@ def saa_vs_hk_sa_position(sc, plot_style='line', notebook=True):
     return max_ang_error
 
 
+"""
 def sadmCkVsMust(sc, start_time, end_time, plot_style='line', notebook=True):
 
     # TODO: METHOD NOT FINISHED!!!
@@ -910,6 +911,7 @@ def sadmCkVsMust(sc, start_time, end_time, plot_style='line', notebook=True):
          notebook=notebook)
 
     return max_ang_error
+"""
 
 
 def cov_ck_obj(mk, object, time_format= 'UTC', global_boundary=False,
