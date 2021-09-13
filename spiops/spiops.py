@@ -1172,7 +1172,7 @@ def time_correlation(sc, ck, plot_style='line', notebook=True):
 
 
 def flyby_ca_altitudes(sc, target, spk_expression, num_spk_files, from_date, to_date,
-                       distance_flyby, num_samples, plot_style='line', notebook=True):
+                       distance_flyby, num_samples, plot_style='line', notebook=True, plot_prefix=""):
 
     spiceypy.timdef('SET', 'SYSTEM', 10, 'TDB')
 
@@ -1281,10 +1281,13 @@ def flyby_ca_altitudes(sc, target, spk_expression, num_spk_files, from_date, to_
             spk_number = int(spk.split("_")[3])
             spk_numbers.append(spk_number)
 
+    if len(plot_prefix):
+        plot_prefix = plot_prefix + " "
+
     # Plot Flyby CA altitude vs spk number
     plot(spk_numbers,
          flybys_alts,
-         title=target + ' Flyby CA altitude vs spk number',
+         title=plot_prefix + target + ' Flyby CA altitude vs spk number',
          format="scatter",
          xaxis_name='SPK Number',
          yaxis_name=['Altitude'],
@@ -1294,7 +1297,7 @@ def flyby_ca_altitudes(sc, target, spk_expression, num_spk_files, from_date, to_
     # Plot Flyby CA time vs spk number
     plot(flybys_ets,
          spk_numbers,
-         title=target + ' Flyby CA spk number vs time',
+         title=plot_prefix + target + ' Flyby CA spk number vs time',
          format="scatter",
          yaxis_name=['SPK Number'],
          yaxis_units='SPK Number',
@@ -1304,7 +1307,7 @@ def flyby_ca_altitudes(sc, target, spk_expression, num_spk_files, from_date, to_
     plot(times,
          flybys_alt_list,
          yaxis_name=spk_numbers,
-         title=target + ' Flyby altitude evolution vs time',
+         title=plot_prefix + target + ' Flyby altitude evolution vs time',
          format=plot_style,
          yaxis_units='Km',
          plot_height=400,
