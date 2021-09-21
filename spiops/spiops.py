@@ -5,6 +5,7 @@ import spiceypy
 import logging
 import os
 import numpy as np
+from spiceypy.utils.exceptions import *
 from spiceypy.utils.support_types import *
 
 
@@ -818,29 +819,33 @@ def saa_vs_hk_sa_position(sc, plot_style='line', notebook=True):
 
     for sa_angle in sa_angles:
 
-        et = sa_angle[0]
-        hk_sa_angle = sa_angle[1]
+        try:
+            et = sa_angle[0]
+            hk_sa_angle = sa_angle[1]
 
-        # Determine the rotation matrix to pass from the SA Rotating Frame
-        # to the SA Fixed frame
-        sadm_rot = spiceypy.pxform(sadm_frame, sadm_ref_frame, et)
+            # Determine the rotation matrix to pass from the SA Rotating Frame
+            # to the SA Fixed frame
+            sadm_rot = spiceypy.pxform(sadm_frame, sadm_ref_frame, et)
 
-        # Covert the SA reference vector in the rotating frame into
-        # the SA fixed frame
-        sadm_vector = spiceypy.mxv(sadm_rot, ref_vector)
-        sadm_angle = np.rad2deg(spiceypy.vsep(ref_vector, sadm_vector))
+            # Covert the SA reference vector in the rotating frame into
+            # the SA fixed frame
+            sadm_vector = spiceypy.mxv(sadm_rot, ref_vector)
+            sadm_angle = np.rad2deg(spiceypy.vsep(ref_vector, sadm_vector))
 
-        # Because vsep always is positive, we are going to get the cross product to
-        # determine if is a positive or negative rotation
-        sadm_cross_vector = np.cross(ref_vector, sadm_vector)
+            # Because vsep always is positive, we are going to get the cross product to
+            # determine if is a positive or negative rotation
+            sadm_cross_vector = np.cross(ref_vector, sadm_vector)
 
-        # The dot product of the normalised vectors shall be or 1 or -1.
-        sadm_angle = np.dot(spiceypy.unorm(ref_cross_vector)[0], spiceypy.unorm(sadm_cross_vector)[0]) * sadm_angle
+            # The dot product of the normalised vectors shall be or 1 or -1.
+            sadm_angle = np.dot(spiceypy.unorm(ref_cross_vector)[0], spiceypy.unorm(sadm_cross_vector)[0]) * sadm_angle
 
-        ang_error = abs(sadm_angle - hk_sa_angle) * 1000  # mdeg
-        max_ang_error = max(max_ang_error, ang_error)
+            ang_error = abs(sadm_angle - hk_sa_angle) * 1000  # mdeg
+            max_ang_error = max(max_ang_error, ang_error)
 
-        error.append([et, ang_error])
+            error.append([et, ang_error])
+
+        except SpiceNOFRAMECONNECT:
+            continue
 
     # Plot error
     error = np.asarray(error)
