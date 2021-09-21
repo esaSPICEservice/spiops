@@ -5,7 +5,14 @@ import spiceypy
 import logging
 import os
 import numpy as np
-from spiceypy.utils.exceptions import *
+
+try:
+    # Try import SpiceNOFRAMECONNECT exception from spiceypy 3.1.1
+    from spiceypy.utils.exceptions import SpiceNOFRAMECONNECT as SpiceNOFRAMECONNECT
+except ImportError:
+    # Otherwise consider a SpiceNOFRAMECONNECT exception as an SpiceyError, for spiceypy 2.3.2
+    from spiceypy.utils.support_types import SpiceyError as SpiceNOFRAMECONNECT
+
 from spiceypy.utils.support_types import *
 
 
@@ -38,7 +45,8 @@ from spiceypy import support_types as stypes
 from bokeh.plotting import figure, output_file, output_notebook, show
 from bokeh.models import ColumnDataSource, DatetimeTickFormatter, LabelSet
 from spiops.utils.time import et_to_datetime
-#from spiops.utils.webmust.webmust_handler import WebmustHandler
+# from spiops.utils.webmust.webmust_handler import WebmustHandler
+
 
 """
 The MIT License (MIT)
@@ -845,6 +853,7 @@ def saa_vs_hk_sa_position(sc, plot_style='line', notebook=True):
             error.append([et, ang_error])
 
         except SpiceNOFRAMECONNECT:
+            # There is a gap in the CK file, ignore this SA sample.
             continue
 
     # Plot error
