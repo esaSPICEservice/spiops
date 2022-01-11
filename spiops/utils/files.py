@@ -250,7 +250,7 @@ def get_tm_data(file, delimiter, columns, data_factors):
 # For each file, download it, add data to array, and remove it
 def download_tm_data(files, path, delimiter, columns, data_factors):
 
-    tm_data = None
+    tm_data = []
 
     for file in files:
 
@@ -260,7 +260,8 @@ def download_tm_data(files, path, delimiter, columns, data_factors):
             print('File cannot be downloaded: ' + file)
             return None
 
-        tm_data = get_tm_data(file, delimiter, columns, data_factors)
+        file_tm_data = get_tm_data(file, delimiter, columns, data_factors)
+        tm_data += file_tm_data
 
         # Remove downloaded file
         os.remove(file)
