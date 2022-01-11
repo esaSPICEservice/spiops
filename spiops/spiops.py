@@ -28,6 +28,9 @@ from spiops.utils.files import get_aem_quaternions
 from spiops.utils.files import get_aocs_quaternions
 from spiops.utils.files import download_tm_data
 
+from spiops.utils.naif import optiks  # Do not remove, called from spival
+from spiops.utils.naif import brief  # Do not remove, called from spival
+
 import imageio
 import matplotlib as mpl
 import matplotlib.pyplot as plt
