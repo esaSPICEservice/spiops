@@ -26,15 +26,7 @@ from spiops.utils.files import download_file
 from spiops.utils.files import list_files_from_ftp
 from spiops.utils.files import get_aem_quaternions
 from spiops.utils.files import get_aocs_quaternions
-from spiops.utils.files import get_tm_data
 from spiops.utils.files import download_tm_data
-
-from spiops.classes.observation import TimeWindow
-from spiops.classes.body import Target
-from spiops.classes.body import Observer
-
-from spiops.utils.naif import optiks
-from spiops.utils.naif import brief
 
 import imageio
 import matplotlib as mpl
@@ -789,7 +781,7 @@ def saa_vs_hk_sa_position(sc, plot_style='line', notebook=True):
 
         # For each file, download it, add data to array, and remove it
         sa_angles = download_tm_data(sa_files, hkt_path, ",", [2], [180.0 / math.pi])
-        if not sa_angles:
+        if not len(sa_angles):
             print("Cannot obtain required TM data, aborting.")
             return None
 
@@ -813,7 +805,7 @@ def saa_vs_hk_sa_position(sc, plot_style='line', notebook=True):
 
         # For each file, download it, add data to array, and remove it
         sa_angles = download_tm_data(sa_files, hkt_path, ",", [2], [180.0 / math.pi])
-        if not sa_angles:
+        if not len(sa_angles):
             print("Cannot obtain required TM data, aborting.")
             return None
 
@@ -824,6 +816,7 @@ def saa_vs_hk_sa_position(sc, plot_style='line', notebook=True):
     # Compare with SPICE SA Angles
     error = []
     max_ang_error = 0
+    num_gaps = 0
 
     for sa_angle in sa_angles:
 
@@ -854,21 +847,29 @@ def saa_vs_hk_sa_position(sc, plot_style='line', notebook=True):
 
         except SpiceNOFRAMECONNECT:
             # There is a gap in the CK file, ignore this SA sample.
+            num_gaps += 1
             continue
 
     # Plot error
-    error = np.asarray(error)
-    print('Max angular error [mdeg]: ' + str(max_ang_error))
+    if len(error):
+        error = np.asarray(error)
+        print('Max angular error [mdeg]: ' + str(max_ang_error))
 
-    plot(error[:, 0],
-         [error[:, 1]],
-         yaxis_name=['Angular error'],
-         title=sc + " SA angular error between TM and SPICE",
-         format=plot_style,
-         yaxis_units='mdeg',
-         notebook=notebook)
+        plot(error[:, 0],
+             [error[:, 1]],
+             yaxis_name=['Angular error'],
+             title=sc + " SA angular error between TM and SPICE",
+             format=plot_style,
+             yaxis_units='mdeg',
+             notebook=notebook)
 
-    return max_ang_error
+        return max_ang_error
+
+    else:
+        print('Angular error cannot be computed. Found ' + str(num_gaps) + '  of ' + str(len(sa_angles)) + ' samples without data.')
+        return None
+
+
 
 
 """
