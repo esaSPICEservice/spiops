@@ -31,6 +31,10 @@ from spiops.utils.files import download_tm_data
 from spiops.utils.naif import optiks  # Do not remove, called from spival
 from spiops.utils.naif import brief  # Do not remove, called from spival
 
+from spiops.classes.observation import TimeWindow  # Do not remove, called from spival
+from spiops.classes.body import Target  # Do not remove, called from spival
+from spiops.classes.body import Observer  # Do not remove, called from spival
+
 import imageio
 import matplotlib as mpl
 import matplotlib.pyplot as plt
