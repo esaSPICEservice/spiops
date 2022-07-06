@@ -1338,6 +1338,116 @@ def flyby_ca_altitudes(sc, target, spk_expression, num_spk_files, from_date, to_
     return np.max(flybys_alts)
 
 
+def spk_diff(sc, spk_expression, num_samples, notebook=True):
+
+    spiceypy.timdef('SET', 'SYSTEM', 10, 'TDB')
+
+    start_time = None
+    stop_time = None
+
+    if sc == 'MPO':
+        spk_path = "data/SPICE/BEPICOLOMBO/kernels/spk/"
+    else:
+        print('Unsupported spacecraft: ' + sc)
+        return None
+
+    # Download num_spk_files and find the common time coverage
+    spk_files = list_files_from_ftp(spk_path, spk_expression)
+    spk_files = spk_files[-2:]
+
+    for spk_file in spk_files:
+
+        # Download spk file
+        download_file(spk_path, spk_file)
+
+        if not os.path.isfile(spk_file):
+            print('OEM file cannot be downloaded!')
+            return None
+
+        # Obtain the SPK coverage to determine the time coverage supported by both SPKs0
+        cov = cov_spk_ker(spk_file, sc.upper(), time_format='TDB')
+        if cov:
+            start_time = cov[0][0] if not start_time else max(cov[0][0], start_time)
+            stop_time = cov[0][-1] if not stop_time else min(cov[0][-1], stop_time)
+
+    is_first_spk = True
+    prev_states = []
+    positions_diff = []
+    velocity_diff = []
+
+    times = np.linspace(start_time, stop_time, num_samples)
+
+    for spk_file in spk_files:
+
+        print('Loaded: ' + spk_file)
+        spiceypy.furnsh(spk_file)
+
+        for idx in range(len(times)):
+
+            et = times[idx]
+            state, lt = spiceypy.spkezr("SUN", et, "J2000", "LT", sc)
+
+            if is_first_spk:
+                prev_states.append(state)
+            else:
+
+                prev_state = prev_states[idx]
+
+                pos_diff_vec = [state[0] - prev_state[0],
+                                state[1] - prev_state[1],
+                                state[2] - prev_state[2]]
+                pos_diff = spiceypy.vnorm(np.asarray(pos_diff_vec))
+                positions_diff.append(pos_diff)
+
+                vel_diff_vec = [state[3] - prev_state[3],
+                                state[4] - prev_state[4],
+                                state[5] - prev_state[5]]
+                vel_diff = spiceypy.vnorm(np.asarray(vel_diff_vec))
+                velocity_diff.append(vel_diff)
+
+        is_first_spk = False
+
+        # Unload and clean spk file
+        spiceypy.unload(spk_file)
+        os.remove(spk_file)
+
+    if not len(positions_diff):
+        print('Could not compute difference between SPKs')
+        return None
+
+    # Reduce the SPK names to only the SPK number to reduce the legend size
+    spk_numbers = []
+    if sc == 'MPO':
+        for spk in spk_files:
+            spk_number = int(spk.split("_")[3])
+            spk_numbers.append(spk_number)
+
+    max_position_diff = np.max(positions_diff)
+    print('Avg position difference [Km]: ' + str(np.mean(positions_diff)))
+    print('Max position difference [Km]: ' + str(max_position_diff))
+
+    print('Avg velocity difference [Km/s]: ' + str(np.mean(velocity_diff)))
+    print('Max velocity difference [Km/s]: ' + str(np.max(velocity_diff)))
+
+    # Plot SPK position differences
+    plot(times,
+         positions_diff,
+         title='SPK position difference vs time',
+         yaxis_name='Position',
+         yaxis_units='Km',
+         notebook=notebook)
+
+    # Plot SPK velocity differences
+    plot(times,
+         velocity_diff,
+         title='SPK velocity difference vs time',
+         yaxis_name='Velocity',
+         yaxis_units='Km/s',
+         notebook=notebook)
+
+    return max_position_diff
+
+
 def fk_body_ifj2000(mission, body, pck, body_spk, frame_id, report=False,
                     unload=False, file=True):
     """
