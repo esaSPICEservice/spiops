@@ -576,6 +576,9 @@ def spkVsOem(sc, spk, plot_style='line', notebook=True):
         file = spk.split('/')[-1].replace('\n', '').replace('bc_mpo_fcp_', '').split('_')[0]
         file = 'BCCruiseOrbit__' + file + '.bc'
         download_file("data/ANCDR/BEPICOLOMBO/fdy", file)
+    elif sc == 'JUICE':
+        file = 'JUICE_CReMA5d0_Baseline_0002.oem'
+        download_file("data/ANCDR/JUICE/man/JUICE_CReMA_Issue_5_Revision_1", file)
     else:
         print('Unsupported spacecraft: ' + sc)
         return None, None
@@ -590,13 +593,15 @@ def spkVsOem(sc, spk, plot_style='line', notebook=True):
     pos_norm_error = []
     vel_norm_error = []
     data_list = []
+    center_list = []
     for line in oemfile.readlines():
         if 'CENTER_NAME' in line:
             center = line.split('= ')[1].replace('\n', '')
         if line[:2] == '20':
             data = line.replace('\n', '').split()
+            center_list.append(center)
             data_list.append(data)
-    for i in range(0, len(data_list)-1, 1):
+    for i in range(1, len(data_list)-1, 1):
         #
         # skip OEM lines with repeated time tags (typically at the end of a
         # segment) as are superseeded by the latest line with that time tag
@@ -604,7 +609,7 @@ def spkVsOem(sc, spk, plot_style='line', notebook=True):
         if data_list[i][0] != data_list[i+1][0]:
             data = data_list[i]
             et = spiceypy.str2et(data[0])
-            state = spiceypy.spkezr(sc, et, 'J2000', 'NONE', center)[0]
+            state = spiceypy.spkezr(sc, et, 'J2000', 'NONE', center_list[i])[0]
             curr_error = [et,
                           abs(state[0] - float(data[1])),
                           abs(state[1] - float(data[2])),
@@ -2973,20 +2978,28 @@ def mga_angles(sc, et):
 
         return [mga_az, mga_el], mga_earth
 
+    elif sc == 'JUICE':
+
+        # First azimuth and then the elevation
+        mga_az, mga_az_bool = get_angle('JUICE_MGA_APM', 'JUICE_MGA_AZ', et)
+        mga_el, mga_el_bool = get_angle('JUICE_MGA_EL_ZERO', 'JUICE_MGA_EL', et)
+        mga_earth = get_earth_angle('JUICE_MGA', et, 'JUICE')
+
+        return [mga_az, mga_el], mga_earth
+
     return [0, 0], 0
 
 
 def solar_aspect_angles(sc, time):
 
     sa_frame = ''
+    normal_vector = [1, 0, 0]
 
     if sc == 'TGO':
-
         sa_p_frame = sc+'_SA+Z'
         sa_n_frame = sc+'_SA-Z'
 
     elif sc == 'MPO':
-
         sa_frame = sc+'_SA'
 
     elif sc == 'MTM':
@@ -2997,6 +3010,9 @@ def solar_aspect_angles(sc, time):
         sa_p_frame = sc+'_SA+Y'
         sa_n_frame = sc+'_SA-Y'
 
+    if sc == 'JUICE':
+        normal_vector = [0, 0, 1]
+
 
     sc_id = spiceypy.bodn2c(sc)
 
@@ -3006,15 +3022,15 @@ def solar_aspect_angles(sc, time):
         if sa_frame:
 
             (sun_vec, lt) = spiceypy.spkezp(10, time, sa_frame, 'NONE', sc_id)
-            saa_sa = np.rad2deg(spiceypy.vsep([1, 0, 0], sun_vec))
+            saa_sa = np.rad2deg(spiceypy.vsep(normal_vector, sun_vec))
 
         else:
 
             (sun_vec, lt) = spiceypy.spkezp(10, time, sa_p_frame, 'NONE', sc_id)
-            saa_sa_p = np.rad2deg(spiceypy.vsep([1, 0, 0], sun_vec))
+            saa_sa_p = np.rad2deg(spiceypy.vsep(normal_vector, sun_vec))
 
             (sun_vec, lt) = spiceypy.spkezp(10, time, sa_n_frame, 'NONE', sc_id)
-            saa_sa_n = np.rad2deg(spiceypy.vsep([1, 0, 0], sun_vec))
+            saa_sa_n = np.rad2deg(spiceypy.vsep(normal_vector, sun_vec))
 
         (sun_vec, lt) = spiceypy.spkezp(10, time, sc+'_SPACECRAFT', 'NONE', sc_id)
         saa_sc_x = np.rad2deg(spiceypy.vsep([1, 0, 0], sun_vec))
@@ -3216,13 +3232,16 @@ def ck_coverage_timeline(metakernel, frame_list, notebook=True, html_file_name='
 
             if cov:
                 color = "lawngreen"
+                type = 'xxx'
                 if 'MPO' in frame or 'MMO' in frame or 'MTM' in frame or 'TGO' in frame:
                     type = kernel.split('_')[3]
-                    if type[2] == 'p': color = 'orange'
-                    elif type[2] == 'r': color = 'green'
-                    elif type[2] == 't': color = 'red'
-                    elif type[2] == 'c': color = 'purple'
-                    elif type[2] == 'm': color = 'blue'
+                elif 'JUICE' in frame:
+                    type = kernel.split('_')[2]
+                if type[2] == 'p': color = 'orange'
+                elif type[2] == 'r': color = 'green'
+                elif type[2] == 't': color = 'red'
+                elif type[2] == 'c': color = 'purple'
+                elif type[2] == 'm': color = 'blue'
                 cov_start.append(cov[0])
                 cov_finsh.append(cov[-1])
                 ck_kernels.append(kernel)
@@ -3302,18 +3321,21 @@ def spk_coverage_timeline(metakernel, sc_list, notebook=True, html_file_name='te
                                 time_format='TDB')
             if cov:
                 color = "lawngreen"
+                type = 'xxx'
                 if 'MPO' in sc or 'MMO' in sc or 'MTM' in sc:
                     type = kernel.split('_')[2]
-                    if type[2] == 'p':
-                        color = 'orange'
-                    elif type[2] == 'r':
-                        color = 'green'
-                    elif type[2] == 't':
-                        color = 'red'
-                    elif type[2] == 'c':
-                        color = 'purple'
-                    elif type[2] == 'm':
-                        color = 'blue'
+                elif 'JUICE' in sc:
+                    type = kernel.split('_')[1]
+                if type[2] == 'p':
+                    color = 'orange'
+                elif type[2] == 'r':
+                    color = 'green'
+                elif type[2] == 't':
+                    color = 'red'
+                elif type[2] == 'c':
+                    color = 'purple'
+                elif type[2] == 'm':
+                    color = 'blue'
                 cov_start.append(cov[0][0])
                 cov_finsh.append(cov[0][-1])
                 spk_kernels.append(kernel)
