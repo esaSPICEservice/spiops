@@ -273,7 +273,7 @@ class Body(object):
                 #
                 # HGA mechanisms
                 #
-                if self.name != 'MTM':
+                if self.name != 'MTM' and self.name != 'JUICE':
                     hga_angles_ang, hga_earth_ang = spiops.hga_angles(self.name, et)
                     hga_angles_el.append(hga_angles_ang[1])
                     hga_angles_az.append(hga_angles_ang[0])
