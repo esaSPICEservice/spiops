@@ -4,7 +4,6 @@ from spiops.utils.time import et_to_datetime
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import spiceypy
-from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 from bokeh.plotting import figure, output_file, output_notebook, show
 from bokeh.models import HoverTool
@@ -14,6 +13,7 @@ from tempfile import mkstemp
 from shutil import move
 import os
 import glob
+import platform
 from os import fdopen, remove, chmod, path
 try:
     import importlib.resources as pkg_resources
@@ -21,7 +21,6 @@ except ImportError:
     import importlib_resources as pkg_resources
 
 from spiops.data import images
-
 
 
 def valid_url(html_file_name):
@@ -52,6 +51,23 @@ def valid_url(html_file_name):
         html_file_name = html_file_name.replace(element,replacement)
 
     return html_file_name
+
+
+def get_exe_dir():
+    if platform.system() == 'Darwin':
+        if platform.machine() == 'x86_64':
+            return '/exe/macintel_osx_64bit'
+    else:
+        return '/exe/pc_linux_64bit'
+
+    raise Exception("Unsupported platform! Unable to determine exe directory.")
+
+
+def get_skd_path(kernel_path):
+    if "former_versions" in kernel_path:
+        return '/'.join(kernel_path.split('/')[:-3])
+    else:
+        return '/'.join(kernel_path.split('/')[:-2])
 
 
 def convert_ESOCorbit2data(orbit_file, support_ker=''):
@@ -373,6 +389,7 @@ def get_latest_kernel(kernel_type, path, pattern, dates=False,
 
         return kernels_date
 
+
 def get_sc(kernel):
     if 'ROSETTA' in kernel.upper():
         return 'ROS'
@@ -423,13 +440,14 @@ def target2frame(target):
                 target_id += '000'
                 target_frame = spiceypy.frmnam(int(target_id))
 
-
     return target_frame
+
 
 def findIntersection(x1,y1,x2,y2,x3,y3,x4,y4):
     px= ( (x1*y2-y1*x2)*(x3-x4)-(x1-x2)*(x3*y4-y3*x4) ) / ( (x1-x2)*(y3-y4)-(y1-y2)*(x3-x4) )
     py= ( (x1*y2-y1*x2)*(y3-y4)-(y1-y2)*(x3*y4-y3*x4) ) / ( (x1-x2)*(y3-y4)-(y1-y2)*(x3-x4) )
     return [px, py]
+
 
 def findNearest(array, value):
     """

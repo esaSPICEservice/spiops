@@ -1,28 +1,17 @@
-from spiops.utils.utils import get_latest_kernel
+from spiops.utils.utils import get_latest_kernel, get_exe_dir, get_skd_path
 from spiops.utils.utils import get_sc
 import subprocess
-import platform
 import os
+
+UTILITY_DIR = os.path.dirname(__file__) + '/..' + get_exe_dir()
+
 
 def brief(kernel, utc=False):
 
-    #
-    # We determine the platform system and machine for the executables
-    #
-    if platform.system() == 'Darwin':
-        if platform.machine() == 'x86_64':
-            executables_dir = '/exe/macintel_osx_64bit'
-    else:
-        executables_dir = '/exe/pc_linux_64bit'
-
-    root_dir = os.path.dirname(__file__)
-    dir = root_dir + '/..' + executables_dir
-
-
-    utility = dir + os.sep + 'brief'
+    utility = UTILITY_DIR + os.sep + 'brief'
     option = '-c'
 
-    skd_path = '/'.join(kernel.split('/')[:-2])
+    skd_path = get_skd_path(kernel)
 
     try:
         lsk = get_latest_kernel('lsk', skd_path, 'naif????.tls')
@@ -44,24 +33,10 @@ def brief(kernel, utc=False):
 
 def ckbrief(kernel, utc=False):
 
-    #
-    # We determine the platform system and machine for the executables
-    #
-    if platform.system() == 'Darwin':
-        if platform.machine() == 'x86_64':
-            executables_dir = '/exe/macintel_osx_64bit'
-    else:
-        executables_dir = '/exe/pc_linux_64bit'
-
-    root_dir = os.path.dirname(__file__)
-    dir = root_dir + '/..' + executables_dir
-
-
-    utility = dir + os.sep + \
-              'ckbrief'
+    utility = UTILITY_DIR + os.sep + 'ckbrief'
     option = '-rel -n'
 
-    skd_path = '/'.join(kernel.split('/')[:-2])
+    skd_path = get_skd_path(kernel)
     sc = get_sc(kernel)
 
     try:
@@ -78,7 +53,6 @@ def ckbrief(kernel, utc=False):
         fk = get_latest_kernel('fk', skd_path, '{}_v??.tf'.format(sc))
     except:
         fk = get_latest_kernel('fk', skd_path, '{}_V??.TF'.format(sc.upper()))
-
 
     if utc:
         option += ' -utc'
@@ -113,25 +87,12 @@ def optiks(mkernel, utc=False):
     else:
         raise ValueError('OPTIKS utility could not run')
 
-    #
-    # We determine the platform system and machine for the executables
-    #
-    if platform.system() == 'Darwin':
-        if platform.machine() == 'x86_64':
-            executables_dir = '/exe/macintel_osx_64bit'
-    else:
-        executables_dir = '/exe/pc_linux_64bit'
-
-    root_dir = os.path.dirname(__file__)
-    dir = root_dir + '/..' + executables_dir
-
-
-    utility = dir + os.sep +  'optiks'
-    option =  '-half -units degrees -frame {}_SPACECRAFT ' \
-              '-showfovframes'.format(mission)
+    utility = UTILITY_DIR + os.sep + 'optiks'
+    option = '-half -units degrees -frame {}_SPACECRAFT -showfovframes'.format(mission)
 
     if utc:
         option += ' -epoch {}'.format(utc)
+
     print(option)
 
     command_line_process = subprocess.Popen([utility, option, mkernel],
