@@ -577,8 +577,8 @@ def spkVsOem(sc, spk, plot_style='line', notebook=True):
         file = 'BCCruiseOrbit__' + file + '.bc'
         download_file("data/ANCDR/BEPICOLOMBO/fdy", file)
     elif sc == 'JUICE':
-        file = 'JUICE_CReMA5d0_Baseline_0002.oem'
-        download_file("data/ANCDR/JUICE/man/JUICE_CReMA_Issue_5_Revision_1", file)
+        file = 'JUICE_CReMA5d1_Baseline_0001.oem'
+        download_file("data/ANCDR/JUICE/man/JUICE_CReMA_Issue_5_Revision_2", file)
     else:
         print('Unsupported spacecraft: ' + sc)
         return None, None
@@ -3232,16 +3232,19 @@ def ck_coverage_timeline(metakernel, frame_list, notebook=True, html_file_name='
 
             if cov:
                 color = "lawngreen"
-                type = 'xxx'
+                ck_type = 'xxx'
+
                 if 'MPO' in frame or 'MMO' in frame or 'MTM' in frame or 'TGO' in frame:
-                    type = kernel.split('_')[3]
+                    ck_type = kernel.split('_')[3]
                 elif 'JUICE' in frame:
-                    type = kernel.split('_')[2]
-                if type[2] == 'p': color = 'orange'
-                elif type[2] == 'r': color = 'green'
-                elif type[2] == 't': color = 'red'
-                elif type[2] == 'c': color = 'purple'
-                elif type[2] == 'm': color = 'blue'
+                    ck_type = kernel.split('_')[2]
+
+                if ck_type[2] == 'p': color = 'orange'
+                elif ck_type[2] == 'r': color = 'green'
+                elif ck_type[2] == 't' or ck_type == 'crema': color = 'red'
+                elif ck_type[2] == 'c': color = 'purple'
+                elif ck_type[2] == 'm': color = 'blue'
+
                 cov_start.append(cov[0])
                 cov_finsh.append(cov[-1])
                 ck_kernels.append(kernel)
@@ -3249,29 +3252,28 @@ def ck_coverage_timeline(metakernel, frame_list, notebook=True, html_file_name='
 
     spiceypy.furnsh(metakernel)
     date_format = 'UTC'
-    start_dt =[]
-    finsh_dt =[]
+
+    start_dt = []
     for element in cov_start:
         start_dt.append(et_to_datetime(element, date_format))
+
+    finish_dt = []
     for element in cov_finsh:
-        finsh_dt.append(et_to_datetime(element, date_format))
+        finish_dt.append(et_to_datetime(element, date_format))
 
-
-
-    source = ColumnDataSource(data=dict(start_dt=start_dt,
-                                        finsh_dt=finsh_dt,
-                                        ck_kernels=ck_kernels))
+    source = ColumnDataSource(data=dict(start_dt=start_dt, finsh_dt=finish_dt, ck_kernels=ck_kernels))
 
     title = "CK Kernels Coverage"
     if 'ops' in metakernel.lower():
         title += ' - OPS Metakernel'
     elif 'plan' in metakernel.lower():
         title += ' - PLAN Metakernel'
+
     p = figure(y_range=ck_kernels, plot_height=plot_height, plot_width=plot_width, title=title, )
-    p.hbar(y=ck_kernels, height=0.2, left=start_dt, right=finsh_dt, color=colors)
+    p.hbar(y=ck_kernels, height=0.2, left=start_dt, right=finish_dt, color=colors)
 
     labels = LabelSet(x='start_dt', y='ck_kernels', text='ck_kernels', level='glyph',
-                  x_offset=-2, y_offset=5, source=source, render_mode='canvas')
+                      x_offset=-2, y_offset=5, source=source, render_mode='canvas')
 
     p.xaxis.formatter = DatetimeTickFormatter(seconds=["%Y-%m-%d %H:%M:%S"],
                                               minsec=["%Y-%m-%d %H:%M:%S"],
@@ -3282,10 +3284,9 @@ def ck_coverage_timeline(metakernel, frame_list, notebook=True, html_file_name='
                                               months=["%Y-%m-%d %H:%M:%S"],
                                               years=["%Y-%m-%d %H:%M:%S"])
 
-    p.xaxis.major_label_orientation = 0#pi/4
+    p.xaxis.major_label_orientation = 0  # pi/4
     p.yaxis.visible = False
     p.xaxis.axis_label_text_font_size = "5pt"
-
 
     p.add_layout(labels)
 
