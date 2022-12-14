@@ -4556,7 +4556,7 @@ def check_rotation_matrices():
     return all_matrices_ok
 
 
-def check_frame_chain(start_time, end_time, num_samples):
+def check_frame_chain(start_time, end_time, num_samples, ignore_frames=[]):
 
     # Tests that any frame defined can be transformed to J2000
     # from start to end with given interval
@@ -4575,6 +4575,33 @@ def check_frame_chain(start_time, end_time, num_samples):
             if frame_id not in failed_frames:
                 frame_name = spiceypy.frmnam(frame_id)
 
+                # Check if frame shall be ignored
+                shall_be_ignored = False
+                for ignore_frame in ignore_frames:
+                    # NOTE:
+                    # Ignore frame string could have one of the following syntax's:
+                    # @SW@text -> Checks frame_name starts with text
+                    # @EW@text -> Checks frame_name ends with text
+                    # @IN@text -> Checks frame_name contains text
+                    # text -> Checks frame_name is equal to text
+
+                    ignore_frame = str(ignore_frame)
+                    if ignore_frame.startswith("@SW@"):
+                        shall_be_ignored = frame_name.startswith(ignore_frame.replace("@SW@", ""))
+                    elif ignore_frame.startswith("@EW@"):
+                        shall_be_ignored = frame_name.endswith(ignore_frame.replace("@EW@", ""))
+                    elif ignore_frame.startswith("@IN@"):
+                        shall_be_ignored = (ignore_frame.replace("@IN@", "") in frame_name)
+                    elif ignore_frame == frame_name:
+                        shall_be_ignored = True
+
+                    if shall_be_ignored:
+                        break
+
+                if shall_be_ignored:
+                    continue
+
+                # Check frame chain
                 try:
                     cmat = spiceypy.pxform(frame_name, ref_frame, et)
                 except Exception as e:
