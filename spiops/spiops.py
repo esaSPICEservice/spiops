@@ -577,8 +577,9 @@ def spkVsOem(sc, spk, plot_style='line', notebook=True):
         file = 'BCCruiseOrbit__' + file + '.bc'
         download_file("data/ANCDR/BEPICOLOMBO/fdy", file)
     elif sc == 'JUICE':
-        file = 'JUICE_CReMA5d1_Baseline_0001.oem'
-        download_file("data/ANCDR/JUICE/man/JUICE_CReMA_Issue_5_Revision_2", file)
+        file = spk.split('/')[-1].replace('\n', '').split('_')[2] # juice_orbc_000010_230414_310721_v03.bsp
+        file = 'ORBC__' + file + '.jui'
+        download_file("data/ANCDR/JUICE/fdy", file)
     else:
         print('Unsupported spacecraft: ' + sc)
         return None, None
@@ -663,6 +664,10 @@ def ckVsAEM(sc, ck, plot_style='line', notebook=True):
         file = ck.split('/')[-1].replace('\n', '').split('_')[4]
         file = 'AttitudePredictionST__' + file + '.bc'
         download_file("data/ANCDR/BEPICOLOMBO/fdy", file)
+    elif sc == 'JUICE':
+        file = ck.split('/')[-1].replace('\n', '').split('_')[3]
+        file = 'ATTC__' + file + '.jui'
+        download_file("data/ANCDR/JUICE/fdy", file)
     else:
         print('Unsupported spacecraft: ' + sc)
         return None
