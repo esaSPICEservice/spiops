@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from datetime import datetime, timedelta
+
 import math
 import spiceypy
 import logging
@@ -22,14 +22,11 @@ from spiops.utils.utils import plot_attitude_error
 from spiops.utils.utils import target2frame
 from spiops.utils.utils import findIntersection
 from spiops.utils.utils import findNearest
-from spiops.utils.utils import get_ck_kernel_color
 from spiops.utils.files import download_file
 from spiops.utils.files import list_files_from_ftp
 from spiops.utils.files import get_aem_quaternions
 from spiops.utils.files import get_aocs_quaternions
 from spiops.utils.files import download_tm_data
-from spiops.utils.files import get_csv_data
-from spiops.utils.files import get_kernels_from_mk
 
 from spiops.utils.naif import optiks  # Do not remove, called from spival
 from spiops.utils.naif import brief  # Do not remove, called from spival
@@ -46,7 +43,7 @@ from spiceypy import support_types as stypes
 
 from bokeh.plotting import figure, output_file, output_notebook, show
 from bokeh.models import ColumnDataSource, DatetimeTickFormatter, LabelSet
-from spiops.utils.time import et_to_datetime, get_gaps_from_cov
+from spiops.utils.time import et_to_datetime
 # from spiops.utils.webmust.webmust_handler import WebmustHandler
 
 
@@ -71,57 +68,64 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-
 def load(mk):
     return spiceypy.furnsh(mk)
 
 
-def adcsng_fill_template(template, file, replacements, cleanup=False):
+def adcsng_fill_template(template,
+                  file,
+                  replacements,
+                  cleanup=False):
 
-    #
-    # If the temp   late file is equal to the output file then we need to create a temporary template - which will be
-    # a duplicate - in order to write in the file. A situation where we would like to have them be the same is
-    # for example if we call this function several times in a row, replacing keywords in the template in steps
-    #
-    if template == file:
-        with open(file, "r") as f:
-            with open('fill_template.temp', "w+") as t:
-                for line in f:
-                    t.write(line)
 
-        template = 'fill_template.temp'
+   #
+   # If the temp   late file is equal to the output file then we need to create a temporary template - which will be
+   # a duplicate - in order to write in the file. A situation where we would like to have them be the same is
+   # for example if we call this function several times in a row, replacing keywords in the template in steps
+   #
+   if template == file:
+       with open(file, "r") as f:
+           with open('fill_template.temp', "w+") as t:
+               for line in f:
+                   t.write(line)
 
-    with open(file, "w+") as f:
-        #
-        # Items are replaced as per correspondence in between the replacements dictionary
-        #
-        with open(template, "r+") as t:
-            for line in t:
-                if '{' in line:
-                    for k, v in replacements.items():
-                        if '{' + k + '}' in line:
-                            line = line.replace('{' + k + '}', v)
-                f.write(line)
+       template = 'fill_template.temp'
 
-    # If the option cleanup is set as true, we remove the keyword assignments in the filled templated which are
-    # unfilled (they should be optional)
-    if cleanup:
-        with open(file, "r") as f:
-            with open('fill_template.temp', "w+") as t:
-                for line in f:
-                    t.write(line)
+   with open(file, "w+") as f:
+       #
+       # Items are replaced as per correspondance in between the replacements dictionary
+       #
+       with open(template, "r+") as t:
+           for line in t:
+               if '{' in line:
+                   for k, v in replacements.items():
+                       if '{' + k + '}' in line: line = line.replace('{' + k + '}', v)
+               f.write(line)
 
-        template = 'fill_template.temp'
+               #
+               # If the option cleanup is set as true, we remove the keyword assignments in the filled templated which are
+               # unfilled (they should be optional)
+               #
+   if cleanup:
 
-        with open(file, "w+") as f:
-            with open('fill_template.temp', "r") as t:
-                for line in t:
-                    if '{' not in line:
-                        f.write(line)
+       with open(file, "r") as f:
+           with open('fill_template.temp', "w+") as t:
+               for line in f:
+                   t.write(line)
 
-    # The temporary files are removed
-    if os.path.isfile('fill_template.temp'):
-        os.remove('fill_template.temp')
+       template = 'fill_template.temp'
+
+       with open(file, "w+") as f:
+           with open('fill_template.temp', "r") as t:
+               for line in t:
+                   if '{' not in line:
+                       f.write(line)
+
+                       #
+                       # The temporary files are removed
+                       #
+   if os.path.isfile('fill_template.temp'):
+       os.remove('fill_template.temp')
 
 
 # Originally an adcsng funtion, needs to be re-arranged in adcsng to be made
@@ -371,7 +375,7 @@ def fov_illum(mk, sensor, time=None, angle='DEGREES', abcorr='LT+S',
     return fov_illumination
 
 
-def cov_spk_obj(mk, object_name, time_format='TDB', global_boundary=False,
+def cov_spk_obj(mk, object, time_format='TDB', global_boundary=False,
                 report=False, unload=False):
     """
     Provides time coverage summary for a given object for a list of
@@ -384,8 +388,8 @@ def cov_spk_obj(mk, object_name, time_format='TDB', global_boundary=False,
 
     :param mk: Meta-kernel to load the computation scenario
     :type mk: str
-    :param object_name: Ephemeris Object to obtain the coverage from
-    :type object_name: str
+    :param object: Ephemeris Object to obtain the coverage from
+    :type object: str
     :param time_format: Output time format; it can be 'UTC', 'CAL' (for TDB in calendar format) or 'TDB'. Default is 'TDB'
     :type time_format: str
     :param global_boundary: Boolean to indicate whether if we want all the coverage windows or only the absolute start and finish coverage times
@@ -401,7 +405,7 @@ def cov_spk_obj(mk, object_name, time_format='TDB', global_boundary=False,
     boundaries_list = []
     et_boundaries_list = []
 
-    object_id = spiceypy.bodn2c(object_name)
+    object_id = spiceypy.bodn2c(object)
     maxwin = 2000
     spk_count = spiceypy.ktotal('SPK') - 1
 
@@ -411,9 +415,9 @@ def cov_spk_obj(mk, object_name, time_format='TDB', global_boundary=False,
 
         spk_ids = spiceypy.spkobj(spk_kernel[0])
 
-        for spk_id in spk_ids:
+        for id in spk_ids:
 
-            if spk_id == object_id:
+            if id == object_id:
 
                 object_cov = SPICEDOUBLE_CELL(maxwin)
                 spiceypy.spkcov(spk_kernel[0], object_id, object_cov)
@@ -453,6 +457,7 @@ def cov_spk_obj(mk, object_name, time_format='TDB', global_boundary=False,
             print("Global Coverage for {} [{}]: {} - {}".format(
                 str(spiceypy.bodc2n(object_id)), time_format, boundaries_list[0],
                 boundaries_list[1]))
+
 
     if unload:
         spiceypy.unload(mk)
@@ -571,12 +576,10 @@ def spkVsOem(sc, spk, plot_style='line', notebook=True):
         file = spk.split('/')[-1].replace('\n', '').replace('bc_mpo_fcp_', '').split('_')[0]
         file = 'BCCruiseOrbit__' + file + '.bc'
         download_file("data/ANCDR/BEPICOLOMBO/fdy", file)
-
     elif sc == 'JUICE':
         file = spk.split('/')[-1].replace('\n', '').split('_')[2] # juice_orbc_000010_230414_310721_v03.bsp
         file = 'ORBC__' + file + '.jui'
         download_file("data/ANCDR/JUICE/fdy", file)
-
     else:
         print('Unsupported spacecraft: ' + sc)
         return None, None
@@ -661,12 +664,10 @@ def ckVsAEM(sc, ck, plot_style='line', notebook=True):
         file = ck.split('/')[-1].replace('\n', '').split('_')[4]
         file = 'AttitudePredictionST__' + file + '.bc'
         download_file("data/ANCDR/BEPICOLOMBO/fdy", file)
-
     elif sc == 'JUICE':
         file = ck.split('/')[-1].replace('\n', '').split('_')[3]
         file = 'ATTC__' + file + '.jui'
         download_file("data/ANCDR/JUICE/fdy", file)
-
     else:
         print('Unsupported spacecraft: ' + sc)
         return None
@@ -706,12 +707,6 @@ def ckVsAocs(sc, ck, plot_style='line', notebook=True):
         file = ck.split('/')[-1].replace('\n', '').split('_')[5]
         file = 'mpo_raw_hk_aocs_measured_attitude_' + file + '.tab'
         download_file("data/ANCDR/BEPICOLOMBO/hkt", file)
-
-    elif sc == 'JUICE':
-        file = ck.split('/')[-1].replace('\n', '').split('_')[4]
-        file = 'juice_raw_hk_aocs_measured_attitude_20' + file + '.tab'
-        download_file("data/ANCDR/JUICE/hkt", file)
-
     else:
         print('Unsupported spacecraft: ' + sc)
         return None
@@ -783,15 +778,6 @@ def saa_vs_hk_sa_position(sc, plot_style='line', notebook=True):
 
     sa_angles = []  # Read angles from TM, List of items as [et, angle_deg]
 
-    # Some constants, update for specific SC if required.
-    columns = [2]
-    data_factors = [180.0 / math.pi]
-    separator = ","
-
-    # Usually TM files are given in daily basis, so we need to
-    # concatenate N of them to obtain a greater period coverage.
-    num_sa_files = 7  # Compare last week
-
     if sc == 'MPO':
 
         # Set some mission specific constants
@@ -799,8 +785,22 @@ def saa_vs_hk_sa_position(sc, plot_style='line', notebook=True):
         sadm_ref_frame = 'MPO_SA_SADM'      # SA Fixed Frame
         ref_vector = np.asarray([0, 0, 1])  # SA Rotating Plane normal
         ref_cross_vector = np.asarray([0, 1, 0])  # Common rotation vector btw SA Rotating Frm and Fixed Frm
+
+        # For MPO SA the TM files are given in daily basis, so we need to
+        # concatenate N of them to obtain a greater period coverage.
         hkt_path = "data/ANCDR/BEPICOLOMBO/hkt/"
         hkt_expression = 'mpo_raw_hk_sa_position_????????.tab'
+        num_sa_files = 7  # Compare last week
+
+        # Determine files to use to fetch TM data
+        sa_files = list_files_from_ftp(hkt_path, hkt_expression)
+        sa_files = sa_files[-num_sa_files:]
+
+        # For each file, download it, add data to array, and remove it
+        sa_angles = download_tm_data(sa_files, hkt_path, ",", [2], [180.0 / math.pi])
+        if not len(sa_angles):
+            print("Cannot obtain required TM data, aborting.")
+            return None
 
     elif sc == 'MTM':
 
@@ -809,31 +809,25 @@ def saa_vs_hk_sa_position(sc, plot_style='line', notebook=True):
         sadm_ref_frame = 'MTM_SA+X_ZERO'      # SA Fixed Frame
         ref_vector = np.asarray([0, 1, 0])    # SA Rotating Plane normal
         ref_cross_vector = np.asarray([1, 0, 0])  # Common rotation vector btw SA Rotating Frm and Fixed Frm
+
+        # For MTM SA the TM files are given in daily basis, so we need to
+        # concatenate N of them to obtain a greater period coverage.
         hkt_path = "data/ANCDR/BEPICOLOMBO/hkt/"
         hkt_expression = 'mtm_raw_hk_sa_position_????????.tab'
+        num_sa_files = 7  # Compare last week
 
-    elif sc == 'JUICE':
+        # Determine files to use to fetch TM data
+        sa_files = list_files_from_ftp(hkt_path, hkt_expression)
+        sa_files = sa_files[-num_sa_files:]
 
-        # Set some mission specific constants
-        sadm_frame = 'JUICE_SA+Y_MEAS'      # SA Rotating Frame
-        sadm_ref_frame = 'JUICE_SA+Y_ZERO'  # SA Fixed Frame
-        ref_vector = np.asarray([0, 0, 1])  # SA Rotating Plane normal
-        ref_cross_vector = np.asarray([0, 1, 0])  # Common rotation vector btw SA Rotating Frm and Fixed Frm
-        hkt_path = "data/ANCDR/JUICE/hkt/"
-        hkt_expression = 'juice_raw_hk_sa_position_????????.tab'
+        # For each file, download it, add data to array, and remove it
+        sa_angles = download_tm_data(sa_files, hkt_path, ",", [2], [180.0 / math.pi])
+        if not len(sa_angles):
+            print("Cannot obtain required TM data, aborting.")
+            return None
 
     else:
         print('Unsupported spacecraft: ' + sc)
-        return None
-
-    # Determine files to use to fetch TM data
-    sa_files = list_files_from_ftp(hkt_path, hkt_expression)
-    sa_files = sa_files[-num_sa_files:]
-
-    # For each file, download it, add data to array, and remove it
-    sa_angles = download_tm_data(sa_files, hkt_path, separator, columns, data_factors)
-    if not len(sa_angles):
-        print("Cannot obtain required TM data, aborting.")
         return None
 
     # Compare with SPICE SA Angles
@@ -1117,7 +1111,8 @@ def cov_ck_ker(ck, object, support_ker=list(), time_format='UTC',
                                       cover=object_cov)
 
     else:
-        #print('cov_ck_ker warning: {} with ID {} is not present in {}.'.format(object, object_id, ck))
+        #print('{} with ID {} is not present in {}.'.format(object,
+         #                                                  object_id, ck))
         if unload:
             spiceypy.unload(ck)
             if support_ker:
@@ -1164,12 +1159,6 @@ def time_correlation(sc, ck, plot_style='line', notebook=True):
         file = ck.split('/')[-1].replace('\n', '').split('_')[5]
         file = 'mpo_raw_hk_aocs_measured_attitude_' + file + '.tab'
         download_file("data/ANCDR/BEPICOLOMBO/hkt", file)
-
-    elif sc == 'JUICE':
-        file = ck.split('/')[-1].replace('\n', '').split('_')[4]
-        file = 'juice_raw_hk_aocs_measured_attitude_20' + file + '.tab'
-        download_file("data/ANCDR/JUICE/hkt", file)
-
     else:
         print('Unsupported spacecraft: ' + sc)
         return None
@@ -1214,88 +1203,6 @@ def time_correlation(sc, ck, plot_style='line', notebook=True):
     return max_time_diff
 
 
-def time_deviation(sc, start_time_s, end_time_s, plot_style='line', notebook=True):
-
-    # Downloads the time deviation files for a given time range
-    # and computes the time difference between the UTC timestamp of packet
-    # calculated with SPICE (1st column) and the UTC timestamp of packet
-    # calculated from SCOS2K header (3rd column)
-
-    spiceypy.timdef('SET', 'SYSTEM', 10, 'UTC')
-
-    et_start = spiceypy.utc2et(start_time_s)
-    et_end = spiceypy.utc2et(end_time_s)
-
-    start_time = et_to_datetime(et_start)
-    end_time = et_to_datetime(et_end)
-    n_days = (end_time - start_time).days
-
-    utc_data = []
-
-    for day in range(n_days):
-        date = start_time + timedelta(days=day)
-
-        if sc == 'JUICE':
-            day_s = date.strftime('%Y%m%d')
-            month_s = date.strftime('%Y%m')
-
-            file = "juice_raw_hk_time_deviation_" + day_s + ".tab"
-            url = "https://archives.esac.esa.int/psa/ftp/JUICE/juice/miscellaneous/spacecraft_housekeeping" \
-                  "/near_earth_commissioning/" + month_s + "/" + day_s + "/" + file
-
-            download_file(url, file)
-
-            if not os.path.isfile(file):
-                print('File cannot be downloaded: ' + file)
-                return None
-
-            file_utc_data = get_csv_data(file, ",", [0, 2])
-
-            if not len(file_utc_data):
-                print('File cannot be downloaded: ' + file)
-                os.remove(file)
-                return None
-
-            utc_data += file_utc_data
-
-            # Remove downloaded file
-            os.remove(file)
-
-        else:
-            print('Unsupported spacecraft: ' + sc)
-            return None
-
-    times = []
-    time_diff = []
-
-    try:
-        sc_id = spiceypy.bodn2c(sc)
-    except Exception as e:
-        print('Spacecraft not found: ' + sc + ", err: " + str(e))
-        return None
-
-    for utc_tuple in utc_data:
-        et_spice = spiceypy.str2et(utc_tuple[0].replace('Z', ''))
-        et_scos = spiceypy.str2et(utc_tuple[1].replace('Z', ''))
-
-        times.append(et_spice)
-        time_diff.append((et_spice - et_scos) * 1000)
-
-    time_diff = np.abs(np.asarray(time_diff))
-    max_time_diff = np.max(time_diff)
-    print('Avg time difference [ms]: ' + str(np.mean(time_diff)))
-    print('Max time difference [ms]: ' + str(max_time_diff))
-
-    plot(times, time_diff,
-         yaxis_name='Time diff (SPICE - SCOS2K)',
-         title='Time difference between UTC SPICE and UTC SCOS2K in milliseconds',
-         format=plot_style,
-         yaxis_units='milliseconds',
-         notebook=notebook)
-
-    return max_time_diff
-
-
 def flyby_ca_altitudes(sc, target, spk_expression, num_spk_files, from_date, to_date,
                        distance_flyby, num_samples, plot_style='line', notebook=True, plot_prefix=""):
 
@@ -1310,7 +1217,6 @@ def flyby_ca_altitudes(sc, target, spk_expression, num_spk_files, from_date, to_
 
     if sc == 'MPO':
         spk_path = "data/SPICE/BEPICOLOMBO/kernels/spk/"
-
     else:
         print('Unsupported spacecraft: ' + sc)
         return None
@@ -1451,10 +1357,6 @@ def spk_diff(sc, spk_expression, num_samples, notebook=True):
 
     if sc == 'MPO':
         spk_path = "data/SPICE/BEPICOLOMBO/kernels/spk/"
-
-    elif sc == 'JUICE':
-        spk_path = "data/SPICE/JUICE/kernels/spk/"
-
     else:
         print('Unsupported spacecraft: ' + sc)
         return None
@@ -1482,8 +1384,6 @@ def spk_diff(sc, spk_expression, num_samples, notebook=True):
     prev_states = []
     positions_diff = []
     velocity_diff = []
-    last_ex = ""
-    num_err = 0
 
     times = np.linspace(start_time, stop_time, num_samples)
 
@@ -1494,32 +1394,26 @@ def spk_diff(sc, spk_expression, num_samples, notebook=True):
 
         for idx in range(len(times)):
 
-            try:
-                et = times[idx]
-                state, lt = spiceypy.spkezr("SUN", et, "J2000", "LT", sc)
+            et = times[idx]
+            state, lt = spiceypy.spkezr("SUN", et, "J2000", "LT", sc)
 
-                if is_first_spk:
-                    prev_states.append(state)
-                else:
+            if is_first_spk:
+                prev_states.append(state)
+            else:
 
-                    prev_state = prev_states[idx]
+                prev_state = prev_states[idx]
 
-                    pos_diff_vec = [state[0] - prev_state[0],
-                                    state[1] - prev_state[1],
-                                    state[2] - prev_state[2]]
-                    pos_diff = spiceypy.vnorm(np.asarray(pos_diff_vec))
-                    positions_diff.append(pos_diff)
+                pos_diff_vec = [state[0] - prev_state[0],
+                                state[1] - prev_state[1],
+                                state[2] - prev_state[2]]
+                pos_diff = spiceypy.vnorm(np.asarray(pos_diff_vec))
+                positions_diff.append(pos_diff)
 
-                    vel_diff_vec = [state[3] - prev_state[3],
-                                    state[4] - prev_state[4],
-                                    state[5] - prev_state[5]]
-                    vel_diff = spiceypy.vnorm(np.asarray(vel_diff_vec))
-                    velocity_diff.append(vel_diff)
-
-            except Exception as e:
-                last_ex = str(e)
-                num_err += 1
-                pass
+                vel_diff_vec = [state[3] - prev_state[3],
+                                state[4] - prev_state[4],
+                                state[5] - prev_state[5]]
+                vel_diff = spiceypy.vnorm(np.asarray(vel_diff_vec))
+                velocity_diff.append(vel_diff)
 
         is_first_spk = False
 
@@ -1527,13 +1421,16 @@ def spk_diff(sc, spk_expression, num_samples, notebook=True):
         spiceypy.unload(spk_file)
         os.remove(spk_file)
 
-    if num_err:
-        print("ERROR: " + last_ex)
-        print("Total errors: " + str(num_err))
-
     if not len(positions_diff):
         print('Could not compute difference between SPKs')
         return None
+
+    # Reduce the SPK names to only the SPK number to reduce the legend size
+    spk_numbers = []
+    if sc == 'MPO':
+        for spk in spk_files:
+            spk_number = int(spk.split("_")[3])
+            spk_numbers.append(spk_number)
 
     max_position_diff = np.max(positions_diff)
     print('Avg position difference [Km]: ' + str(np.mean(positions_diff)))
@@ -2150,7 +2047,8 @@ def ckdiff(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance,
     return
 
 
-def get_euler_boresights_angles(ck, et_list, spacecraft_frame, target_frame, boresight):
+def get_euler_boresights_angles(ck, et_list, spacecraft_frame,
+                               target_frame, boresight):
     spiceypy.furnsh(ck)
 
     eul1 = []
@@ -2158,57 +2056,68 @@ def get_euler_boresights_angles(ck, et_list, spacecraft_frame, target_frame, bor
     eul3 = []
     bsights = []
     angles = []
-    valid_et_list = []
 
     for et in et_list:
-        try:
-            rot_mat = spiceypy.pxform(spacecraft_frame, target_frame, et)
-            euler = (spiceypy.m2eul(rot_mat, 1, 2, 3))
-            eul1.append(math.degrees(euler[0]))
-            eul2.append(math.degrees(euler[1]))
-            eul3.append(math.degrees(euler[2]))
+        rot_mat = spiceypy.pxform(spacecraft_frame, target_frame, et)
+        euler = (spiceypy.m2eul(rot_mat, 1, 2, 3))
+        eul1.append(math.degrees(euler[0]))
+        eul2.append(math.degrees(euler[1]))
+        eul3.append(math.degrees(euler[2]))
 
-            bsight = spiceypy.mxv(rot_mat, boresight)
-            bsight_ang = spiceypy.vsep(bsight, boresight)
-            bsights.append(spiceypy.convrt(bsight_ang, 'RADIANS', 'ARCSECONDS'))
+        bsight = spiceypy.mxv(rot_mat, boresight)
+        bsight_ang = spiceypy.vsep(bsight, boresight)
+        bsights.append(spiceypy.convrt(bsight_ang, 'RADIANS', 'ARCSECONDS'))
 
-            (rot_axis, rot_angle) = spiceypy.raxisa(rot_mat)
-            angles.append(spiceypy.convrt(rot_angle, 'RADIANS', 'ARCSECONDS'))
-
-            valid_et_list.append(et)
-
-        except:
-            pass
+        (rot_axis, rot_angle) = spiceypy.raxisa(rot_mat)
+        angles.append(spiceypy.convrt(rot_angle, 'RADIANS', 'ARCSECONDS'))
 
     spiceypy.unload(ck)
 
-    return eul1, eul2, eul3, bsights, angles, valid_et_list
+    return eul1, eul2, eul3, bsights, angles
 
 
 def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance,
                  mk='', utc_start='', utc_finish='', output='',
-                 boresight=[0, 0, 1], plot_style='line', report=False,
+                 boresight=[0,0,1], plot_style='line', report=False,
                  notebook=False):
+    """
+    Provides time coverage summary for a given object for a given CK file.
+    Several options are available. This function is based on the following
+    SPICE API:
 
-    if isinstance(spacecraft_frame, str):
-        ck1_frm = spacecraft_frame
-        ck2_frm = spacecraft_frame
-    elif isinstance(spacecraft_frame, list):
-        if len(spacecraft_frame) != 2:
-            raise Exception("Expected 2 elements for spacecraft_frame list: [<CK1_FRAME>, <CK2_FRAME>]")
-        ck1_frm = spacecraft_frame[0]
-        ck2_frm = spacecraft_frame[1]
-    else:
-        raise Exception("Unsupported spacecraft_frame type, expected str or list with 2 elements.")
+    http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/spiceypy/ckcov_c.html
 
+    The NAIF utility CKBRIEF can be used for the same purpose.
+
+    :param ck: CK file to be used
+    :type mk: str
+    :param support_ker: Support kernels required to run the function. At least
+       it should be a leapseconds kernel (LSK) and a Spacecraft clock kernel
+       (SCLK) optionally a meta-kernel (MK) which is highly recommended.
+    :type support_ker: Union[str, list]
+    :param object: Ephemeris Object to obtain the coverage from.
+    :type object: str
+    :param time_format: Output time format; it can be 'UTC', 'CAL' (for TDB
+       in calendar format) or 'TDB'. Default is 'TDB'.
+    :type time_format: str
+    :param global_boundary: Boolean to indicate whether if we want all the
+       coverage windows or only the absolute start and finish coverage times.
+    :type global_boundary: bool
+    :param report: If True prints the resulting coverage on the screen.
+    :type report: bool
+    :param unload: If True it will unload the input meta-kernel.
+    :type unload: bool
+    :return: Returns a list with the coverage intervals.
+    :rtype: list
+    """
     if mk:
         spiceypy.furnsh(mk)
 
     try:
-        windows_ck1 = cov_ck_ker(ck1, object=ck1_frm, time_format='SPICE')
+        windows_ck1 = cov_ck_ker(ck1, object=spacecraft_frame, time_format='SPICE')
         spiceypy.unload(ck1)
 
-        windows_ck2 = cov_ck_ker(ck2, object=ck2_frm, time_format='SPICE')
+        windows_ck2 = cov_ck_ker(ck2, object=spacecraft_frame, time_format='SPICE')
         spiceypy.unload(ck2)
     except:
         print('WARNING: No Time Window could be determined')
@@ -2244,89 +2153,78 @@ def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance
         et_finish = spiceypy.utc2et(utc_finish)
         et_list = numpy.arange(et_start, et_finish, resolution)
 
-    expected_samples = len(et_list)
-    if not expected_samples:
+    if not len(et_list):
         print('WARNING: No valid time period')
         return None
 
-    try:
-        eul1_ck1, eul2_ck1, eul3_ck1, bsight_ck1, angle_ck1, et_list = get_euler_boresights_angles(ck1, et_list, ck1_frm,
-                                                                                          target_frame, boresight)
+    eul1_ck1, eul2_ck1, eul3_ck1, bsight_ck1, angle_ck1 = get_euler_boresights_angles(ck1, et_list, spacecraft_frame,
+                                                                                      target_frame, boresight)
 
-        eul1_ck2, eul2_ck2, eul3_ck2, bsight_ck2, angle_ck2, et_list = get_euler_boresights_angles(ck2, et_list, ck2_frm,
-                                                                                          target_frame, boresight)
+    eul1_ck2, eul2_ck2, eul3_ck2, bsight_ck2, angle_ck2 = get_euler_boresights_angles(ck2, et_list, spacecraft_frame,
+                                                                                      target_frame, boresight)
 
-        angle_diff = [abs(i - j) for i, j in zip(angle_ck1, angle_ck2)]
+    angle_diff = [abs(i - j) for i, j in zip(angle_ck1, angle_ck2)]
+
+    if output == 'euler_angles':
+
+        eul1_diff = [i - j for i, j in zip(eul1_ck1, eul1_ck2)]
+        eul2_diff = [i - j for i, j in zip(eul2_ck1, eul2_ck2)]
+        eul3_diff = [i - j for i, j in zip(eul3_ck1, eul3_ck2)]
+
+        plot(et_list, [eul1_diff, eul2_diff, eul3_diff],
+             yaxis_name=['Degrees', 'Degrees', 'Degrees'],
+             title='Euler Angle Differences',
+             format=plot_style, yaxis_units='deg',
+             notebook=notebook)
+
+    elif output == 'boresight':
+
+        bsight_diff = [np.abs(i - j) for i, j in zip(bsight_ck1, bsight_ck2)]
+
+        plot(et_list, bsight_diff,
+             yaxis_name='',
+             title='Boresight Angle Difference',
+             format=plot_style, yaxis_units='arcsec',
+             notebook=notebook)
+
+    # Attitude Error
+    else:
+
+        plot(et_list, angle_diff,
+             yaxis_name='ang_diff',
+             title='Attitude Error',
+             format=plot_style, yaxis_units='arcsec',
+             notebook=notebook)
+
+    if report:
+
+        ck1_filename = ck1.split('/')[-1].split('.')[0]
+        ck2_filename = ck2.split('/')[-1].split('.')[0]
+
+        bsight_name = '{}_{}'.format(ck1_filename, ck2_filename)
+
+        attitude_error_report(et_list, bsight_ck1, bsight_ck2, tolerance, name=bsight_name)
 
         if output == 'euler_angles':
 
-            eul1_diff = [i - j for i, j in zip(eul1_ck1, eul1_ck2)]
-            eul2_diff = [i - j for i, j in zip(eul2_ck1, eul2_ck2)]
-            eul3_diff = [i - j for i, j in zip(eul3_ck1, eul3_ck2)]
+            eul1_name = '{}_{}'.format(ck1_filename, ck2_filename)
+            eul2_name = '{}_{}'.format(ck1_filename, ck2_filename)
+            eul3_name = '{}_{}'.format(ck1_filename, ck2_filename)
 
-            plot(et_list, [eul1_diff, eul2_diff, eul3_diff],
-                 yaxis_name=['Degrees', 'Degrees', 'Degrees'],
-                 title='Euler Angle Differences',
-                 format=plot_style, yaxis_units='deg',
-                 notebook=notebook)
+            eul_angle_report(et_list, eul1_ck1, eul1_ck2, 1, tolerance, name=eul1_name)
+            eul_angle_report(et_list, eul2_ck1, eul2_ck2, 2, tolerance, name=eul2_name)
+            eul_angle_report(et_list, eul3_ck1, eul3_ck2, 3, tolerance, name=eul3_name)
 
-        elif output == 'boresight':
+        elif output == 'rotaxis':
 
-            bsight_diff = [np.abs(i - j) for i, j in zip(bsight_ck1, bsight_ck2)]
+            rotaxis_name = '{}_{}'.format(ck1_filename, ck2_filename)
 
-            plot(et_list, bsight_diff,
-                 yaxis_name='',
-                 title='Boresight Angle Difference',
-                 format=plot_style, yaxis_units='arcsec',
-                 notebook=notebook)
+            attitude_error_report(et_list, angle_ck1, angle_ck2, tolerance, name=rotaxis_name)
 
-        # Attitude Error
-        else:
+    if mk:
+        spiceypy.unload(mk)
 
-            plot(et_list, angle_diff,
-                 yaxis_name='ang_diff',
-                 title='Attitude Error',
-                 format=plot_style, yaxis_units='arcsec',
-                 notebook=notebook)
-
-        if report:
-
-            ck1_filename = ck1.split('/')[-1].split('.')[0]
-            ck2_filename = ck2.split('/')[-1].split('.')[0]
-
-            bsight_name = '{}_{}'.format(ck1_filename, ck2_filename)
-
-            attitude_error_report(et_list, bsight_ck1, bsight_ck2, tolerance, name=bsight_name)
-
-            if output == 'euler_angles':
-
-                eul1_name = '{}_{}'.format(ck1_filename, ck2_filename)
-                eul2_name = '{}_{}'.format(ck1_filename, ck2_filename)
-                eul3_name = '{}_{}'.format(ck1_filename, ck2_filename)
-
-                eul_angle_report(et_list, eul1_ck1, eul1_ck2, 1, tolerance, name=eul1_name)
-                eul_angle_report(et_list, eul2_ck1, eul2_ck2, 2, tolerance, name=eul2_name)
-                eul_angle_report(et_list, eul3_ck1, eul3_ck2, 3, tolerance, name=eul3_name)
-
-            elif output == 'rotaxis':
-
-                rotaxis_name = '{}_{}'.format(ck1_filename, ck2_filename)
-
-                attitude_error_report(et_list, angle_ck1, angle_ck2, tolerance, name=rotaxis_name)
-
-        if mk:
-            spiceypy.unload(mk)
-
-        validated_samples = len(et_list)
-        if validated_samples != expected_samples:
-            print("Warning: Validated only " + str(validated_samples)
-                  + " samples from expected " + str(expected_samples) + " samples")
-
-        return np.max(angle_diff)
-
-    except Exception as e:
-        print(e)
-        return None
+    return np.max(angle_diff)
 
 
 def ckplot(ck1, spacecraft_frame, target_frame, resolution,
@@ -2370,6 +2268,7 @@ def ckplot(ck1, spacecraft_frame, target_frame, resolution,
     et_boundaries_list = cov_ck_ker(ck1, support_ker=mk, object=spacecraft_frame,
                                         time_format='TDB')
 
+
     start = True
     for et_start, et_finish in zip(et_boundaries_list[0::2], et_boundaries_list[1::2]):
 
@@ -2379,6 +2278,7 @@ def ckplot(ck1, spacecraft_frame, target_frame, resolution,
 
         et_list = numpy.append(et_list, numpy.arange(et_start, et_finish, resolution))
 
+
     # TODO: if we want to really use start and end times and intersect it with the available intervals we need to develop this
     if utc_start:
         et_start = spiceypy.utc2et(utc_start)
@@ -2386,6 +2286,7 @@ def ckplot(ck1, spacecraft_frame, target_frame, resolution,
     if utc_finish:
         et_finish = spiceypy.utc2et(utc_finish)
         et_list = numpy.arange(et_start, et_finish, resolution)
+
 
     eul1 = []
     eul2 = []
@@ -2525,6 +2426,7 @@ def spkdiff(mk, spk1, spk2, spacecraft, target, resolution, pos_tolerance,
 
         state_report(et_list, pos_spk1, pos_spk2, vel_spk1, vel_spk2, pos_tolerance, vel_tolerance,
                      name='{}_{}'.format(spk1_filename, spk2_filename))
+
 
     return
 
@@ -3314,10 +3216,18 @@ def ck_coverage_timeline(metakernel, frame_list, notebook=True, html_file_name='
     else:
         output_file(html_file_name + '.html')
 
-    kernels, path = get_kernels_from_mk(metakernel, "ck", ["prelaunch"])
-
     cov_start = []
     cov_finsh = []
+    kernels = []
+
+    with open(metakernel, 'r') as f:
+        for line in f:
+            if '/ck/' in line and 'prelaunch' not in line:
+                kernels.append(line.split('/ck/')[-1].strip().split("'")[0])
+            if 'PATH_VALUES' in line and '=' in line:
+                path = line.split("'")[1] + '/ck/'
+
+    kernels = list(reversed(kernels))
     ck_kernels = []
     colors = []
 
@@ -3326,10 +3236,24 @@ def ck_coverage_timeline(metakernel, frame_list, notebook=True, html_file_name='
             cov = cov_ck_ker(path + kernel, frame, support_ker=metakernel, time_format='TDB')
 
             if cov:
+                color = "lawngreen"
+                ck_type = 'xxx'
+
+                if 'MPO' in frame or 'MMO' in frame or 'MTM' in frame or 'TGO' in frame:
+                    ck_type = kernel.split('_')[3]
+                elif 'JUICE' in frame:
+                    ck_type = kernel.split('_')[2]
+
+                if ck_type[2] == 'p': color = 'orange'
+                elif ck_type[2] == 'r': color = 'green'
+                elif ck_type[2] == 't' or ck_type == 'crema': color = 'red'
+                elif ck_type[2] == 'c': color = 'purple'
+                elif ck_type[2] == 'm': color = 'blue'
+
                 cov_start.append(cov[0])
                 cov_finsh.append(cov[-1])
                 ck_kernels.append(kernel)
-                colors.append(get_ck_kernel_color(kernel, frame))
+                colors.append(color)
 
     spiceypy.furnsh(metakernel)
     date_format = 'UTC'
@@ -3355,80 +3279,6 @@ def ck_coverage_timeline(metakernel, frame_list, notebook=True, html_file_name='
 
     labels = LabelSet(x='start_dt', y='ck_kernels', text='ck_kernels', level='glyph',
                       x_offset=-2, y_offset=5, source=source, render_mode='canvas')
-
-    p.xaxis.formatter = DatetimeTickFormatter(seconds=["%Y-%m-%d %H:%M:%S"],
-                                              minsec=["%Y-%m-%d %H:%M:%S"],
-                                              minutes=["%Y-%m-%d %H:%M:%S"],
-                                              hourmin=["%Y-%m-%d %H:%M:%S"],
-                                              hours=["%Y-%m-%d %H:%M:%S"],
-                                              days=["%Y-%m-%d %H:%M:%S"],
-                                              months=["%Y-%m-%d %H:%M:%S"],
-                                              years=["%Y-%m-%d %H:%M:%S"])
-
-    p.xaxis.major_label_orientation = 0  # pi/4
-    p.yaxis.visible = False
-    p.xaxis.axis_label_text_font_size = "5pt"
-
-    p.add_layout(labels)
-
-    show(p)
-
-
-def ck_gap_report(metakernel, frame_list, notebook=True, html_file_name='test',
-                  plot_width=975, plot_height=700):
-
-    if notebook:
-        output_notebook()
-    else:
-        output_file(html_file_name + '.html')
-
-    kernels, path = get_kernels_from_mk(metakernel, "ck", ["prelaunch"])
-    kernels_data = {}
-
-    for kernel in kernels:
-        for frame in frame_list:
-            cov = cov_ck_ker(path + kernel, frame, support_ker=metakernel, time_format='TDB')
-            if cov and (kernel not in kernels_data):
-                kernels_data[kernel] = {}
-                kernels_data[kernel]["cov"] = [cov[0], cov[-1]]
-                kernels_data[kernel]["gaps"] = get_gaps_from_cov(cov)
-                kernels_data[kernel]["color"] = get_ck_kernel_color(kernel, frame)
-
-    spiceypy.furnsh(metakernel)
-    date_format = 'UTC'
-
-    start_dt = []
-    finish_dt = []
-    ck_kernels = []
-    for kernel in kernels_data.keys():
-        ck_kernels.append(kernel)
-        start_dt.append(et_to_datetime(kernels_data[kernel]["cov"][0], date_format))
-        finish_dt.append(et_to_datetime(kernels_data[kernel]["cov"][1], date_format))
-
-    source = ColumnDataSource(data=dict(start_dt=start_dt, finsh_dt=finish_dt, ck_kernels=ck_kernels))
-
-    title = "CK Kernels Coverage Gaps"
-    if 'ops' in metakernel.lower():
-        title += ' - OPS Metakernel'
-    elif 'plan' in metakernel.lower():
-        title += ' - PLAN Metakernel'
-
-    p = figure(y_range=ck_kernels, plot_height=plot_height, plot_width=plot_width, title=title)
-
-    labels = LabelSet(x='start_dt', y='ck_kernels', text='ck_kernels', level='glyph',
-                      x_offset=-2, y_offset=5, source=source, render_mode='canvas')
-
-    for kernel in ck_kernels:
-        k_data = kernels_data[kernel]
-
-        cov_start = et_to_datetime(k_data["cov"][0], date_format)
-        cov_end = et_to_datetime(k_data["cov"][1], date_format)
-        p.hbar(y=[kernel], height=0.02, left=[cov_start], right=[cov_end], color=[k_data["color"]])
-
-        for gap in k_data["gaps"]:
-            gap_start = et_to_datetime(gap[0], date_format)
-            gap_end = et_to_datetime(gap[1], date_format)
-            p.hbar(y=[kernel], height=0.2, left=[gap_start], right=[gap_end], color=[k_data["color"]])
 
     p.xaxis.formatter = DatetimeTickFormatter(seconds=["%Y-%m-%d %H:%M:%S"],
                                               minsec=["%Y-%m-%d %H:%M:%S"],
@@ -3506,6 +3356,8 @@ def spk_coverage_timeline(metakernel, sc_list, notebook=True, html_file_name='te
     for element in cov_finsh:
         finsh_dt.append(et_to_datetime(element, date_format))
 
+
+
     source = ColumnDataSource(data=dict(start_dt=start_dt,
                                         finsh_dt=finsh_dt,
                                         spk_kernels=spk_kernels))
@@ -3519,7 +3371,7 @@ def spk_coverage_timeline(metakernel, sc_list, notebook=True, html_file_name='te
     p.hbar(y=spk_kernels, height=0.2, left=start_dt, right=finsh_dt, color=colors)
 
     labels = LabelSet(x='start_dt', y='spk_kernels', text='spk_kernels', level='glyph',
-                      x_offset=-2, y_offset=5, source=source, render_mode='canvas')
+                  x_offset=-2, y_offset=5, source=source, render_mode='canvas')
 
     p.xaxis.formatter = DatetimeTickFormatter(seconds=["%Y-%m-%d %H:%M:%S"],
                                               minsec=["%Y-%m-%d %H:%M:%S"],
@@ -3530,7 +3382,7 @@ def spk_coverage_timeline(metakernel, sc_list, notebook=True, html_file_name='te
                                               months=["%Y-%m-%d %H:%M:%S"],
                                               years=["%Y-%m-%d %H:%M:%S"])
 
-    p.xaxis.major_label_orientation = 0  # pi/4
+    p.xaxis.major_label_orientation = 0#pi/4
     p.yaxis.visible = False
     p.xaxis.axis_label_text_font_size = "5pt"
 
