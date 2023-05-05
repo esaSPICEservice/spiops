@@ -466,3 +466,37 @@ def findNearest(array, value):
     idx = np.unravel_index(np.argmin(np.abs(array - value)), array.shape)
 
     return idx, array[idx]
+
+
+def get_ck_kernel_color(kernel, frame):
+    color = "lawngreen"
+    ck_type = 'xxx'
+
+    if 'MPO' in frame \
+        or 'MMO' in frame \
+        or 'MTM' in frame \
+        or 'TGO' in frame:
+        ck_type = kernel.split('_')[3]
+
+    elif 'JUICE' in frame:
+        ck_type = kernel.split('_')[2]
+
+    if ck_type[2] == 'p' \
+        or ck_type == 'attc':
+        color = 'orange'
+
+    elif ck_type[2] == 'r':
+        color = 'green'
+
+    elif ck_type[2] == 't' \
+          or ck_type == 'crema':
+        color = 'red'
+
+    elif ck_type[2] == 'c':
+        color = 'purple'
+
+    elif ck_type[2] == 'm' \
+          or ck_type == 'meas':
+        color = 'blue'
+
+    return color
