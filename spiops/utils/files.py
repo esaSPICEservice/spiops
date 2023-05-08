@@ -19,25 +19,30 @@ def replace(file_path, pattern, subst):
 
     replaced = False
 
-    # Create temp file
+    #Create temp file
     fh, abs_path = mkstemp()
-    with os.fdopen(fh, 'w') as new_file:
+    with os.fdopen(fh,'w') as new_file:
         with open(file_path) as old_file:
             for line in old_file:
 
                 updated_line = line.replace(pattern, subst)
                 new_file.write(updated_line)
-                # flag for replacing having happened
+                #flag for replacing having happened
                 if updated_line != line:
                     replaced = True
+    #Remove original file
 
-    # Remove original file
     if replaced:
-        os.remove(file_path)
-        os.chmod(abs_path, 0o644)  # Update the permissions
-        move(abs_path, file_path)  # Move new file
 
-    return replaced
+        os.remove(file_path)
+        # Update the permissions
+        os.chmod(abs_path, 0o644)
+        #Move new file
+        move(abs_path, file_path)
+
+        return True
+
+    return False
 
 
 def mk2list(mk):
@@ -105,15 +110,12 @@ def update_former_versions(mk_path, kernels_path, updated_mk=False):
 
 def download_file(path, file):
     try:
-        if str(path).startswith("http"):
-            get_from_url(path, file)
+        if ping(SERVER_HOST_NAME):
+            path = os.path.join(SERVER_HOST_FTP_PATH, path)
+            path = SERVER_HOST_USER + "@" + SERVER_HOST_NAME + ":" + path
+            get_from_server(path, file)
         else:
-            if ping(SERVER_HOST_NAME):
-                path = os.path.join(SERVER_HOST_FTP_PATH, path)
-                path = SERVER_HOST_USER + "@" + SERVER_HOST_NAME + ":" + path
-                get_from_server(path, file)
-            else:
-                download_from_ftp(path, file)
+            download_from_ftp(path, file)
     except:
         print('Warning: Error downloading file: ' + file)
 
@@ -130,11 +132,6 @@ def download_from_ftp(path, file):
 
 def get_from_server(path, file):
     os.system('scp ' + os.path.join(path, file) + ' ./' + file)
-    return
-
-
-def get_from_url(url, file):
-    os.system('wget ' + url + ' -O ' + file)
     return
 
 
@@ -250,18 +247,6 @@ def get_tm_data(file, delimiter, columns, data_factors):
     return data
 
 
-def get_csv_data(file, delimiter, columns):
-    file_data = open(file)
-    data = []
-    for line in file_data.readlines():
-        fields = line.split(delimiter)
-        line_data = []
-        for column in columns:
-            line_data.append(fields[column])
-        data.append(line_data)
-    return data
-
-
 # For each file, download it, add data to array, and remove it
 def download_tm_data(files, path, delimiter, columns, data_factors):
 
@@ -282,28 +267,3 @@ def download_tm_data(files, path, delimiter, columns, data_factors):
         os.remove(file)
 
     return tm_data
-
-
-def get_kernels_from_mk(metakernel, k_type, ignore_strs):
-    kernels = []
-    k_type_path = '/' + k_type + '/'
-    path = ""
-
-    with open(metakernel, 'r') as f:
-        for line in f:
-            if k_type_path in line:
-
-                ignore_strs_found = False
-                for ignore_str in ignore_strs:
-                    if ignore_str in line:
-                        ignore_strs_found = True
-                        break
-
-                if not ignore_strs_found:
-                    kernels.append(line.split(k_type_path)[-1].strip().split("'")[0])
-
-            if 'PATH_VALUES' in line and '=' in line:
-                path = line.split("'")[1] + k_type_path
-
-    kernels = list(reversed(kernels))
-    return kernels, path

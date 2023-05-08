@@ -192,7 +192,7 @@ class Body(object):
     def __Structures(self):
 
         if self.structures_flag is True and \
-                self.time.window.all() == self.previous_tw.all():
+                        self.time.window.all() == self.previous_tw.all():
             return
 
         time = self.time
@@ -213,6 +213,7 @@ class Body(object):
             plus_array = '{}_SA+Y'.format(self.name.upper())
             minus_array = '{}_SA-Y'.format(self.name.upper())
 
+
         #
         # Solar Arrays
         #
@@ -225,7 +226,6 @@ class Body(object):
 
         saa_sa_p_list = []
         saa_sa_n_list = []
-
         saa_sc_x_list = []
         saa_sc_y_list = []
         saa_sc_z_list = []
@@ -247,12 +247,11 @@ class Body(object):
         #
         for et in time.window:
 
-            #
-            # SA mechanisms
-            #
             try:
-                # Of course we need to include all possible cases including only one Solar Array
-
+                #
+                # Of course we need to include all possible cases including only one
+                # Solar Array
+                #
                 (sa_ang1_p, sa_ang2_p, sa_ang3_p) = spiops.solar_array_angles(plus_array, et)
                 if minus_array:
                     (sa_ang1_n, sa_ang2_n, sa_ang3_n) = spiops.solar_array_angles(minus_array, et)
@@ -265,79 +264,75 @@ class Body(object):
                     sa_ang1_n_list.append(sa_ang1_n)
                     sa_ang2_n_list.append(sa_ang2_n)
                     sa_ang3_n_list.append(sa_ang3_n)
-
-                saa_sa_p_list.append(saa[0][0])
-                if minus_array:
                     saa_sa_n_list.append(saa[0][1])
-
+                saa_sa_p_list.append(saa[0][0])
                 saa_sc_x_list.append(saa[1][0])
                 saa_sc_y_list.append(saa[1][1])
                 saa_sc_z_list.append(saa[1][2])
 
+                #
+                # HGA mechanisms
+                #
+                if self.name != 'MTM' and self.name != 'JUICE':
+                    hga_angles_ang, hga_earth_ang = spiops.hga_angles(self.name, et)
+                    hga_angles_el.append(hga_angles_ang[1])
+                    hga_angles_az.append(hga_angles_ang[0])
+                    hga_earth.append(hga_earth_ang)
+
+                #
+                # MGA mechanisms
+                #
+                if self.name != 'MTM':
+                    mga_angles_ang, mga_earth_ang = spiops.mga_angles(self.name, et)
+                    mga_angles_el.append(mga_angles_ang[1])
+                    mga_angles_az.append(mga_angles_ang[0])
+                    mga_earth.append(mga_earth_ang)
+
+                #
+                # Roll angle
+                #
+                roll_angle = spiops.roll(et)
+                roll_angle_1.append(roll_angle[0])
+                roll_angle_2.append(roll_angle[1])
+                roll_angle_3.append(roll_angle[2])
+
             except:
+
                 sa_ang1_p_list.append(0)
                 sa_ang2_p_list.append(0)
                 sa_ang3_p_list.append(0)
+
                 if minus_array:
                     sa_ang1_n_list.append(0)
                     sa_ang2_n_list.append(0)
                     sa_ang3_n_list.append(0)
-
-                saa_sa_p_list.append(0)
-                if minus_array:
                     saa_sa_n_list.append(0)
 
+                saa_sa_p_list.append(0)
                 saa_sc_x_list.append(0)
                 saa_sc_y_list.append(0)
                 saa_sc_z_list.append(0)
 
-            #
-            # HGA mechanisms
-            #
-            if self.name != 'MTM' and self.name != 'JUICE':
-                try:
-                    hga_angles_ang, hga_earth_ang = spiops.hga_angles(self.name, et)
-                except:
-                    hga_angles_ang = [0, 0]
-                    hga_earth_ang = 0
+                hga_earth.append(0)
+                hga_angles_el.append(0)
+                hga_angles_az.append(0)
 
-                hga_angles_el.append(hga_angles_ang[1])
-                hga_angles_az.append(hga_angles_ang[0])
-                hga_earth.append(hga_earth_ang)
+                mga_earth.append(0)
+                mga_angles_el.append(0)
+                mga_angles_az.append(0)
 
-            #
-            # MGA mechanisms
-            #
-            if self.name != 'MTM':
-                try:
-                    mga_angles_ang, mga_earth_ang = spiops.mga_angles(self.name, et)
-                except:
-                    mga_angles_ang = [0, 0]
-                    mga_earth_ang = 0
+                roll_angle_1.append(0)
+                roll_angle_2.append(0)
+                roll_angle_3.append(0)
 
-                mga_angles_el.append(mga_angles_ang[1])
-                mga_angles_az.append(mga_angles_ang[0])
-                mga_earth.append(mga_earth_ang)
-
-            #
-            # Roll angle
-            #
-            try:
-                roll_angle = spiops.roll(et)
-            except:
-                roll_angle = [0, 0, 0]
-
-            roll_angle_1.append(roll_angle[0])
-            roll_angle_2.append(roll_angle[1])
-            roll_angle_3.append(roll_angle[2])
-
-        self.sa_ang_p = [sa_ang1_p_list, sa_ang2_p_list, sa_ang3_p_list]
-        self.sa_ang = [sa_ang1_p_list, sa_ang2_p_list, sa_ang3_p_list]
         if minus_array:
+            self.sa_ang_p = [sa_ang1_p_list, sa_ang2_p_list, sa_ang3_p_list]
             self.sa_ang_n = [sa_ang1_n_list, sa_ang2_n_list, sa_ang3_n_list]
+            self.sa_ang = [sa_ang1_p_list, sa_ang2_p_list, sa_ang3_p_list]
             self.saa_sa = [saa_sa_p_list, saa_sa_n_list]
         else:
             self.sa_ang_p = [sa_ang1_p_list, sa_ang2_p_list, sa_ang3_p_list]
+            self.sa_ang = [sa_ang1_p_list, sa_ang2_p_list, sa_ang3_p_list]
             self.saa_sa = saa_sa_p_list
 
         self.saa_sc = [saa_sc_x_list, saa_sc_y_list, saa_sc_z_list]
