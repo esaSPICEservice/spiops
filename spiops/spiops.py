@@ -3552,7 +3552,7 @@ def get_plot_style(plot_height, num_rows):
         plot_height = (num_rows * row_height) + empty_plot_height
 
     hbar_height = 0.2
-    lbl_y_offset = int((plot_height / num_rows) * (hbar_height * 1.5))
+    lbl_y_offset = int((plot_height / num_rows) * (hbar_height * 1.05))
 
     return plot_height, hbar_height, lbl_y_offset
 
