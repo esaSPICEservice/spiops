@@ -3307,7 +3307,7 @@ def beta_angle(observer, target, time):
 
 
 def ck_coverage_timeline(metakernel, frame_list, notebook=True, html_file_name='test',
-                         plot_width=975, plot_height=700):
+                         plot_width=975, plot_height=None):
 
     if notebook:
         output_notebook()
@@ -3350,11 +3350,12 @@ def ck_coverage_timeline(metakernel, frame_list, notebook=True, html_file_name='
     elif 'plan' in metakernel.lower():
         title += ' - PLAN Metakernel'
 
+    plot_height, hbar_height, lbl_y_offset = get_plot_style(plot_height, len(ck_kernels))
     p = figure(y_range=ck_kernels, plot_height=plot_height, plot_width=plot_width, title=title, )
-    p.hbar(y=ck_kernels, height=0.2, left=start_dt, right=finish_dt, color=colors)
+    p.hbar(y=ck_kernels, height=hbar_height, left=start_dt, right=finish_dt, color=colors)
 
     labels = LabelSet(x='start_dt', y='ck_kernels', text='ck_kernels', level='glyph',
-                      x_offset=-2, y_offset=5, source=source, render_mode='canvas')
+                      x_offset=-2, y_offset=lbl_y_offset, source=source, render_mode='canvas')
 
     p.xaxis.formatter = DatetimeTickFormatter(seconds=["%Y-%m-%d %H:%M:%S"],
                                               minsec=["%Y-%m-%d %H:%M:%S"],
@@ -3375,7 +3376,7 @@ def ck_coverage_timeline(metakernel, frame_list, notebook=True, html_file_name='
 
 
 def ck_gap_report(metakernel, frame_list, notebook=True, html_file_name='test',
-                  plot_width=975, plot_height=700):
+                  plot_width=975, plot_height=None):
 
     if notebook:
         output_notebook()
@@ -3413,22 +3414,23 @@ def ck_gap_report(metakernel, frame_list, notebook=True, html_file_name='test',
     elif 'plan' in metakernel.lower():
         title += ' - PLAN Metakernel'
 
+    plot_height, hbar_height, lbl_y_offset = get_plot_style(plot_height, len(ck_kernels))
     p = figure(y_range=ck_kernels, plot_height=plot_height, plot_width=plot_width, title=title)
 
     labels = LabelSet(x='start_dt', y='ck_kernels', text='ck_kernels', level='glyph',
-                      x_offset=-2, y_offset=5, source=source, render_mode='canvas')
+                      x_offset=-2, y_offset=lbl_y_offset, source=source, render_mode='canvas')
 
     for kernel in ck_kernels:
         k_data = kernels_data[kernel]
 
         cov_start = et_to_datetime(k_data["cov"][0], date_format)
         cov_end = et_to_datetime(k_data["cov"][1], date_format)
-        p.hbar(y=[kernel], height=0.02, left=[cov_start], right=[cov_end], color=[k_data["color"]])
+        p.hbar(y=[kernel], height=hbar_height * 0.1, left=[cov_start], right=[cov_end], color=[k_data["color"]])
 
         for gap in k_data["gaps"]:
             gap_start = et_to_datetime(gap[0], date_format)
             gap_end = et_to_datetime(gap[1], date_format)
-            p.hbar(y=[kernel], height=0.2, left=[gap_start], right=[gap_end], color=[k_data["color"]])
+            p.hbar(y=[kernel], height=hbar_height, left=[gap_start], right=[gap_end], color=[k_data["color"]])
 
     p.xaxis.formatter = DatetimeTickFormatter(seconds=["%Y-%m-%d %H:%M:%S"],
                                               minsec=["%Y-%m-%d %H:%M:%S"],
@@ -3449,7 +3451,7 @@ def ck_gap_report(metakernel, frame_list, notebook=True, html_file_name='test',
 
 
 def spk_coverage_timeline(metakernel, sc_list, notebook=True, html_file_name='test',
-                         plot_width=975, plot_height=500):
+                         plot_width=975, plot_height=None):
 
     if notebook:
         output_notebook()
@@ -3515,11 +3517,13 @@ def spk_coverage_timeline(metakernel, sc_list, notebook=True, html_file_name='te
         title += ' - OPS Metakernel'
     elif 'plan' in metakernel.lower():
         title += ' - PLAN Metakernel'
-    p = figure(y_range=spk_kernels,  plot_height=plot_height, plot_width=plot_width, title=title, )
-    p.hbar(y=spk_kernels, height=0.2, left=start_dt, right=finsh_dt, color=colors)
+
+    plot_height, hbar_height, lbl_y_offset = get_plot_style(plot_height, len(spk_kernels))
+    p = figure(y_range=spk_kernels, plot_height=plot_height, plot_width=plot_width, title=title)
+    p.hbar(y=spk_kernels, height=hbar_height, left=start_dt, right=finsh_dt, color=colors)
 
     labels = LabelSet(x='start_dt', y='spk_kernels', text='spk_kernels', level='glyph',
-                      x_offset=-2, y_offset=5, source=source, render_mode='canvas')
+                      x_offset=-2, y_offset=lbl_y_offset, source=source, render_mode='canvas')
 
     p.xaxis.formatter = DatetimeTickFormatter(seconds=["%Y-%m-%d %H:%M:%S"],
                                               minsec=["%Y-%m-%d %H:%M:%S"],
@@ -3539,6 +3543,18 @@ def spk_coverage_timeline(metakernel, sc_list, notebook=True, html_file_name='te
     show(p)
 
     spiceypy.unload(metakernel)
+
+
+def get_plot_style(plot_height, num_rows):
+    if plot_height is None:
+        empty_plot_height = 50  # px margin for the plot title and X axis scale and labels
+        row_height = 60  # px per kernel row
+        plot_height = (num_rows * row_height) + empty_plot_height
+
+    hbar_height = 0.2
+    lbl_y_offset = int((plot_height / num_rows) * (hbar_height * 1.5))
+
+    return plot_height, hbar_height, lbl_y_offset
 
 
 #
