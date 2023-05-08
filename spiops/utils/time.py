@@ -94,23 +94,21 @@ def cal2et(time, format='UTC', support_ker=False, unload=False):
     if support_ker:
         spiceypy.furnsh(support_ker)
 
-
     if format == 'CAL':
-            time[:] = [x.replace('T', ' ') for x in time]
-            time[:] = [x + ' TDB' for x in time]
+        time[:] = [x.replace('T', ' ') for x in time]
+        time[:] = [x + ' TDB' for x in time]
 
     for element in time:
 
         try:
             if format == 'UTC':
                 out_elm = spiceypy.utc2et(element)
-
             elif format == 'CAL':
                 out_elm = spiceypy.str2et(element)
             else:
                 out_elm = element
         except:
-                out_elm = spiceypy.str2et(element)
+            out_elm = spiceypy.str2et(element)
 
         out_list.append(out_elm)
 
@@ -125,12 +123,10 @@ def cal2et(time, format='UTC', support_ker=False, unload=False):
     return out_time
 
 
-def cov_int(object_cov, object_id, kernel, time_format='TDB',
-            global_boundary=False, report=False):
+def cov_int(object_cov, object_id, kernel, time_format='TDB', global_boundary=False, report=False):
     """
     Generates a list of time windows out of a SPICE cell for which either
     the SPICE API spkcov_c or ckcov_c have been run.
-
 
     :param object_cov: SPICE
     :type object_cov:
@@ -140,7 +136,8 @@ def cov_int(object_cov, object_id, kernel, time_format='TDB',
     :type kernel: str
     :param time_format: Desired output format; 'UTC' or 'CAL'
     :type time_format: str
-    :param global_boundary: Boolean to indicate whether if we want all the coverage windows or only the absolute start and finish coverage times
+    :param global_boundary: Boolean to indicate whether if we want all the coverage windows or only the absolute start
+                            and finish coverage times
     :type global_boundary: bool
     :param report: If True prints the resulting coverage on the screen
     :type report: bool
@@ -152,10 +149,7 @@ def cov_int(object_cov, object_id, kernel, time_format='TDB',
     if '/' in kernel:
         kernel = kernel.split('/')[-1]
 
-    #
-    # Reporting should only be activated if we are not asking for global
-    # boundaries.
-    #
+    # Reporting should only be activated if we are not asking for global boundaries.
     if report and not global_boundary:
 
         try:
@@ -182,31 +176,38 @@ def cov_int(object_cov, object_id, kernel, time_format='TDB',
         interval_start = boundaries[0]
         interval_finish = boundaries[1]
 
-
         if report and not global_boundary:
-
-            print("Interval {}: {} - {}\n".format(element,
-                                                  boundaries[0],
-                                                  boundaries[1]))
+            print("Interval {}: {} - {}\n".format(element, boundaries[0], boundaries[1]))
 
         coverage.append(interval_start)
         coverage.append(interval_finish)
         interval_start_list.append(interval_start)
         interval_finish_list.append(interval_finish)
 
-
-    #
-    # If the global_boundary parameter is set the only output is the global
-    # coverage start and finish
-    #
+    # If the global_boundary parameter is set the only output is the global coverage start and finish
     if global_boundary:
-
         start_time = min(interval_start)
         finish_time = max(interval_finish)
 
         coverage = et2cal([start_time, finish_time], format=time_format)
 
     return coverage
+
+
+def get_gaps_from_cov(coverage):
+
+    gaps = []
+    if len(coverage) > 2:
+
+        if len(coverage) % 2 != 0:
+            raise Exception("Wrong coverage elements, expected array with start end pairs.")
+
+        for i in range(int(len(coverage) / 2) - 1):
+            gap_start = coverage[(i * 2) + 1]
+            gap_end = coverage[(i * 2) + 2]
+            gaps.append([gap_start, gap_end])
+
+    return gaps
 
 
 def mjd20002et(mjd2000, support_ker=False, unload=False):
