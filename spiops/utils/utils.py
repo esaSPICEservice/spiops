@@ -1,4 +1,3 @@
-#from spiops import data as data
 from spiops.utils.time import cal2et
 from spiops.utils.time import et_to_datetime
 import matplotlib.pyplot as plt
@@ -7,14 +6,16 @@ import spiceypy
 import numpy as np
 from bokeh.plotting import figure, output_file, output_notebook, show
 from bokeh.models import HoverTool
+from bokeh.models import ColumnDataSource
 from bokeh.models import DatetimeTickFormatter
+from bokeh.models import LabelSet
 from bokeh.models import Range1d
 from tempfile import mkstemp
 from shutil import move
 import os
 import glob
 import platform
-from os import fdopen, remove, chmod, path
+from os import fdopen, chmod
 try:
     import importlib.resources as pkg_resources
 except ImportError:
@@ -48,7 +49,7 @@ def valid_url(html_file_name):
         else:
             replacement = '_'
         
-        html_file_name = html_file_name.replace(element,replacement)
+        html_file_name = html_file_name.replace(element, replacement)
 
     return html_file_name
 
@@ -71,9 +72,6 @@ def get_skd_path(kernel_path):
 
 
 def convert_ESOCorbit2data(orbit_file, support_ker=''):
-
-    #orbit = data.Data()
-    orbit_data = []
     time_list = []
     distance_list = []
 
@@ -86,7 +84,7 @@ def convert_ESOCorbit2data(orbit_file, support_ker=''):
                 line = line.split()
 
                 time = cal2et(line[0], 'CAL', support_ker=support_ker)
-                #TODO: Not including velocity at this point; only distance
+                # TODO: Not including velocity at this point; only distance
                 distance = np.sqrt(float(line[1])*float(line[1]) +
                                                  float(line[2])*float(line[2]) +
                                                  float(line[3])*float(line[3]))
@@ -104,7 +102,6 @@ def convert_ESOCorbit2data(orbit_file, support_ker=''):
 
 
 def convert_OEM2data():
-
     return
 
 
@@ -231,15 +228,19 @@ def plot(xaxis, yaxis, xaxis_name='Date', yaxis_name='', title='', format='line'
             color_idx = idx % len(color_list)
     else:
         for element in y:
+
+            legend = str(yaxis_name[index]).upper()
+
             if format == 'circle':
-                p.line(x, element, line_width=line_width, color=color_list[color_idx], legend=str(yaxis_name[index]).upper())
+                p.line(x, element, line_width=line_width, color=color_list[color_idx], legend=legend)
                 p.circle(x, element, fill_color="white", size=8)
 
             if format == 'circle_only':
-                p.circle(x, element, size=3, color=color_list[color_idx], legend=str(yaxis_name[index]).upper())
+                p.circle(x, element, size=3, color=color_list[color_idx], legend=legend)
 
             elif format == 'line':
-                p.line(x, element, line_width=line_width, color=color_list[color_idx], legend=str(yaxis_name[index]).upper())
+                p.line(x, element, line_width=line_width, color=color_list[color_idx], legend=legend)
+
             index += 1
             color_idx = index % len(color_list)
 
@@ -256,20 +257,18 @@ def plot3d(data, observer, target):
     x, y, z, = [], [], []
 
     for element in data:
-       x.append(element[0])
-       y.append(element[1])
-       z.append(element[2])
-
+        x.append(element[0])
+        y.append(element[1])
+        z.append(element[2])
 
     mpl.rcParams['legend.fontsize'] = 10
 
     fig = plt.figure()
     ax = fig.gca(projection='3d')
-    theta = np.linspace(-4 * np.pi, 4 * np.pi, 100)
+    # theta = np.linspace(-4 * np.pi, 4 * np.pi, 100)
 
-    ax.plot(x, y, z, label= observer.name + ' w.r.t. ' + target.name +
-            ' on ' + observer.trajectory_reference_frame + ' [km]')
-
+    label = observer.name + ' w.r.t. ' + target.name + ' on ' + observer.trajectory_reference_frame + ' [km]'
+    ax.plot(x, y, z, label=label)
     ax.legend()
 
     # Make data
@@ -308,22 +307,22 @@ def replace(file_path, pattern, subst):
 
     replaced = False
 
-    #Create temp file
+    # Create temp file
     fh, abs_path = mkstemp()
-    with fdopen(fh,'w') as new_file:
+    with fdopen(fh, 'w') as new_file:
         with open(file_path) as old_file:
             for line in old_file:
 
                 updated_line = line.replace(pattern, subst)
                 new_file.write(updated_line)
-                #flag for replacing having happened
+                # flag for replacing having happened
                 if updated_line != line:
                     replaced = True
 
     if replaced:
         # Update the permissions
         chmod(abs_path, 0o644)
-        #Move new file
+        # Move new file
         if file_path.isupper():
             move(abs_path, file_path.split('.')[0]+'_LOCAL.TM')
         else:
@@ -350,8 +349,7 @@ def get_latest_kernel(kernel_type, path, pattern, dates=False,
     # meta-kernel generation
     #
     if os.path.isdir(kernel_path + '/former_versions'):
-        kernels_with_path += glob.glob(kernel_path + '/former_versions/' + pattern )
-
+        kernels_with_path += glob.glob(kernel_path + '/former_versions/' + pattern)
 
     for kernel in kernels_with_path:
         kernels.append(kernel.split('/')[-1])
@@ -366,7 +364,7 @@ def get_latest_kernel(kernel_type, path, pattern, dates=False,
     #
     if excluded_kernels:
         for kernel in excluded_kernels:
-           if kernel in kernels:
+            if kernel in kernels:
                 kernels.remove(kernel)
 
     if not dates:
@@ -443,9 +441,9 @@ def target2frame(target):
     return target_frame
 
 
-def findIntersection(x1,y1,x2,y2,x3,y3,x4,y4):
-    px= ( (x1*y2-y1*x2)*(x3-x4)-(x1-x2)*(x3*y4-y3*x4) ) / ( (x1-x2)*(y3-y4)-(y1-y2)*(x3-x4) )
-    py= ( (x1*y2-y1*x2)*(y3-y4)-(y1-y2)*(x3*y4-y3*x4) ) / ( (x1-x2)*(y3-y4)-(y1-y2)*(x3-x4) )
+def findIntersection(x1, y1, x2, y2, x3, y3, x4, y4):
+    px = ((x1*y2-y1*x2)*(x3-x4)-(x1-x2)*(x3*y4-y3*x4)) / ((x1-x2)*(y3-y4)-(y1-y2)*(x3-x4))
+    py = ((x1*y2-y1*x2)*(y3-y4)-(y1-y2)*(x3*y4-y3*x4)) / ((x1-x2)*(y3-y4)-(y1-y2)*(x3-x4))
     return [px, py]
 
 
@@ -473,30 +471,64 @@ def get_ck_kernel_color(kernel, frame):
     ck_type = 'xxx'
 
     if 'MPO' in frame \
-        or 'MMO' in frame \
-        or 'MTM' in frame \
-        or 'TGO' in frame:
+            or 'MMO' in frame \
+            or 'MTM' in frame \
+            or 'TGO' in frame:
         ck_type = kernel.split('_')[3]
 
     elif 'JUICE' in frame:
         ck_type = kernel.split('_')[2]
 
     if ck_type[2] == 'p' \
-        or ck_type == 'attc':
+            or ck_type == 'attc':
         color = 'orange'
 
     elif ck_type[2] == 'r':
         color = 'green'
 
     elif ck_type[2] == 't' \
-          or ck_type == 'crema':
+            or ck_type == 'crema':
         color = 'red'
 
     elif ck_type[2] == 'c':
         color = 'purple'
 
     elif ck_type[2] == 'm' \
-          or ck_type == 'meas':
+            or ck_type == 'meas':
         color = 'blue'
 
     return color
+
+
+def get_plot_style(plot_height, num_rows):
+    if plot_height is None:
+        empty_plot_height = 50  # px margin for the plot title and X axis scale and labels
+        row_height = 40  # px per kernel row
+        plot_height = (num_rows * row_height) + empty_plot_height
+
+    hbar_height = 0.15
+    lbl_y_offset = int((plot_height / num_rows) * (hbar_height * 0.75))
+
+    return plot_height, hbar_height, lbl_y_offset
+
+
+def prepare_coverage_plot(p, source_dict, x, y, lbl_y_offset):
+    text_font_size = "5pt"
+
+    source = ColumnDataSource(data=source_dict)
+    labels = LabelSet(x=x, y=y, text=y, level='glyph', x_offset=-2, y_offset=lbl_y_offset,
+                      source=source, render_mode='canvas', text_font_size=text_font_size)
+    p.add_layout(labels)
+
+    p.xaxis.formatter = DatetimeTickFormatter(seconds=["%Y-%m-%d %H:%M:%S"],
+                                              minsec=["%Y-%m-%d %H:%M:%S"],
+                                              minutes=["%Y-%m-%d %H:%M:%S"],
+                                              hourmin=["%Y-%m-%d %H:%M:%S"],
+                                              hours=["%Y-%m-%d %H:%M:%S"],
+                                              days=["%Y-%m-%d %H:%M:%S"],
+                                              months=["%Y-%m-%d %H:%M:%S"],
+                                              years=["%Y-%m-%d %H:%M:%S"])
+
+    p.xaxis.major_label_orientation = 0  # pi/4
+    p.yaxis.visible = False
+    p.xaxis.axis_label_text_font_size = text_font_size
