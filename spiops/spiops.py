@@ -23,6 +23,8 @@ from spiops.utils.utils import target2frame
 from spiops.utils.utils import findIntersection
 from spiops.utils.utils import findNearest
 from spiops.utils.utils import get_ck_kernel_color
+from spiops.utils.utils import get_plot_style
+from spiops.utils.utils import prepare_coverage_plot
 from spiops.utils.files import download_file
 from spiops.utils.files import list_files_from_ftp
 from spiops.utils.files import get_aem_quaternions
@@ -45,7 +47,6 @@ import matplotlib.pyplot as plt
 from spiceypy import support_types as stypes
 
 from bokeh.plotting import figure, output_file, output_notebook, show
-from bokeh.models import ColumnDataSource, DatetimeTickFormatter, LabelSet
 from spiops.utils.time import et_to_datetime, get_gaps_from_cov
 # from spiops.utils.webmust.webmust_handler import WebmustHandler
 
@@ -832,7 +833,7 @@ def saa_vs_hk_sa_position(sc, plot_style='line', notebook=True):
 
     # For each file, download it, add data to array, and remove it
     sa_angles = download_tm_data(sa_files, hkt_path, separator, columns, data_factors)
-    if not len(sa_angles):
+    if sa_angles is None or not len(sa_angles):
         print("Cannot obtain required TM data, aborting.")
         return None
 
@@ -3342,8 +3343,6 @@ def ck_coverage_timeline(metakernel, frame_list, notebook=True, html_file_name='
     for element in cov_finsh:
         finish_dt.append(et_to_datetime(element, date_format))
 
-    source = ColumnDataSource(data=dict(start_dt=start_dt, finsh_dt=finish_dt, ck_kernels=ck_kernels))
-
     title = "CK Kernels Coverage"
     if 'ops' in metakernel.lower():
         title += ' - OPS Metakernel'
@@ -3353,25 +3352,8 @@ def ck_coverage_timeline(metakernel, frame_list, notebook=True, html_file_name='
     plot_height, hbar_height, lbl_y_offset = get_plot_style(plot_height, len(ck_kernels))
     p = figure(y_range=ck_kernels, plot_height=plot_height, plot_width=plot_width, title=title, )
     p.hbar(y=ck_kernels, height=hbar_height, left=start_dt, right=finish_dt, color=colors)
-
-    labels = LabelSet(x='start_dt', y='ck_kernels', text='ck_kernels', level='glyph',
-                      x_offset=-2, y_offset=lbl_y_offset, source=source, render_mode='canvas')
-
-    p.xaxis.formatter = DatetimeTickFormatter(seconds=["%Y-%m-%d %H:%M:%S"],
-                                              minsec=["%Y-%m-%d %H:%M:%S"],
-                                              minutes=["%Y-%m-%d %H:%M:%S"],
-                                              hourmin=["%Y-%m-%d %H:%M:%S"],
-                                              hours=["%Y-%m-%d %H:%M:%S"],
-                                              days=["%Y-%m-%d %H:%M:%S"],
-                                              months=["%Y-%m-%d %H:%M:%S"],
-                                              years=["%Y-%m-%d %H:%M:%S"])
-
-    p.xaxis.major_label_orientation = 0  # pi/4
-    p.yaxis.visible = False
-    p.xaxis.axis_label_text_font_size = "5pt"
-
-    p.add_layout(labels)
-
+    source_dict = dict(start_dt=start_dt, finish_dt=finish_dt, ck_kernels=ck_kernels)
+    prepare_coverage_plot(p, source_dict, 'start_dt', 'ck_kernels', lbl_y_offset)
     show(p)
 
 
@@ -3406,8 +3388,6 @@ def ck_gap_report(metakernel, frame_list, notebook=True, html_file_name='test',
         start_dt.append(et_to_datetime(kernels_data[kernel]["cov"][0], date_format))
         finish_dt.append(et_to_datetime(kernels_data[kernel]["cov"][1], date_format))
 
-    source = ColumnDataSource(data=dict(start_dt=start_dt, finsh_dt=finish_dt, ck_kernels=ck_kernels))
-
     title = "CK Kernels Coverage Gaps"
     if 'ops' in metakernel.lower():
         title += ' - OPS Metakernel'
@@ -3416,9 +3396,6 @@ def ck_gap_report(metakernel, frame_list, notebook=True, html_file_name='test',
 
     plot_height, hbar_height, lbl_y_offset = get_plot_style(plot_height, len(ck_kernels))
     p = figure(y_range=ck_kernels, plot_height=plot_height, plot_width=plot_width, title=title)
-
-    labels = LabelSet(x='start_dt', y='ck_kernels', text='ck_kernels', level='glyph',
-                      x_offset=-2, y_offset=lbl_y_offset, source=source, render_mode='canvas')
 
     for kernel in ck_kernels:
         k_data = kernels_data[kernel]
@@ -3432,21 +3409,8 @@ def ck_gap_report(metakernel, frame_list, notebook=True, html_file_name='test',
             gap_end = et_to_datetime(gap[1], date_format)
             p.hbar(y=[kernel], height=hbar_height, left=[gap_start], right=[gap_end], color=[k_data["color"]])
 
-    p.xaxis.formatter = DatetimeTickFormatter(seconds=["%Y-%m-%d %H:%M:%S"],
-                                              minsec=["%Y-%m-%d %H:%M:%S"],
-                                              minutes=["%Y-%m-%d %H:%M:%S"],
-                                              hourmin=["%Y-%m-%d %H:%M:%S"],
-                                              hours=["%Y-%m-%d %H:%M:%S"],
-                                              days=["%Y-%m-%d %H:%M:%S"],
-                                              months=["%Y-%m-%d %H:%M:%S"],
-                                              years=["%Y-%m-%d %H:%M:%S"])
-
-    p.xaxis.major_label_orientation = 0  # pi/4
-    p.yaxis.visible = False
-    p.xaxis.axis_label_text_font_size = "5pt"
-
-    p.add_layout(labels)
-
+    source_dict = dict(start_dt=start_dt, finish_dt=finish_dt, ck_kernels=ck_kernels)
+    prepare_coverage_plot(p, source_dict, 'start_dt', 'ck_kernels', lbl_y_offset)
     show(p)
 
 
@@ -3479,20 +3443,20 @@ def spk_coverage_timeline(metakernel, sc_list, notebook=True, html_file_name='te
                                 time_format='TDB')
             if cov:
                 color = "lawngreen"
-                type = 'xxx'
+                spk_type = 'xxx'
                 if 'MPO' in sc or 'MMO' in sc or 'MTM' in sc:
-                    type = kernel.split('_')[2]
+                    spk_type = kernel.split('_')[2]
                 elif 'JUICE' in sc:
-                    type = kernel.split('_')[1]
-                if type[2] == 'p':
+                    spk_type = kernel.split('_')[1]
+                if spk_type[2] == 'p':
                     color = 'orange'
-                elif type[2] == 'r':
+                elif spk_type[2] == 'r':
                     color = 'green'
-                elif type[2] == 't':
+                elif spk_type[2] == 't':
                     color = 'red'
-                elif type[2] == 'c':
+                elif spk_type[2] == 'c':
                     color = 'purple'
-                elif type[2] == 'm':
+                elif spk_type[2] == 'm':
                     color = 'blue'
                 cov_start.append(cov[0][0])
                 cov_finsh.append(cov[0][-1])
@@ -3501,16 +3465,12 @@ def spk_coverage_timeline(metakernel, sc_list, notebook=True, html_file_name='te
 
     spiceypy.furnsh(metakernel)
     date_format = 'UTC'
-    start_dt =[]
-    finsh_dt =[]
+    start_dt = []
+    finish_dt = []
     for element in cov_start:
         start_dt.append(et_to_datetime(element, date_format))
     for element in cov_finsh:
-        finsh_dt.append(et_to_datetime(element, date_format))
-
-    source = ColumnDataSource(data=dict(start_dt=start_dt,
-                                        finsh_dt=finsh_dt,
-                                        spk_kernels=spk_kernels))
+        finish_dt.append(et_to_datetime(element, date_format))
 
     title = "SPK Kernels Coverage"
     if 'ops' in metakernel.lower():
@@ -3520,41 +3480,13 @@ def spk_coverage_timeline(metakernel, sc_list, notebook=True, html_file_name='te
 
     plot_height, hbar_height, lbl_y_offset = get_plot_style(plot_height, len(spk_kernels))
     p = figure(y_range=spk_kernels, plot_height=plot_height, plot_width=plot_width, title=title)
-    p.hbar(y=spk_kernels, height=hbar_height, left=start_dt, right=finsh_dt, color=colors)
+    p.hbar(y=spk_kernels, height=hbar_height, left=start_dt, right=finish_dt, color=colors)
 
-    labels = LabelSet(x='start_dt', y='spk_kernels', text='spk_kernels', level='glyph',
-                      x_offset=-2, y_offset=lbl_y_offset, source=source, render_mode='canvas')
-
-    p.xaxis.formatter = DatetimeTickFormatter(seconds=["%Y-%m-%d %H:%M:%S"],
-                                              minsec=["%Y-%m-%d %H:%M:%S"],
-                                              minutes=["%Y-%m-%d %H:%M:%S"],
-                                              hourmin=["%Y-%m-%d %H:%M:%S"],
-                                              hours=["%Y-%m-%d %H:%M:%S"],
-                                              days=["%Y-%m-%d %H:%M:%S"],
-                                              months=["%Y-%m-%d %H:%M:%S"],
-                                              years=["%Y-%m-%d %H:%M:%S"])
-
-    p.xaxis.major_label_orientation = 0  # pi/4
-    p.yaxis.visible = False
-    p.xaxis.axis_label_text_font_size = "5pt"
-
-    p.add_layout(labels)
-
+    source_dict = dict(start_dt=start_dt, finish_dt=finish_dt, spk_kernels=spk_kernels)
+    prepare_coverage_plot(p, source_dict, 'start_dt', 'spk_kernels', lbl_y_offset)
     show(p)
 
     spiceypy.unload(metakernel)
-
-
-def get_plot_style(plot_height, num_rows):
-    if plot_height is None:
-        empty_plot_height = 50  # px margin for the plot title and X axis scale and labels
-        row_height = 60  # px per kernel row
-        plot_height = (num_rows * row_height) + empty_plot_height
-
-    hbar_height = 0.2
-    lbl_y_offset = int((plot_height / num_rows) * (hbar_height * 1.05))
-
-    return plot_height, hbar_height, lbl_y_offset
 
 
 #
