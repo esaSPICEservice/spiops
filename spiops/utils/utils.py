@@ -513,7 +513,7 @@ def get_plot_style(plot_height, num_rows):
 
 
 def prepare_coverage_plot(p, source_dict, x, y, lbl_y_offset):
-    text_font_size = "5pt"
+    text_font_size = "10pt"
 
     source = ColumnDataSource(data=source_dict)
     labels = LabelSet(x=x, y=y, text=y, level='glyph', x_offset=-2, y_offset=lbl_y_offset,
