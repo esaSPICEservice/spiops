@@ -4716,3 +4716,57 @@ def check_frame_chain(start_time, end_time, num_samples, ignore_frames=[]):
             break
 
     return all_frames_ok
+
+
+def check_fovs(max_angle_deg):
+    all_fovs_ok = True
+
+    # Iterate over all the instruments fovs to verify FOV_REF_ANGLE is smaller than 90 deg.
+    cvals = spiceypy.gnpool("INS*_FOV_REF_ANGLE", 0, 10000)
+    for cval in cvals:
+
+        instr_id = str(cval).replace("INS", "").replace("_FOV_REF_ANGLE", "")
+
+        cvars = spiceypy.gcpool("INS" + instr_id + "_FOV_ANGLE_UNITS", 0, 10)
+
+        if len(cvars) == 1:
+
+            value = None
+            dvars = spiceypy.gdpool(cval, 0, 10)
+            if len(dvars) == 1:
+                value = dvars[0]
+
+            elif len(dvars) == 0:
+                print("Error: Missing FOV_REF_ANGLE value for instrument id: " + instr_id)
+                all_fovs_ok = False
+
+            elif len(dvars) > 1:
+                print("Error: Multiple FOV_REF_ANGLE values for instrument id: " + instr_id)
+                all_fovs_ok = False
+
+            if value is not None:
+                if str(cvars[0]) == "DEGREES":
+                    if value > max_angle_deg:
+                        print("Error: FOV_REF_ANGLE value " + str(value) + " is greater than " + str(max_angle_deg)
+                              + " for instrument id: " + instr_id)
+                        all_fovs_ok = False
+
+                elif str(cvars[0]) == "RADIANS":
+                    if value > max_angle_deg * spiceypy.rpd():
+                        print("Error: FOV_REF_ANGLE value " + str(value) + " is greater than "
+                              + str(max_angle_deg * spiceypy.rpd()) + " for instrument id: " + instr_id)
+                        all_fovs_ok = False
+
+                else:
+                    print("Error: Unsupported FOV_ANGLE_UNITS '" + str(cvars[0]) + "' for instrument id: " + instr_id)
+                    all_fovs_ok = False
+
+        elif len(cvars) == 0:
+            print("Error: Missing FOV_ANGLE_UNITS for instrument id: " + instr_id)
+            all_fovs_ok = False
+
+        elif len(cvars) > 1:
+            print("Error: Multiple FOV_ANGLE_UNITS for instrument id: " + instr_id)
+            all_fovs_ok = False
+
+    return all_fovs_ok
