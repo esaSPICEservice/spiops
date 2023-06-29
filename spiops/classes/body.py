@@ -134,7 +134,7 @@ class Body(object):
             sclk_end = 500000000
         else:
             sclk_start = 3.9631239807361E+13/65536
-            sclk_end = 700000000
+            sclk_end = 800000000
 
         #sclk_end = spiceypy.gdpool('SCLK_PARTITION_END_{}'.format(str(-1*self.id)),0,1000)[0]/65536
 
