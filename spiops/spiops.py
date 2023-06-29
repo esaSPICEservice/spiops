@@ -1222,6 +1222,8 @@ def time_deviation(sc, start_time_s, end_time_s, plot_style='line', notebook=Tru
     # calculated with SPICE (1st column) and the UTC timestamp of packet
     # calculated from SCOS2K header (3rd column)
 
+    psa_ftp_url = "https://archives.esac.esa.int/psa/ftp"
+
     spiceypy.timdef('SET', 'SYSTEM', 10, 'UTC')
 
     et_start = spiceypy.utc2et(start_time_s)
@@ -1234,37 +1236,45 @@ def time_deviation(sc, start_time_s, end_time_s, plot_style='line', notebook=Tru
     utc_data = []
 
     for day in range(n_days):
+
         date = start_time + timedelta(days=day)
+        day_s = date.strftime('%Y%m%d')
+        month_s = date.strftime('%Y%m')
 
         if sc == 'JUICE':
-            day_s = date.strftime('%Y%m%d')
-            month_s = date.strftime('%Y%m')
 
             file = "juice_raw_hk_time_deviation_" + day_s + ".tab"
-            url = "https://archives.esac.esa.int/psa/ftp/JUICE/juice/miscellaneous/spacecraft_housekeeping" \
+            url = psa_ftp_url + "/JUICE/juice/miscellaneous/spacecraft_housekeeping" \
                   "/near_earth_commissioning/" + month_s + "/" + day_s + "/" + file
 
-            download_file(url, file)
+        elif sc == 'MPO':
 
-            if not os.path.isfile(file):
-                print('File cannot be downloaded: ' + file)
-                return None
-
-            file_utc_data = get_csv_data(file, ",", [0, 2])
-
-            if not len(file_utc_data):
-                print('File cannot be downloaded: ' + file)
-                os.remove(file)
-                return None
-
-            utc_data += file_utc_data
-
-            # Remove downloaded file
-            os.remove(file)
+            file = "mpo_raw_hk_time_deviation_" + day_s + ".tab"
+            url = psa_ftp_url + "/BepiColombo/bc/miscellaneous/spacecraft_housekeeping" \
+                  "/cruise/" + month_s + "/" + day_s + "/" + file
 
         else:
             print('Unsupported spacecraft: ' + sc)
             return None
+
+        # Download file and read utcs data
+        download_file(url, file)
+
+        if not os.path.isfile(file):
+            print('File cannot be downloaded: ' + file)
+            return None
+
+        file_utc_data = get_csv_data(file, ",", [0, 2])
+
+        if not len(file_utc_data):
+            print('Cannot read UTC data from file: ' + file)
+            os.remove(file)
+            return None
+
+        utc_data += file_utc_data
+
+        # Remove downloaded file
+        os.remove(file)
 
     times = []
     time_diff = []
