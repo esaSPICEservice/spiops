@@ -58,6 +58,8 @@ def get_exe_dir():
     if platform.system() == 'Darwin':
         if platform.machine() == 'x86_64':
             return '/exe/macintel_osx_64bit'
+        elif platform.machine() == 'arm64':
+            return '/exe/macintel_m1_64bit'
     else:
         return '/exe/pc_linux_64bit'
 
