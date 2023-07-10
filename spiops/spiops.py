@@ -1256,7 +1256,7 @@ def time_deviation(sc, start_time_s, end_time_s, plot_style='line', notebook=Tru
         if sc == 'JUICE':
 
             file = "juice_raw_hk_time_deviation_" + day_s + ".tab"
-            url = psa_ftp_url + "/JUICE/juice/miscellaneous/spacecraft_housekeeping" \
+            url = psa_ftp_url + "/Juice/juice/miscellaneous/spacecraft_housekeeping" \
                   "/near_earth_commissioning/" + month_s + "/" + day_s + "/" + file
 
         elif sc == 'MPO':
