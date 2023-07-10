@@ -2333,7 +2333,7 @@ def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance
             print("Warning: Validated only " + str(validated_samples)
                   + " samples from expected " + str(expected_samples) + " samples")
 
-        max_ang_error = spiceypy.convrt(np.max(angle_diff), 'ARCSECONDS', 'DEGREES')
+        max_ang_error = spiceypy.convrt(np.max(angle_diff), 'ARCSECONDS', 'DEGREES') * 1e3
         print('Max angular error [mdeg]: ' + str(max_ang_error))
         return max_ang_error
 
