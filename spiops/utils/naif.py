@@ -106,8 +106,8 @@ def optiks(mkernel, utc=False):
 def get_latest_step_sclk(sc):
 
     mission = get_mission(sc)
-    skd_path = os.path.join("data/SPICE/", mission, "kernels")
-    #skd_path = "/home/rvalles/spice/kernels/bepicolombo/kernels"
+    # skd_path = os.path.join("data/SPICE/", mission, "kernels")
+    skd_path = "/Users/aescalante/spice/missions/bc/bepicolombo/kernels"
 
     if mission == 'EXOMARS2016':
         sc = "em16_" + sc
@@ -115,6 +115,9 @@ def get_latest_step_sclk(sc):
         sc = "bc_" + sc
     elif mission == 'EXOMARSRSP':
         sc = "emrsp_" + sc
+    elif mission == 'JUICE':
+        sclk = get_latest_kernel('sclk', skd_path, '{}_step_??????_v??.tsc'.format(sc.lower()))
+        return os.path.join(skd_path, "sclk", sclk)
 
     try:
         sclk = get_latest_kernel('sclk', skd_path, '{}_step_????????.tsc'.format(sc.lower()))
