@@ -2,6 +2,7 @@ import spiceypy as spiceypy
 import numpy as np
 from spiops import spiops
 from spiops.utils import utils
+from spiops.utils import naif
 from bokeh.layouts import row
 from bokeh.plotting import figure, show, output_notebook
 from bokeh.models.glyphs import Ellipse
@@ -129,17 +130,19 @@ class Body(object):
 
     def __ClockDrift(self, enddate=False):
 
-        if self.name != 'MPO':
-            sclk_start = 0.0
-            sclk_end = 500000000
-        else:
-            sclk_start = 3.9631239807361E+13/65536
-            sclk_end = 800000000
+        try:
+            sclk_path = naif.get_latest_step_sclk(self.name)
+            print(sclk_path)
+            coeffs = naif.read_sclk_coefficiends(sclk_path)
+            print(coeffs)
+            sclk_start = int(coeffs[1][0])
+            sclk_end = int(coeffs[-1][0])
+        except Exception as ex:
+            print("Error: Could not obtain SCLK time bounds. Error: " + str(ex))
+            return
 
-        #sclk_end = spiceypy.gdpool('SCLK_PARTITION_END_{}'.format(str(-1*self.id)),0,1000)[0]/65536
-
-
-        step = 10000.0
+        tiks_per_second = spiceypy.gdpool('SCLK01_MODULI_{}'.format(str(-1*self.id)),0,1000)[1]
+        step = int(((sclk_end - sclk_start)/tiks_per_second) * 10000) # 10000 points in the plot
 
         if not enddate:
             et_end = self.time.getTime('finish','utc')
@@ -148,25 +151,18 @@ class Body(object):
 
         sclk = []
         ephtime = []
-        utctime = []
 
-        for i in np.arange(sclk_start, sclk_end, step):
-            sclk.append(i)
-
-            sclkdp = i*65536
-            et = spiceypy.sct2e(self.id, sclkdp)
+        for clk in range(sclk_start, sclk_end, step):
+            sclk.append(clk)
+            et = spiceypy.sct2e(self.id, clk)
             ephtime.append(et)
-
-            utcstr = spiceypy.et2utc(et, 'C', 3)
-            utctime.append(utcstr)
-
 
         dates = []
         drift = []
-        for j in range(0,len(ephtime),1):
+        for j in range(0, len(ephtime), 1):
             if ephtime[j] >= et_end:
                 break
-            drift.append((sclk[j]-sclk_start) - (ephtime[j] - ephtime[0]))
+            drift.append(sclk[j] - ((ephtime[j] - ephtime[0]) * tiks_per_second))
             dates.append(ephtime[j])
 
         self.clock_dates = dates

@@ -1,5 +1,4 @@
-from spiops.utils.utils import get_latest_kernel, get_exe_dir, get_skd_path
-from spiops.utils.utils import get_sc
+from spiops.utils.utils import get_sc, get_mission, get_latest_kernel, get_exe_dir, get_skd_path
 import subprocess
 import os
 
@@ -47,7 +46,7 @@ def ckbrief(kernel, utc=False):
     try:
         sclk = get_latest_kernel('sclk', skd_path, '{}_step_????????.tsc'.format(sc))
     except:
-        sclk = get_latest_kernel('lsk', skd_path, '{}_STEP_????????.TSC'.format(sc.upper()))
+        sclk = get_latest_kernel('sclk', skd_path, '{}_STEP_????????.TSC'.format(sc.upper()))
 
     try:
         fk = get_latest_kernel('fk', skd_path, '{}_v??.tf'.format(sc))
@@ -102,3 +101,48 @@ def optiks(mkernel, utc=False):
     process_output, _ = command_line_process.communicate()
 
     return process_output.decode("utf-8")
+
+
+def get_latest_step_sclk(sc):
+
+    mission = get_mission(sc)
+    skd_path = os.path.join("data/SPICE/", mission, "kernels")
+    #skd_path = "/home/rvalles/spice/kernels/bepicolombo/kernels"
+
+    if mission == 'EXOMARS2016':
+        sc = "em16_" + sc
+    elif mission == 'BEPICOLOMBO':
+        sc = "bc_" + sc
+    elif mission == 'EXOMARSRSP':
+        sc = "emrsp_" + sc
+
+    try:
+        sclk = get_latest_kernel('sclk', skd_path, '{}_step_????????.tsc'.format(sc.lower()))
+    except:
+        sclk = get_latest_kernel('sclk', skd_path, '{}_STEP_????????.TSC'.format(sc.upper()))
+
+    return os.path.join(skd_path, "sclk", sclk)
+
+
+# Given a SCLK path returns its coefficients Ej: -> [[0.0000000000000E+00, -4.3128257165551E+04, 1.0000000000000E+00], ...]
+def read_sclk_coefficiends(sclk_path):
+
+    inside_coefs_section = False
+    coeffs = []
+
+    with open(sclk_path, 'r') as f:
+        for line in f:
+            line = line.strip()
+            if line != "":
+                if inside_coefs_section:
+
+                    if line.endswith(")"):
+                        return coeffs
+
+                    line_coeffs = [float(it) for it in line.split()]
+                    coeffs.append(line_coeffs)
+
+                if '_COEFFICIENTS_' in line and line.endswith("("):
+                    inside_coefs_section = True
+
+    return coeffs
