@@ -23,6 +23,16 @@ except ImportError:
 
 from spiops.data import images
 
+MISSION_SPACECRAFTS = {
+    'ROSETTA': ["ROS"],
+    'VENUS-EXPRESS': ["VEX"],
+    'MARS-EXPRESS': ["MEX"],
+    'ExoMars2016': ["TGO", "EDM"],
+    'BEPICOLOMBO': ["MMO", "MPO", "MTM"],
+    'JUICE': ["JUICE"],
+    'SOLAR-ORBITER': ["SOLO"],
+    'EXOMARSRSP': ["SP", "RM"]
+}
 
 def valid_url(html_file_name):
     """
@@ -416,6 +426,13 @@ def get_sc(kernel):
             return 'emrsp_sp'
         else:
             return 'emrsp_rm'
+
+
+def get_mission(sc):
+    for mission in MISSION_SPACECRAFTS:
+        if sc.upper() in MISSION_SPACECRAFTS[mission]:
+            return mission
+    return None
 
 
 def target2frame(target):
