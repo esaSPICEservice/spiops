@@ -43,6 +43,7 @@ from spiops.classes.body import Observer  # Do not remove, called from spival
 import imageio
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import json
 
 from spiceypy import support_types as stypes
 
@@ -75,6 +76,17 @@ SOFTWARE.
 
 def load(mk):
     return spiceypy.furnsh(mk)
+
+
+def load_config(config_file):
+    with open(config_file) as f:
+        try:
+            return json.load(f)
+        except:
+            error_message = str(traceback.format_exc())
+            print("Error: The SPIVAL JSON configuration file has syntactical errors.")
+            print(error_message)
+            raise
 
 
 def adcsng_fill_template(template, file, replacements, cleanup=False):
