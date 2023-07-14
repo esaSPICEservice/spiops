@@ -1256,7 +1256,7 @@ def time_deviation(sc, start_time_s, end_time_s, plot_style='line', notebook=Tru
         if sc == 'JUICE':
 
             file = "juice_raw_hk_time_deviation_" + day_s + ".tab"
-            url = psa_ftp_url + "/JUICE/juice/miscellaneous/spacecraft_housekeeping" \
+            url = psa_ftp_url + "/Juice/juice/miscellaneous/spacecraft_housekeeping" \
                   "/near_earth_commissioning/" + month_s + "/" + day_s + "/" + file
 
         elif sc == 'MPO':
@@ -2280,6 +2280,8 @@ def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance
                                                                                           target_frame, boresight)
 
         angle_diff = [abs(i - j) for i, j in zip(angle_ck1, angle_ck2)]
+        max_ang_error = spiceypy.convrt(np.max(angle_diff), 'ARCSECONDS', 'DEGREES') * 1e3
+        print('Max angular error [mdeg]: ' + str(max_ang_error))
 
         if output == 'euler_angles':
 
@@ -2345,7 +2347,7 @@ def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance
             print("Warning: Validated only " + str(validated_samples)
                   + " samples from expected " + str(expected_samples) + " samples")
 
-        return np.max(angle_diff)
+        return max_ang_error
 
     except Exception as e:
         print(e)
