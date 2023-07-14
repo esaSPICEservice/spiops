@@ -103,11 +103,12 @@ def optiks(mkernel, utc=False):
     return process_output.decode("utf-8")
 
 
-def get_latest_step_sclk(sc):
+def get_latest_step_sclk(sc, skd_path=None):
 
     mission = get_mission(sc)
-    # skd_path = os.path.join("data/SPICE/", mission, "kernels")
-    skd_path = "/Users/aescalante/spice/missions/bc/bepicolombo/kernels"
+
+    if skd_path is None:
+        skd_path = os.path.join("data/SPICE/", mission, "kernels")
 
     if mission == 'EXOMARS2016':
         sc = "em16_" + sc

@@ -10,7 +10,7 @@ from bokeh.models import ColumnDataSource, Plot, LinearAxis, Grid
 
 
 class Body(object):
-    def __init__(self, body, time=object(), target=None):
+    def __init__(self, body, time=object(), target=None, mission_config=None):
 
         if isinstance(body, str):
             name = body
@@ -21,6 +21,9 @@ class Body(object):
 
         if target:
             self.target = target
+
+        if mission_config:
+            self.mission_config = mission_config
 
         self.name = name
         self.id = id
@@ -131,12 +134,21 @@ class Body(object):
     def __ClockDrift(self, enddate=False):
 
         try:
-            sclk_path = naif.get_latest_step_sclk(self.name)
-            print(sclk_path)
+
+            skd_path = None
+            sclk_start_coeff_idx = 1
+            if self.mission_config is not None:
+                skd_path = self.mission_config["skd_path"]
+                if "sclk_start_coeff_idx" in self.mission_config:
+                    sclk_start_coeff_idx = self.mission_config["sclk_start_coeff_idx"][self.name.lower()]
+
+            sclk_path = naif.get_latest_step_sclk(self.name, skd_path=skd_path)
+
             coeffs = naif.read_sclk_coefficiends(sclk_path)
-            print(coeffs)
-            sclk_start = int(coeffs[6][0]) #TODO this depends on the mission and the coefficients before nominal operations
+
+            sclk_start = int(coeffs[sclk_start_coeff_idx][0])
             sclk_end = int(coeffs[-1][0])
+
         except Exception as ex:
             print("Error: Could not obtain SCLK time bounds. Error: " + str(ex))
             return
@@ -151,7 +163,6 @@ class Body(object):
 
         sclk = []
         ephtime = []
-        print('start', sclk_start)
         for clk in range(sclk_start, sclk_end, step):
             sclk.append(clk)
             et = spiceypy.sct2e(self.id, clk)
@@ -821,9 +832,9 @@ class Target(Body):
 
 
 class Observer(Body):
-    def __init__(self, body, time=object(), target=False, frame=''):
+    def __init__(self, body, time=object(), target=False, frame='', mission_config=None):
 
-        super(Observer, self).__init__(body, time=time, target=target)
+        super(Observer, self).__init__(body, time=time, target=target, mission_config=mission_config)
 
         if not frame:
             self.frame = '{}_SPACECRAFT'.format(self.name)
