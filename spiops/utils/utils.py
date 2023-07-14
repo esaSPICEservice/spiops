@@ -31,7 +31,7 @@ MISSION_SPACECRAFTS = {
     'BEPICOLOMBO': ["MMO", "MPO", "MTM"],
     'JUICE': ["JUICE"],
     'SOLAR-ORBITER': ["SOLO"],
-    'EXOMARSRSP': ["SP", "RM"]
+    'ExoMarsRSP': ["SP", "RM"]
 }
 
 def valid_url(html_file_name):

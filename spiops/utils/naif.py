@@ -110,20 +110,23 @@ def get_latest_step_sclk(sc, skd_path=None):
     if skd_path is None:
         skd_path = os.path.join("data/SPICE/", mission, "kernels")
 
-    if mission == 'EXOMARS2016':
+    wildcard = "{}_step_????????.tsc"
+
+    if mission == 'ExoMars2016':
         sc = "em16_" + sc
     elif mission == 'BEPICOLOMBO':
         sc = "bc_" + sc
-    elif mission == 'EXOMARSRSP':
+    elif mission == 'ExoMarsRSP':
         sc = "emrsp_" + sc
     elif mission == 'JUICE':
-        sclk = get_latest_kernel('sclk', skd_path, '{}_step_??????_v??.tsc'.format(sc.lower()))
-        return os.path.join(skd_path, "sclk", sclk)
+        wildcard = "{}_step_??????_v??.tsc"
+    elif '-EXPRESS' in mission or 'ROSETTA' == mission:
+        wildcard = "{}_??????_STEP.TSC"
 
     try:
-        sclk = get_latest_kernel('sclk', skd_path, '{}_step_????????.tsc'.format(sc.lower()))
+        sclk = get_latest_kernel('sclk', skd_path, wildcard.format(sc.lower()))
     except:
-        sclk = get_latest_kernel('sclk', skd_path, '{}_STEP_????????.TSC'.format(sc.upper()))
+        sclk = get_latest_kernel('sclk', skd_path, wildcard.upper().format(sc.upper()))
 
     return os.path.join(skd_path, "sclk", sclk)
 
