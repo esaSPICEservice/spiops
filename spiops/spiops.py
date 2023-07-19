@@ -25,6 +25,8 @@ from spiops.utils.utils import findNearest
 from spiops.utils.utils import get_ck_kernel_color
 from spiops.utils.utils import get_plot_style
 from spiops.utils.utils import prepare_coverage_plot
+from spiops.utils.utils import get_exclude_intervals
+from spiops.utils.utils import is_excluded
 from spiops.utils.files import download_file
 from spiops.utils.files import list_files_from_ftp
 from spiops.utils.files import get_aem_quaternions
@@ -575,7 +577,7 @@ def cov_spk_ker(spk, object=False, time_format='TDB', support_ker ='',
     return boundaries
 
 
-def spkVsOem(sc, spk, plot_style='line', notebook=True):
+def spkVsOem(sc, spk, mission_config=None, plot_style='line', notebook=True):
 
     spiceypy.timdef('SET', 'SYSTEM', 10, 'TDB')
     spiceypy.furnsh(spk)
@@ -593,6 +595,8 @@ def spkVsOem(sc, spk, plot_style='line', notebook=True):
     else:
         print('Unsupported spacecraft: ' + sc)
         return None, None
+
+    exclude_intervals = get_exclude_intervals(mission_config, "spkVsOem")
 
     print('OEM file: ' + file)
     if not os.path.isfile(file):
@@ -612,6 +616,9 @@ def spkVsOem(sc, spk, plot_style='line', notebook=True):
             data = line.replace('\n', '').split()
             center_list.append(center)
             data_list.append(data)
+
+    exclude_int_idx = -1
+
     for i in range(1, len(data_list)-1, 1):
         #
         # skip OEM lines with repeated time tags (typically at the end of a
@@ -620,6 +627,11 @@ def spkVsOem(sc, spk, plot_style='line', notebook=True):
         if data_list[i][0] != data_list[i+1][0]:
             data = data_list[i]
             et = spiceypy.str2et(data[0])
+
+            excluded, exclude_int_idx = is_excluded(et, exclude_intervals, exclude_int_idx)
+            if excluded:
+                continue
+
             state = spiceypy.spkezr(sc, et, 'J2000', 'NONE', center_list[i])[0]
             curr_error = [et,
                           abs(state[0] - float(data[1])),
@@ -665,7 +677,7 @@ def spkVsOem(sc, spk, plot_style='line', notebook=True):
     return max_pos_norm_error, max_vel_norm_error
 
 
-def ckVsAEM(sc, ck, plot_style='line', notebook=True):
+def ckVsAEM(sc, ck, mission_config=None, plot_style='line', notebook=True):
 
     spiceypy.timdef('SET', 'SYSTEM', 10, 'TDB')
     spiceypy.furnsh(ck)
@@ -684,6 +696,8 @@ def ckVsAEM(sc, ck, plot_style='line', notebook=True):
         print('Unsupported spacecraft: ' + sc)
         return None
 
+    exclude_intervals = get_exclude_intervals(mission_config,"ckVsAEM")
+
     print('AEM file: ' + file)
     if not os.path.isfile(file):
         print('AEM file cannot be downloaded!')
@@ -696,7 +710,7 @@ def ckVsAEM(sc, ck, plot_style='line', notebook=True):
         # margin with the start of the CK
         aem_guats.pop(0)
 
-    error, max_ang_error = get_quats_ang_error(aem_guats, sc)
+    error, max_ang_error = get_quats_ang_error(aem_guats, sc, exclude_intervals)
 
     plot_attitude_error(np.asarray(error),
                         max_ang_error,
@@ -710,7 +724,7 @@ def ckVsAEM(sc, ck, plot_style='line', notebook=True):
     return max_ang_error
 
 
-def ckVsAocs(sc, ck, plot_style='line', notebook=True):
+def ckVsAocs(sc, ck, mission_config=None, plot_style='line', notebook=True):
 
     spiceypy.timdef('SET', 'SYSTEM', 10, 'UTC')
     spiceypy.furnsh(ck)
@@ -729,6 +743,8 @@ def ckVsAocs(sc, ck, plot_style='line', notebook=True):
         print('Unsupported spacecraft: ' + sc)
         return None
 
+    exclude_intervals = get_exclude_intervals(mission_config, "ckVsAocs")
+
     print('AOCS tab file: ' + file)
     if not os.path.isfile(file):
         print('AOCS tab file cannot be downloaded!')
@@ -736,7 +752,7 @@ def ckVsAocs(sc, ck, plot_style='line', notebook=True):
 
     aocs_quats = get_aocs_quaternions(file)
 
-    error, max_ang_error = get_quats_ang_error(aocs_quats, sc)
+    error, max_ang_error = get_quats_ang_error(aocs_quats, sc, exclude_intervals)
 
     plot_attitude_error(error,
                         max_ang_error,
@@ -750,12 +766,18 @@ def ckVsAocs(sc, ck, plot_style='line', notebook=True):
     return max_ang_error
 
 
-def get_quats_ang_error(quats, sc):
+def get_quats_ang_error(quats, sc, exclude_intervals=[]):
     error = []
     max_ang_error = 0
+    exclude_int_idx = -1
 
     for quat in quats:
         et = quat[0]
+
+        excluded, exclude_int_idx = is_excluded(et, exclude_intervals, exclude_int_idx)
+        if excluded:
+            continue
+
         q_spice = spiceypy.m2q(spiceypy.pxform('J2000', sc + '_SPACECRAFT', et))
 
         if quat[1] < 0:

@@ -551,3 +551,42 @@ def prepare_coverage_plot(p, source_dict, x, y, lbl_y_offset):
     p.xaxis.major_label_orientation = 0  # pi/4
     p.yaxis.visible = False
     p.xaxis.axis_label_text_font_size = text_font_size
+
+
+def get_exclude_intervals(mission_config=None, method="all"):
+    exclude_intervals_str = []
+    if mission_config is not None:
+        if "exclude_intervals" in mission_config:
+            if method in mission_config["exclude_intervals"]:
+                exclude_intervals_str = mission_config["exclude_intervals"][method]
+            elif "all" in mission_config["exclude_intervals"]:
+                exclude_intervals_str = mission_config["exclude_intervals"]["all"]
+
+    exclude_intervals = []
+    for ex_int_str in exclude_intervals_str:
+        exclude_intervals.append([spiceypy.str2et(ex_int_str[0]), spiceypy.str2et(ex_int_str[1])])
+
+    return exclude_intervals
+
+
+def is_excluded(et, exclude_intervals, curr_interval_idx=-1):
+    if len(exclude_intervals):
+
+        if curr_interval_idx < 0:
+            curr_interval_idx = 0
+
+        if curr_interval_idx < len(exclude_intervals):
+            curr_int = exclude_intervals[curr_interval_idx]
+            if et < curr_int[0]:
+                # Pending to enter in current interval
+                return False, curr_interval_idx
+            elif et <= curr_int[1]:
+                # Inside current interval
+                return True, curr_interval_idx
+            else:
+                # Passed current interval, goto next
+                return False, curr_interval_idx + 1
+        else:
+            return False, len(exclude_intervals)
+
+    return False, -1
