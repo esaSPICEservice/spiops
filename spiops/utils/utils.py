@@ -5,7 +5,7 @@ import matplotlib as mpl
 import spiceypy
 import numpy as np
 from bokeh.plotting import figure, output_file, output_notebook, show
-from bokeh.models import HoverTool
+from bokeh.models import HoverTool, BoxAnnotation
 from bokeh.models import ColumnDataSource
 from bokeh.models import DatetimeTickFormatter
 from bokeh.models import LabelSet
@@ -33,6 +33,7 @@ MISSION_SPACECRAFTS = {
     'SOLAR-ORBITER': ["SOLO"],
     'ExoMarsRSP': ["SP", "RM"]
 }
+
 
 def valid_url(html_file_name):
     """
@@ -121,7 +122,7 @@ def plot(xaxis, yaxis, xaxis_name='Date', yaxis_name='', title='', format='line'
          external_data=[], notebook=False, mission='', target='', yaxis_units='',
          date_format='TDB', plot_width=975, plot_height=300,
          fill_color=[], fill_alpha=0, background_image=False,
-         line_width=2):
+         line_width=2, back_intervals=None, back_color="gray", back_alpha=0.2):
 
     if not isinstance(yaxis_name, list):
         yaxis_name = [yaxis_name]
@@ -214,6 +215,13 @@ def plot(xaxis, yaxis, xaxis_name='Date', yaxis_name='', title='', format='line'
             p.line(x_ext, y_ext, line_width=2,
                    color='red')
 
+    if back_intervals is not None:
+        for bck_int in back_intervals:
+            bar = BoxAnnotation(left=et_to_datetime(bck_int[0]),
+                                right=et_to_datetime(bck_int[1]),
+                                fill_alpha=back_alpha, fill_color=back_color)
+            p.add_layout(bar)
+
     # add a line renderer with legend and line thickness
     color_list = ['red', 'green', 'blue', 'orange', "black", 'darkgoldenrod', 'chocolate', 'aqua', 'coral',
                   'darkcyan', 'cornflowerblue' 'aquamarine', 'darkturquoise', 'cornsilk']
@@ -298,12 +306,18 @@ def plot3d(data, observer, target):
     return
 
 
-def plot_attitude_error(error, max_ang_error, title, plot_style, notebook):
+def plot_attitude_error(error, max_ang_error, title, excluded_ets, exclude_intervals, plot_style, notebook):
 
-    print('Avg QX error: ', np.mean(error[:, 1]))
-    print('Avg QY error: ', np.mean(error[:, 2]))
-    print('Avg QZ error: ', np.mean(error[:, 3]))
-    print('Avg QW error: ', np.mean(error[:, 4]))
+    error = np.asarray(error)
+    filter_idx = [True if et not in excluded_ets else False for et in error[:, 0]]
+    filtered_error = error[filter_idx]
+
+    print_intervals(exclude_intervals, "Excluded intervals:")
+
+    print('Avg QX error: ', np.mean(filtered_error[:, 1]))
+    print('Avg QY error: ', np.mean(filtered_error[:, 2]))
+    print('Avg QZ error: ', np.mean(filtered_error[:, 3]))
+    print('Avg QW error: ', np.mean(filtered_error[:, 4]))
     print('Max angular error [mdeg]: ' + str(max_ang_error))
 
     plot(error[:, 0],
@@ -312,7 +326,19 @@ def plot_attitude_error(error, max_ang_error, title, plot_style, notebook):
          title=title,
          format=plot_style,
          yaxis_units='Q [-]',
-         notebook=notebook)
+         notebook=notebook,
+         back_intervals=exclude_intervals,
+         back_color="red")
+
+
+def print_intervals(intervals, title):
+    if len(intervals):
+        print(title)
+        for interval in intervals:
+            print("   " +
+                  et_to_datetime(interval[0]).strftime('%Y-%b-%d %H:%M:%S')
+                  + " - " +
+                  et_to_datetime(interval[1]).strftime('%Y-%b-%d %H:%M:%S'))
 
 
 def replace(file_path, pattern, subst):
