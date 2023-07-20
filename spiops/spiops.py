@@ -17,7 +17,7 @@ from spiceypy.utils.support_types import *
 
 
 from spiops.utils import time
-from spiops.utils.utils import plot
+from spiops.utils.utils import plot, print_intervals
 from spiops.utils.utils import plot_attitude_error
 from spiops.utils.utils import target2frame
 from spiops.utils.utils import findIntersection
@@ -618,6 +618,7 @@ def spkVsOem(sc, spk, mission_config=None, plot_style='line', notebook=True):
             data_list.append(data)
 
     exclude_int_idx = -1
+    excluded_ets = []
 
     for i in range(1, len(data_list)-1, 1):
         #
@@ -630,7 +631,7 @@ def spkVsOem(sc, spk, mission_config=None, plot_style='line', notebook=True):
 
             excluded, exclude_int_idx = is_excluded(et, exclude_intervals, exclude_int_idx)
             if excluded:
-                continue
+                excluded_ets.append(et)
 
             state = spiceypy.spkezr(sc, et, 'J2000', 'NONE', center_list[i])[0]
             curr_error = [et,
@@ -641,15 +642,20 @@ def spkVsOem(sc, spk, mission_config=None, plot_style='line', notebook=True):
                           abs(state[4] - float(data[5])),
                           abs(state[5] - float(data[6]))]
             error.append(curr_error)
-            pos = np.asarray(curr_error[1:4])
-            vel = np.asarray(curr_error[4:7])
-            pos_norm_error.append(spiceypy.vnorm(pos))
-            vel_norm_error.append(spiceypy.vnorm(vel))
+
+            if not excluded:
+                pos = np.asarray(curr_error[1:4])
+                vel = np.asarray(curr_error[4:7])
+                pos_norm_error.append(spiceypy.vnorm(pos))
+                vel_norm_error.append(spiceypy.vnorm(vel))
 
     max_pos_norm_error = max(pos_norm_error)
     max_vel_norm_error = max(vel_norm_error)
 
     error = np.asarray(error)
+
+    print_intervals(exclude_intervals, "Excluded intervals:")
+
     print('Avg position error [km]: ' + str(np.mean(pos_norm_error)) +
           ' , max position error [km]: ' + str(max_pos_norm_error))
     print('Avg velocity error [km/s]: ' + str(np.mean(vel_norm_error)) +
@@ -661,14 +667,18 @@ def spkVsOem(sc, spk, mission_config=None, plot_style='line', notebook=True):
          title='Source OEM to generated SPK position difference',
          format=plot_style,
          yaxis_units='Position error Km',
-         notebook=notebook)
+         notebook=notebook,
+         back_intervals=exclude_intervals,
+         back_color="red")
     plot(error[:, 0],
          [error[:, 4], error[:, 5], error[:, 6]],
          yaxis_name=['VX', 'VY', 'VZ'],
          title='Source OEM to generated SPK velocity difference',
          format=plot_style,
          yaxis_units='Km/s',
-         notebook=notebook)
+         notebook=notebook,
+         back_intervals=exclude_intervals,
+         back_color="red")
 
     os.remove(file)
     spiceypy.timdef('SET', 'SYSTEM', 10, 'UTC')
@@ -710,11 +720,13 @@ def ckVsAEM(sc, ck, mission_config=None, plot_style='line', notebook=True):
         # margin with the start of the CK
         aem_guats.pop(0)
 
-    error, max_ang_error = get_quats_ang_error(aem_guats, sc, exclude_intervals)
+    error, max_ang_error, excluded_ets = get_quats_ang_error(aem_guats, sc, exclude_intervals)
 
     plot_attitude_error(np.asarray(error),
                         max_ang_error,
                         'Source AEM Quaternions to generated CK orientation difference',
+                        excluded_ets,
+                        exclude_intervals,
                         plot_style,
                         notebook)
 
@@ -752,11 +764,13 @@ def ckVsAocs(sc, ck, mission_config=None, plot_style='line', notebook=True):
 
     aocs_quats = get_aocs_quaternions(file)
 
-    error, max_ang_error = get_quats_ang_error(aocs_quats, sc, exclude_intervals)
+    error, max_ang_error, excluded_ets = get_quats_ang_error(aocs_quats, sc, exclude_intervals)
 
     plot_attitude_error(error,
                         max_ang_error,
                         'Source AOCS Measured Quaternions to generated CK orientation difference',
+                        excluded_ets,
+                        exclude_intervals,
                         plot_style,
                         notebook)
 
@@ -770,13 +784,10 @@ def get_quats_ang_error(quats, sc, exclude_intervals=[]):
     error = []
     max_ang_error = 0
     exclude_int_idx = -1
+    excluded_ets = []
 
     for quat in quats:
         et = quat[0]
-
-        excluded, exclude_int_idx = is_excluded(et, exclude_intervals, exclude_int_idx)
-        if excluded:
-            continue
 
         q_spice = spiceypy.m2q(spiceypy.pxform('J2000', sc + '_SPACECRAFT', et))
 
@@ -802,14 +813,18 @@ def get_quats_ang_error(quats, sc, exclude_intervals=[]):
         vz_quats = spiceypy.mxv(mrot_quats, [0, 0, 1])
 
         ang_error = spiceypy.vsep(vz_spice, vz_quats)
-        max_ang_error = max(max_ang_error, abs(ang_error))
+        excluded, exclude_int_idx = is_excluded(et, exclude_intervals, exclude_int_idx)
+        if not excluded:
+            max_ang_error = max(max_ang_error, abs(ang_error))
+        else:
+            excluded_ets.append(et)
 
         curr_error = [et]
         curr_error.extend(q_error)
         error.append(curr_error)
 
     max_ang_error = np.rad2deg(max_ang_error) * 1000
-    return np.asarray(error), max_ang_error
+    return np.asarray(error), max_ang_error, excluded_ets
 
 
 def saa_vs_hk_sa_position(sc, plot_style='line', notebook=True):
