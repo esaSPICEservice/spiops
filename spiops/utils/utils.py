@@ -122,7 +122,7 @@ def plot(xaxis, yaxis, xaxis_name='Date', yaxis_name='', title='', format='line'
          external_data=[], notebook=False, mission='', target='', yaxis_units='',
          date_format='TDB', plot_width=975, plot_height=300,
          fill_color=[], fill_alpha=0, background_image=False,
-         line_width=2, back_intervals=None, back_color="gray", back_alpha=0.2):
+         line_width=2, back_intervals=None, back_color="gray", back_alpha=0.2, color_list=None):
 
     if not isinstance(yaxis_name, list):
         yaxis_name = [yaxis_name]
@@ -223,8 +223,9 @@ def plot(xaxis, yaxis, xaxis_name='Date', yaxis_name='', title='', format='line'
             p.add_layout(bar)
 
     # add a line renderer with legend and line thickness
-    color_list = ['red', 'green', 'blue', 'orange', "black", 'darkgoldenrod', 'chocolate', 'aqua', 'coral',
-                  'darkcyan', 'cornflowerblue' 'aquamarine', 'darkturquoise', 'cornsilk']
+    if color_list is None:
+        color_list = ['red', 'green', 'blue', 'orange', "black", 'darkgoldenrod', 'chocolate', 'aqua', 'coral',
+                      'darkcyan', 'cornflowerblue' 'aquamarine', 'darkturquoise', 'cornsilk']
     index = 0
     color_idx = 0
 
@@ -306,7 +307,8 @@ def plot3d(data, observer, target):
     return
 
 
-def plot_attitude_error(error, max_ang_error, title, excluded_ets, exclude_intervals, plot_style, notebook):
+def plot_attitude_error(error, max_ang_error, max_ang_error_et, title, excluded_ets, exclude_intervals,
+                        ang_errors, plot_style, notebook):
 
     error = np.asarray(error)
     filter_idx = [True if et not in excluded_ets else False for et in error[:, 0]]
@@ -318,14 +320,24 @@ def plot_attitude_error(error, max_ang_error, title, excluded_ets, exclude_inter
     print('Avg QY error: ', np.mean(filtered_error[:, 2]))
     print('Avg QZ error: ', np.mean(filtered_error[:, 3]))
     print('Avg QW error: ', np.mean(filtered_error[:, 4]))
-    print('Max angular error [mdeg]: ' + str(max_ang_error))
+    print('Max angular error [mdeg]: ' + str(max_ang_error) + ' at ' + str(spiceypy.et2utc(max_ang_error_et, 'ISOC', 2)))
 
     plot(error[:, 0],
          [error[:, 1], error[:, 2], error[:, 3], error[:, 4]],
          yaxis_name=['QX', 'QY', 'QZ', 'QW'],
-         title=title,
+         title=title + ' orientation difference',
          format=plot_style,
          yaxis_units='Q [-]',
+         notebook=notebook,
+         back_intervals=exclude_intervals,
+         back_color="red")
+
+    plot(error[:, 0],
+         [ang_errors],
+         yaxis_name=['Ang. Error'],
+         title=title + ' angular error',
+         format=plot_style,
+         yaxis_units='mdeg',
          notebook=notebook,
          back_intervals=exclude_intervals,
          back_color="red")
