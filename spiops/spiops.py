@@ -578,7 +578,7 @@ def cov_spk_ker(spk, object=False, time_format='TDB', support_ker ='',
     return boundaries
 
 
-def spkVsOem(sc, spk, max_pos_error=0.1, mission_config=None, plot_style='line', notebook=True):
+def spkVsOem(sc, spk, mission_config=None, plot_style='line', notebook=True, max_pos_error=0.1):
 
     spiceypy.timdef('SET', 'SYSTEM', 10, 'TDB')
     spiceypy.furnsh(spk)
