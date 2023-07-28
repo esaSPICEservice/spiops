@@ -578,7 +578,7 @@ def cov_spk_ker(spk, object=False, time_format='TDB', support_ker ='',
     return boundaries
 
 
-def spkVsOem(sc, spk, mission_config=None, plot_style='line', notebook=True):
+def spkVsOem(sc, spk, max_pos_error=0.1, mission_config=None, plot_style='line', notebook=True):
 
     spiceypy.timdef('SET', 'SYSTEM', 10, 'TDB')
     spiceypy.furnsh(spk)
@@ -649,13 +649,34 @@ def spkVsOem(sc, spk, mission_config=None, plot_style='line', notebook=True):
                           abs(state[3] - float(data[4])),
                           abs(state[4] - float(data[5])),
                           abs(state[5] - float(data[6]))]
-            error.append(curr_error)
 
             pos = np.asarray(curr_error[1:4])
+            vel = np.asarray(curr_error[4:7])
+            # due to floating point arithmetics, in some cases the first point of a segment does not
+            # supersed the last point of the previous segment with identical time tag
+            if spiceypy.vnorm(pos) > max_pos_error and data_list[i][0] == data_list[i-1][0]:
+                data = data_list[i - 1]
+                et = spiceypy.str2et(data[0])
+
+                excluded, exclude_int_idx = is_excluded(et, exclude_intervals, exclude_int_idx)
+                if excluded:
+                    excluded_ets.append(et)
+
+                state = spiceypy.spkezr(sc, et, 'J2000', 'NONE', center_list[i])[0]
+                curr_error = [et,
+                              abs(state[0] - float(data[1])),
+                              abs(state[1] - float(data[2])),
+                              abs(state[2] - float(data[3])),
+                              abs(state[3] - float(data[4])),
+                              abs(state[4] - float(data[5])),
+                              abs(state[5] - float(data[6]))]
+
+                pos = np.asarray(curr_error[1:4])
+                vel = np.asarray(curr_error[4:7])
+
+            error.append(curr_error)
             pos_vnorm_err = spiceypy.vnorm(pos)
             pos_norm_errors.append(pos_vnorm_err)
-
-            vel = np.asarray(curr_error[4:7])
             vel_vnorm_err = spiceypy.vnorm(vel)
             vel_norm_errors.append(vel_vnorm_err)
 
