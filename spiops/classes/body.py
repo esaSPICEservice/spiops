@@ -8,8 +8,6 @@ from bokeh.plotting import figure, show, output_notebook
 from bokeh.models.glyphs import Ellipse
 from bokeh.models import ColumnDataSource, Plot, LinearAxis, Grid
 
-from spiops.utils.utils import get_frame
-
 
 class Body(object):
     def __init__(self, body, time=object(), target=None, mission_config=None):
@@ -838,7 +836,7 @@ class Observer(Body):
         super(Observer, self).__init__(body, time=time, target=target, mission_config=mission_config)
 
         if not frame:
-            self.frame = get_frame(self.name)
+            self.frame = utils.get_frame(self.name)
             if spiceypy.namfrm(self.frame) == 0:
                 self.frame = self.name
 
