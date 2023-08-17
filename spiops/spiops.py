@@ -583,14 +583,24 @@ def spkVsOem(sc, spk, mission_config=None, plot_style='line', notebook=True, max
     spiceypy.timdef('SET', 'SYSTEM', 10, 'TDB')
     spiceypy.furnsh(spk)
 
+    file_parts = spk.split('/')[-1].replace('\n', '').split('_')
+
     if sc == 'MPO':
-        file = spk.split('/')[-1].replace('\n', '').replace('bc_mpo_fcp_', '').split('_')[0]
-        file = 'BCCruiseOrbit__' + file + '.bc'
+        # OEM: BCCruiseOrbit__00154.bc
+        # SPK: bc_mpo_fcp_00154_20181020_20251102_v01.bsp
+        file = 'BCCruiseOrbit__' + file_parts[3] + '.bc'
         download_file("data/ANCDR/BEPICOLOMBO/fdy", file)
 
     elif sc == 'JUICE':
-        file = spk.split('/')[-1].replace('\n', '').split('_')[2] # juice_orbc_000010_230414_310721_v03.bsp
-        file = 'ORBC__' + file + '.jui'
+        # OEM: ORBC__000010.jui
+        # SPK: juice_orbc_000010_230414_310721_v03.bsp
+        file = 'ORBC__' + file_parts[2] + '.jui'
+        download_file("data/ANCDR/JUICE/fdy", file)
+
+    elif sc == 'SOLO':
+        # OEM: Orbit_S272_V1_00276.SOL
+        # SPK: solo_ANC_soc-orbit-stp_20200210-20301120_272_V1_00276_V01.bsp
+        file = 'Orbit_S' + file_parts[4] + '_' + file_parts[5] + '_' + file_parts[6] + '.SOL'
         download_file("data/ANCDR/JUICE/fdy", file)
 
     else:
@@ -736,15 +746,25 @@ def ckVsAEM(sc, ck, mission_config=None, plot_style='line', notebook=True):
     spiceypy.timdef('SET', 'SYSTEM', 10, 'TDB')
     spiceypy.furnsh(ck)
 
+    file_parts = ck.split('/')[-1].replace('\n', '').split('_')
+
     if sc == 'MPO':
-        file = ck.split('/')[-1].replace('\n', '').split('_')[4]
-        file = 'AttitudePredictionST__' + file + '.bc'
+        # AEM: AttitudePredictionST__00155.bc
+        # CK: bc_mpo_sc_fcp_00155_20181020_20230914_f20181127_v01.bc
+        file = 'AttitudePredictionST__' + file_parts[4] + '.bc'
         download_file("data/ANCDR/BEPICOLOMBO/fdy", file)
 
     elif sc == 'JUICE':
-        file = ck.split('/')[-1].replace('\n', '').split('_')[3]
-        file = 'ATTC__' + file + '.jui'
+        # AEM: ATTC__000046.jui
+        # CK: juice_sc_attc_000046_230414_230909_v01.bc
+        file = 'ATTC__' + file_parts[3] + '.jui'
         download_file("data/ANCDR/JUICE/fdy", file)
+
+    elif sc == 'SOLO':
+        # AEM: Attitude_S272_V1_00276.SOL
+        # CK: solo_ANC_soc-pred-att_20200210_20230828_S272_V1_00276_V01.bc
+        file = 'Attitude_' + file_parts[5] + "_" + file_parts[6] + "_" + file_parts[7] + '.SOL'
+        download_file("data/ANCDR/SOLAR-ORBITER/fdy", file)
 
     else:
         print('Unsupported spacecraft: ' + sc)
