@@ -130,7 +130,6 @@ class Body(object):
 
         return orientation
 
-
     def __ClockDrift(self, enddate=False):
 
         try:
@@ -153,11 +152,11 @@ class Body(object):
             print("Error: Could not obtain SCLK time bounds. Error: " + str(ex))
             return
 
-        ticks_per_second = spiceypy.gdpool('SCLK01_MODULI_{}'.format(str(-1*self.id)),0,1000)[1]
-        step = int(((sclk_end - sclk_start)/10000)) # 10000 points in the plot
+        ticks_per_second = spiceypy.gdpool('SCLK01_MODULI_{}'.format(str(-1*self.id)), 0, 1000)[1]
+        step = int(((sclk_end - sclk_start)/10000))  # 10000 points in the plot
 
         if not enddate:
-            et_end = self.time.getTime('finish','utc')
+            et_end = self.time.getTime('finish', 'utc')
         else:
             et_end = spiceypy.utc2et(enddate)
 
@@ -173,7 +172,7 @@ class Body(object):
         for j in range(0, len(ephtime), 1):
             if ephtime[j] >= et_end:
                 break
-            drift.append((sclk[j] - sclk[0]) / ticks_per_second - ((ephtime[j] - ephtime[0])))
+            drift.append((sclk[j] - sclk[0]) / ticks_per_second - (ephtime[j] - ephtime[0]))
             dates.append(ephtime[j])
 
         self.clock_dates = dates

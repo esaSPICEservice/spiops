@@ -120,6 +120,8 @@ def get_latest_step_sclk(sc, skd_path=None):
         sc = "emrsp_" + sc
     elif mission == 'JUICE':
         wildcard = "{}_step_??????_v??.tsc"
+    elif mission == 'SOLAR-ORBITER':
+        wildcard = "{}_ANC_soc-sclk_20??????_V??.tsc"
     elif '-EXPRESS' in mission or 'ROSETTA' == mission:
         wildcard = "{}_??????_STEP.TSC"
 
