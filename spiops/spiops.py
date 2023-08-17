@@ -601,7 +601,7 @@ def spkVsOem(sc, spk, mission_config=None, plot_style='line', notebook=True, max
         # OEM: Orbit_S272_V1_00276.SOL
         # SPK: solo_ANC_soc-orbit-stp_20200210-20301120_272_V1_00276_V01.bsp
         file = 'Orbit_S' + file_parts[4] + '_' + file_parts[5] + '_' + file_parts[6] + '.SOL'
-        download_file("data/ANCDR/JUICE/fdy", file)
+        download_file("data/ANCDR/SOLAR-ORBITER/fdy", file)
 
     else:
         print('Unsupported spacecraft: ' + sc)
