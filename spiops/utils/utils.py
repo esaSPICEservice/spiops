@@ -438,32 +438,78 @@ def get_latest_kernel(kernel_type, path, pattern, dates=False,
         return kernels_date
 
 
-def get_sc(kernel):
-    if 'ROSETTA' in kernel.upper():
+def get_kernel_prefix(kernel):
+    if 'ROSETTA' in kernel.upper() or 'ROS' in kernel.upper():
         return 'ROS'
-    if 'VENUS-EXPRESS' in kernel.upper():
+
+    if 'VENUS-EXPRESS' in kernel.upper() or 'VEX' in kernel.upper():
         return 'VEX'
-    if 'MARS-EXPRESS' in kernel.upper():
+
+    if 'MARS-EXPRESS' in kernel.upper() or 'MEX' in kernel.upper():
         return 'MEX'
-    if 'EXOMARS2016' in kernel.upper():
-        if 'edm' in kernel:
+
+    if 'EXOMARS2016' in kernel.upper() or 'EM16' in kernel.upper():
+        if 'EDM' in kernel.upper():
             return 'em16_edm'
         else:
             return 'em16_tgo'
-    if 'BEPICOLOMBO' in kernel.upper():
-        if 'mmo' in kernel:
+
+    if 'BEPICOLOMBO' in kernel.upper() or 'BC' in kernel.upper():
+        if 'MMO' in kernel.upper():
             return 'bc_mmo'
         else:
             return 'bc_mpo'
+
     if 'JUICE' in kernel.upper():
         return 'juice'
-    if 'SOLAR-ORBITER' in kernel.upper():
+
+    if 'SOLAR-ORBITER' in kernel.upper() or 'SOLO' in kernel.upper():
         return 'solo'
-    if 'EXOMARSRSP' in kernel.upper():
-        if '_sp_' in kernel:
+
+    if 'EXOMARSRSP' in kernel.upper() or 'EMRSP' in kernel.upper():
+        if '_SP_' in kernel.upper():
             return 'emrsp_sp'
         else:
             return 'emrsp_rm'
+
+    return None
+
+
+def get_sc(kernel):
+    if 'ROSETTA' in kernel.upper() or 'ROS' in kernel.upper():
+        return 'ROS'
+
+    if 'VENUS-EXPRESS' in kernel.upper() or 'VEX' in kernel.upper():
+        return 'VEX'
+
+    if 'MARS-EXPRESS' in kernel.upper() or 'MEX' in kernel.upper():
+        return 'MEX'
+
+    if 'EXOMARS2016' in kernel.upper() or 'EM16' in kernel.upper():
+        if 'EDM' in kernel.upper():
+            return 'EDM'
+        else:
+            return 'TGO'
+
+    if 'BEPICOLOMBO' in kernel.upper() or 'BC' in kernel.upper():
+        if 'MMO' in kernel.upper():
+            return 'MMO'
+        else:
+            return 'MPO'
+
+    if 'JUICE' in kernel.upper():
+        return 'JUICE'
+
+    if 'SOLAR-ORBITER' in kernel.upper() or 'SOLO' in kernel.upper():
+        return 'SOLO'
+
+    if 'EXOMARSRSP' in kernel.upper() or 'EMRSP' in kernel.upper():
+        if '_SP_' in kernel.upper():
+            return 'SP'
+        else:
+            return 'RM'
+
+    return None
 
 
 def get_mission(sc):
@@ -471,6 +517,12 @@ def get_mission(sc):
         if sc.upper() in MISSION_SPACECRAFTS[mission]:
             return mission
     return None
+
+
+def get_frame(sc):
+    if sc.upper() == "SOLO":
+        return 'SOLO_SRF'
+    return sc.upper() + '_SPACECRAFT'
 
 
 def target2frame(target):

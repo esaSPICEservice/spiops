@@ -1,4 +1,9 @@
-from spiops.utils.utils import get_sc, get_mission, get_latest_kernel, get_exe_dir, get_skd_path
+from spiops.utils.utils import get_sc, \
+    get_mission, \
+    get_latest_kernel, \
+    get_exe_dir, \
+    get_skd_path, \
+    get_frame, get_kernel_prefix
 import subprocess
 import os
 
@@ -36,7 +41,7 @@ def ckbrief(kernel, utc=False):
     option = '-rel -n'
 
     skd_path = get_skd_path(kernel)
-    sc = get_sc(kernel)
+    kpref = get_kernel_prefix(kernel)
 
     try:
         lsk = get_latest_kernel('lsk', skd_path, 'naif????.tls')
@@ -44,14 +49,14 @@ def ckbrief(kernel, utc=False):
         lsk = get_latest_kernel('lsk', skd_path, 'NAIF????.TLS')
 
     try:
-        sclk = get_latest_kernel('sclk', skd_path, '{}_step_????????.tsc'.format(sc))
+        sclk = get_latest_kernel('sclk', skd_path, '{}_step_????????.tsc'.format(kpref.lower()))
     except:
-        sclk = get_latest_kernel('sclk', skd_path, '{}_STEP_????????.TSC'.format(sc.upper()))
+        sclk = get_latest_kernel('sclk', skd_path, '{}_STEP_????????.TSC'.format(kpref.upper()))
 
     try:
-        fk = get_latest_kernel('fk', skd_path, '{}_v??.tf'.format(sc))
+        fk = get_latest_kernel('fk', skd_path, '{}_v??.tf'.format(kpref.lower()))
     except:
-        fk = get_latest_kernel('fk', skd_path, '{}_V??.TF'.format(sc.upper()))
+        fk = get_latest_kernel('fk', skd_path, '{}_V??.TF'.format(kpref.upper()))
 
     if utc:
         option += ' -utc'
@@ -70,23 +75,10 @@ def ckbrief(kernel, utc=False):
 
 
 def optiks(mkernel, utc=False):
-
-    if 'MEX' in mkernel:
-        frame = 'MEX_SPACECRAFT'
-    elif 'VEX' in mkernel:
-        frame = 'VEX_SPACECRAFT'
-    elif 'ROS' in mkernel:
-        frame = 'ROS_SPACECRAFT'
-    elif 'em16' in mkernel:
-        frame = 'TGO_SPACECRAFT'
-    elif 'bc' in mkernel:
-        frame = 'MPO_SPACECRAFT'
-    elif 'JUICE' in mkernel:
-        frame = 'JUICE_SPACECRAFT'
-    elif 'SOLAR-ORBITER' in mkernel:
-        frame = 'SOLO_SRF'
-    else:
-        raise ValueError('OPTIKS utility could not run')
+    sc = get_sc(mkernel)
+    if sc is None:
+        raise ValueError('OPTIKS utility could not run, could not retrieve spacecraft from: ' + mkernel)
+    frame = get_frame(sc)
 
     utility = UTILITY_DIR + os.sep + 'optiks'
     option = '-half -units degrees -frame {} -showfovframes'.format(frame)

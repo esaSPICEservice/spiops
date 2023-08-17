@@ -18,7 +18,7 @@ from spiceypy.utils.support_types import *
 
 
 from spiops.utils import time
-from spiops.utils.utils import plot, print_intervals
+from spiops.utils.utils import plot, print_intervals, get_frame
 from spiops.utils.utils import plot_attitude_error
 from spiops.utils.utils import target2frame
 from spiops.utils.utils import findIntersection
@@ -857,7 +857,7 @@ def get_quats_ang_error(quats, sc, exclude_intervals=[]):
     for quat in quats:
         et = quat[0]
 
-        q_spice = spiceypy.m2q(spiceypy.pxform('J2000', sc + '_SPACECRAFT', et))
+        q_spice = spiceypy.m2q(spiceypy.pxform('J2000', get_frame(sc), et))
 
         if quat[1] < 0:
             q_spice[0] *= -1
@@ -3192,7 +3192,7 @@ def hga_angles(sc, et):
         return []
 
     else:
-        hga_zero_frame = sc + '_SPACECRAFT'
+        hga_zero_frame = get_frame(sc)
 
         # First elevation and then the azimuth
         hga_el, hga_el_bool = get_angle(hga_zero_frame, hga_el_frame, et)
@@ -3268,7 +3268,7 @@ def solar_aspect_angles(sc, time):
             (sun_vec, lt) = spiceypy.spkezp(10, time, sa_n_frame, 'NONE', sc_id)
             saa_sa_n = np.rad2deg(spiceypy.vsep(normal_vector, sun_vec))
 
-        (sun_vec, lt) = spiceypy.spkezp(10, time, sc+'_SPACECRAFT', 'NONE', sc_id)
+        (sun_vec, lt) = spiceypy.spkezp(10, time, get_frame(sc), 'NONE', sc_id)
         saa_sc_x = np.rad2deg(spiceypy.vsep([1, 0, 0], sun_vec))
         saa_sc_y = np.rad2deg(spiceypy.vsep([0, 1, 0], sun_vec))
         saa_sc_z = np.rad2deg(spiceypy.vsep([0, 0, 1], sun_vec))
