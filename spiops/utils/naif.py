@@ -72,22 +72,24 @@ def ckbrief(kernel, utc=False):
 def optiks(mkernel, utc=False):
 
     if 'MEX' in mkernel:
-        mission = 'MEX'
+        frame = 'MEX_SPACECRAFT'
     elif 'VEX' in mkernel:
-        mission = 'VEX'
+        frame = 'VEX_SPACECRAFT'
     elif 'ROS' in mkernel:
-        mission = 'ROS'
+        frame = 'ROS_SPACECRAFT'
     elif 'em16' in mkernel:
-        mission = 'TGO'
+        frame = 'TGO_SPACECRAFT'
     elif 'bc' in mkernel:
-        mission = 'MPO'
+        frame = 'MPO_SPACECRAFT'
     elif 'JUICE' in mkernel:
-        mission = 'JUICE'
+        frame = 'JUICE_SPACECRAFT'
+    elif 'SOLAR-ORBITER' in mkernel:
+        frame = 'SOLO_SRF'
     else:
         raise ValueError('OPTIKS utility could not run')
 
     utility = UTILITY_DIR + os.sep + 'optiks'
-    option = '-half -units degrees -frame {}_SPACECRAFT -showfovframes'.format(mission)
+    option = '-half -units degrees -frame {} -showfovframes'.format(frame)
 
     if utc:
         option += ' -epoch {}'.format(utc)
