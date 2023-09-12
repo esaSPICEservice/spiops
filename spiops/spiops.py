@@ -900,6 +900,8 @@ def get_quats_ang_error(quats, sc, exclude_intervals=[]):
 
 def saa_vs_hk_sa_position(sc, plot_style='line', notebook=True):
 
+    # TODO: Merge code with phe_misc_scanner_ck_vs_hk_position(plot_style='line', notebook=True)
+
     spiceypy.timdef('SET', 'SYSTEM', 10, 'UTC')
 
     sa_angles = []  # Read angles from TM, List of items as [et, angle_deg]
@@ -957,42 +959,8 @@ def saa_vs_hk_sa_position(sc, plot_style='line', notebook=True):
         print("Cannot obtain required TM data, aborting.")
         return None
 
-    # Compare with SPICE SA Angles
-    error = []
-    max_ang_error = 0
-    num_gaps = 0
-
-    for sa_angle in sa_angles:
-
-        try:
-            et = sa_angle[0]
-            hk_sa_angle = sa_angle[1]
-
-            # Determine the rotation matrix to pass from the SA Rotating Frame
-            # to the SA Fixed frame
-            sadm_rot = spiceypy.pxform(sadm_frame, sadm_ref_frame, et)
-
-            # Covert the SA reference vector in the rotating frame into
-            # the SA fixed frame
-            sadm_vector = spiceypy.mxv(sadm_rot, ref_vector)
-            sadm_angle = np.rad2deg(spiceypy.vsep(ref_vector, sadm_vector))
-
-            # Because vsep always is positive, we are going to get the cross product to
-            # determine if is a positive or negative rotation
-            sadm_cross_vector = np.cross(ref_vector, sadm_vector)
-
-            # The dot product of the normalised vectors shall be or 1 or -1.
-            sadm_angle = np.dot(spiceypy.unorm(ref_cross_vector)[0], spiceypy.unorm(sadm_cross_vector)[0]) * sadm_angle
-
-            ang_error = abs(sadm_angle - hk_sa_angle) * 1000  # mdeg
-            max_ang_error = max(max_ang_error, ang_error)
-
-            error.append([et, ang_error])
-
-        except SpiceNOFRAMECONNECT:
-            # There is a gap in the CK file, ignore this SA sample.
-            num_gaps += 1
-            continue
+    # Compare with SPICE Angles
+    error, max_ang_error, num_gaps = get_angular_error(sa_angles, sadm_frame, sadm_ref_frame, ref_vector, ref_cross_vector)
 
     # Plot error
     if len(error):
@@ -1014,6 +982,105 @@ def saa_vs_hk_sa_position(sc, plot_style='line', notebook=True):
         return None
 
 
+def phe_misc_scanner_ck_vs_hk_position(plot_style='line', notebook=True):
+
+    # TODO: This function is close to a copy of the funnction saa_vs_hk_sa_position(plot_style='line', notebook=True), consider merging both functions.
+
+    spiceypy.timdef('SET', 'SYSTEM', 10, 'UTC')
+
+    phebus_angles = []  # Read angles from TM, List of items as [et, angle_deg]
+
+    # Some constants, update for specific SC if required.
+    columns = [2]
+    data_factors = [360./4096.]
+    separator = ","
+
+    # Usually TM files are given in daily basis, so we need to
+    # concatenate N of them to obtain a greater period coverage.
+    num_files = 7  # Compare last week
+
+    # Set some mission specific constants
+    frame = 'MPO_PHEBUS_SCAN'  # Rotating Frame
+    ref_frame = 'MPO_PHEBUS_SCAN_ZERO'  # Fixed Frame
+    ref_vector = np.asarray([0, 0, 1])  # Reference vector
+    ref_cross_vector = np.asarray([0, 1, 0])  # Common rotation vector btw Rotating Frm and Fixed Frm
+    hkt_path = "data/ANCDR/BEPICOLOMBO/hkt/"
+    hkt_expression = 'phe_misc_scanner_position_????????.tab'
+
+    # Determine files to use to fetch TM data
+    phe_files = list_files_from_ftp(hkt_path, hkt_expression)
+    phe_files = phe_files[-num_files:]
+
+    # For each file, download it, add data to array, and remove it
+    angles = download_tm_data(phe_files, hkt_path, separator, columns, data_factors)
+    if angles is None or not len(angles):
+        print("Cannot obtain required TM data, aborting.")
+        return None
+
+    # Update angles to be in -180.0 .. 180.0 range instead of 0.0 .. 360.0
+    angles = [[angle[0], angle[1]] if angle[1] <= 180.0 else [angle[0], angle[1] - 360.0] for angle in angles]
+
+    # Compare with SPICE Angles
+    error, max_ang_error, num_gaps = get_angular_error(angles, frame, ref_frame, ref_vector, ref_cross_vector)
+
+    # Plot error
+    if len(error):
+        error = np.asarray(error)
+        print('Max angular error [mdeg]: ' + str(max_ang_error))
+
+        plot(error[:, 0],
+             [error[:, 1]],
+             yaxis_name=['Angular error'],
+             title=" MPO Phebus Misc Scanner angular error between TM and SPICE",
+             format=plot_style,
+             yaxis_units='mdeg',
+             notebook=notebook)
+
+        return max_ang_error
+
+    else:
+        print('Angular error cannot be computed. Found ' + str(num_gaps) + '  of ' + str(
+            len(angles)) + ' samples without data.')
+        return None
+
+
+# Obtain the angular error array in mdeg btw given list of timestamps and angles vs spice
+def get_angular_error(sampled_angles, rot_frame, ref_frame, ref_vector, ref_cross_vector):
+
+    error = []
+    max_ang_error = 0
+    num_gaps = 0
+
+    for sampled_angle in sampled_angles:
+        try:
+            et = sampled_angle[0]
+            ref_angle = sampled_angle[1]
+
+            # Determine the rotation matrix to pass from the Rotating Frame to the Fixed frame
+            rot = spiceypy.pxform(rot_frame, ref_frame, et)
+
+            # Covert the reference vector in the rotating frame into the fixed frame
+            vector = spiceypy.mxv(rot, ref_vector)
+            spice_angle = np.rad2deg(spiceypy.vsep(ref_vector, vector))
+
+            # Because vsep always is positive, we are going to get the cross product to
+            # determine if is a positive or negative rotation
+            cross_vector = np.cross(ref_vector, vector)
+
+            # The dot product of the normalised vectors shall be or 1 or -1.
+            spice_angle = np.dot(spiceypy.unorm(ref_cross_vector)[0], spiceypy.unorm(cross_vector)[0]) * spice_angle
+
+            ang_error = abs(spice_angle - ref_angle) * 1000  # mdeg
+            max_ang_error = max(max_ang_error, ang_error)
+
+            error.append([et, ang_error])
+
+        except SpiceNOFRAMECONNECT:
+            # There is a gap in the CK file, ignore this sample.
+            num_gaps += 1
+            continue
+
+    return error, max_ang_error, num_gaps
 
 
 """
