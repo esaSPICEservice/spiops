@@ -308,3 +308,10 @@ def get_kernels_from_mk(metakernel, k_type, ignore_strs):
 
     kernels = list(reversed(kernels))
     return kernels, path
+
+def search_pds_file(pds_root, filename):
+    # Search recursive in the PDS root
+    files = glob.glob(f'{pds_root}/**/{filename}', recursive=True)
+    if len(files) > 0:
+        return files[0]
+    return None
