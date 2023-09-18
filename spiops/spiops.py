@@ -27,6 +27,7 @@ from spiops.utils.utils import get_ck_kernel_color
 from spiops.utils.utils import get_plot_style
 from spiops.utils.utils import prepare_coverage_plot
 from spiops.utils.utils import get_exclude_intervals
+from spiops.utils.utils import JUICE_SPIOPS_PDS_ROOT_KEY
 from spiops.utils.utils import is_excluded
 from spiops.utils.files import download_file
 from spiops.utils.files import list_files_from_ftp
@@ -35,6 +36,7 @@ from spiops.utils.files import get_aocs_quaternions
 from spiops.utils.files import download_tm_data
 from spiops.utils.files import get_csv_data
 from spiops.utils.files import get_kernels_from_mk
+from spiops.utils.files import search_pds_file
 
 from spiops.utils.naif import optiks  # Do not remove, called from spival
 from spiops.utils.naif import brief  # Do not remove, called from spival
@@ -1404,12 +1406,13 @@ def time_correlation(sc, ck, plot_style='line', notebook=True):
 
 def time_deviation(sc, start_time_s, end_time_s, plot_style='line', notebook=True):
 
-    # Downloads the time deviation files for a given time range
+    # Retrieves the time deviation files for a given time range
     # and computes the time difference between the UTC timestamp of packet
     # calculated with SPICE (1st column) and the UTC timestamp of packet
     # calculated from SCOS2K header (3rd column)
-
-    psa_ftp_url = "https://archives.esac.esa.int/psa/ftp"
+    # The file retrieval is done from the local directory stored in the
+    # JUICE_SPIOPS_PDS_ROOT enviromental variable. If the variable is not set
+    # it takes the default mounting point in the spiops server.
 
     spiceypy.timdef('SET', 'SYSTEM', 10, 'UTC')
 
@@ -1426,42 +1429,28 @@ def time_deviation(sc, start_time_s, end_time_s, plot_style='line', notebook=Tru
 
         date = start_time + timedelta(days=day)
         day_s = date.strftime('%Y%m%d')
-        month_s = date.strftime('%Y%m')
 
         if sc == 'JUICE':
-
-            file = "juice_raw_hk_time_deviation_" + day_s + ".tab"
-            url = psa_ftp_url + "/Juice/juice/miscellaneous/spacecraft_housekeeping" \
-                  "/near_earth_commissioning/" + month_s + "/" + day_s + "/" + file
-
-        elif sc == 'MPO':
-
-            file = "mpo_raw_hk_time_deviation_" + day_s + ".tab"
-            url = psa_ftp_url + "/BepiColombo/bc/miscellaneous/spacecraft_housekeeping" \
-                  "/cruise/" + month_s + "/" + day_s + "/" + file
-
+            spiops_pds_root = os.environ.get(JUICE_SPIOPS_PDS_ROOT_KEY, "/home/juice_adcs/pds") 
+            filename = "juice_raw_hk_time_deviation_" + day_s + ".tab"
+            file = search_pds_file(spiops_pds_root, filename)
         else:
             print('Unsupported spacecraft: ' + sc)
             return None
 
-        # Download file and read utcs data
-        download_file(url, file)
+        # Read utcs data
 
-        if not os.path.isfile(file):
-            print('File cannot be downloaded: ' + file)
-            return None
+        if not file or not os.path.isfile(file):
+            print(f'{day_s} skipped: File {filename} not accessible')
+        else:
+            file_utc_data = get_csv_data(file, ",", [0, 2])
 
-        file_utc_data = get_csv_data(file, ",", [0, 2])
+            if not len(file_utc_data):
+                print('Cannot read UTC data from file: ' + file)
+                return None
 
-        if not len(file_utc_data):
-            print('Cannot read UTC data from file: ' + file)
-            os.remove(file)
-            return None
+            utc_data += file_utc_data
 
-        utc_data += file_utc_data
-
-        # Remove downloaded file
-        os.remove(file)
 
     times = []
     time_diff = []
@@ -1478,6 +1467,10 @@ def time_deviation(sc, start_time_s, end_time_s, plot_style='line', notebook=Tru
 
         times.append(et_spice)
         time_diff.append((et_spice - et_scos) * 1000)
+
+    if len(time_diff) == 0:
+        print('No data to perform the check')
+        return None
 
     time_diff = np.abs(np.asarray(time_diff))
     max_time_diff = np.max(time_diff)

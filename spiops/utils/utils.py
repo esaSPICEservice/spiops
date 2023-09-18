@@ -34,6 +34,8 @@ MISSION_SPACECRAFTS = {
     'ExoMarsRSP': ["SP", "RM"]
 }
 
+JUICE_SPIOPS_PDS_ROOT_KEY = "JUICE_SPIOPS_PDS_ROOT"
+
 
 def valid_url(html_file_name):
     """
