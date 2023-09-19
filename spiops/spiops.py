@@ -1431,7 +1431,7 @@ def time_deviation(sc, start_time_s, end_time_s, plot_style='line', notebook=Tru
         day_s = date.strftime('%Y%m%d')
 
         if sc == 'JUICE':
-            spiops_pds_root = os.environ.get(JUICE_SPIOPS_PDS_ROOT_KEY, "/home/juice_adcs/pds") 
+            spiops_pds_root = os.environ.get(JUICE_SPIOPS_PDS_ROOT_KEY, "/home/esaspice/pds/juice/spacecraft_housekeeping")
             filename = "juice_raw_hk_time_deviation_" + day_s + ".tab"
             file = search_pds_file(spiops_pds_root, filename)
         else:
