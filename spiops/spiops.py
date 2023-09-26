@@ -27,6 +27,7 @@ from spiops.utils.utils import get_ck_kernel_color
 from spiops.utils.utils import get_plot_style
 from spiops.utils.utils import prepare_coverage_plot
 from spiops.utils.utils import get_exclude_intervals
+from spiops.utils.utils import BC_SPIOPS_PDS_ROOT_KEY
 from spiops.utils.utils import JUICE_SPIOPS_PDS_ROOT_KEY
 from spiops.utils.utils import is_excluded
 from spiops.utils.files import download_file
@@ -1411,7 +1412,7 @@ def time_deviation(sc, start_time_s, end_time_s, plot_style='line', notebook=Tru
     # calculated with SPICE (1st column) and the UTC timestamp of packet
     # calculated from SCOS2K header (3rd column)
     # The file retrieval is done from the local directory stored in the
-    # JUICE_SPIOPS_PDS_ROOT enviromental variable. If the variable is not set
+    # XXXX_SPIOPS_PDS_ROOT enviromental variable. If the variable is not set
     # it takes the default mounting point in the spiops server.
 
     spiceypy.timdef('SET', 'SYSTEM', 10, 'UTC')
@@ -1433,6 +1434,10 @@ def time_deviation(sc, start_time_s, end_time_s, plot_style='line', notebook=Tru
         if sc == 'JUICE':
             spiops_pds_root = os.environ.get(JUICE_SPIOPS_PDS_ROOT_KEY, "/home/esaspice/pds/juice/spacecraft_housekeeping")
             filename = "juice_raw_hk_time_deviation_" + day_s + ".tab"
+            file = search_pds_file(spiops_pds_root, filename)
+        elif sc == 'MPO':
+            spiops_pds_root = os.environ.get(BC_SPIOPS_PDS_ROOT_KEY, "/home/esaspice/pds/bc/spacecraft_housekeeping")
+            filename = "mpo_raw_hk_time_deviation_" + day_s + ".tab"
             file = search_pds_file(spiops_pds_root, filename)
         else:
             print('Unsupported spacecraft: ' + sc)
