@@ -3623,12 +3623,26 @@ def spk_coverage_timeline(metakernel, sc_list, notebook=True, html_file_name='te
     cov_finsh = []
     kernels = []
 
+    multiple_path_values, multiple_path_symbols = False, False
     with open(metakernel, 'r') as f:
         for line in f:
+            if multiple_path_values and ')' in line:
+                path.append(line.split("'")[1] + '/spk/')
+                multiple_path_values = False
+            if multiple_path_symbols and ')' in line:
+                symbol.append(line.split("'")[1])
+                multiple_path_symbols = False
             if '/spk/' in line and 'prelaunch' not in line:
-                kernels.append(line.split('/spk/')[-1].strip().split("'")[0])
+                kernel_path = path[symbol.index(line.split('$')[1].split('/')[0])]
+                kernels.append(kernel_path + line.split('/spk/')[-1].strip().split("'")[0])
             if 'PATH_VALUES' in line and '=' in line:
-                path = line.split("'")[1] + '/spk/'
+                if not ')' in line:
+                    multiple_path_values = True
+                path = [line.split("'")[1] + '/spk/']
+            if 'PATH_SYMBOLS' in line and '=' in line:
+                if not ')' in line:
+                    multiple_path_symbols = True
+                symbol = [line.split("'")[1]]
 
     kernels = list(reversed(kernels))
     spk_kernels = []
@@ -3636,15 +3650,15 @@ def spk_coverage_timeline(metakernel, sc_list, notebook=True, html_file_name='te
 
     for kernel in kernels:
         for sc in sc_list:
-            cov = cov_spk_ker(path+kernel, sc.upper(), support_ker=metakernel,
+            cov = cov_spk_ker(kernel, sc.upper(), support_ker=metakernel,
                                 time_format='TDB')
             if cov:
                 color = "lawngreen"
                 spk_type = 'xxx'
                 if 'MPO' in sc or 'MMO' in sc or 'MTM' in sc:
-                    spk_type = kernel.split('_')[2]
+                    spk_type = kernel.split('/spk/')[-1].split('_')[2]
                 elif 'JUICE' in sc:
-                    spk_type = kernel.split('_')[1]
+                    spk_type = kernel.split('/spk/')[-1].split('_')[1]
                 if spk_type[2] == 'p':
                     color = 'orange'
                 elif spk_type[2] == 'r':
@@ -3657,7 +3671,7 @@ def spk_coverage_timeline(metakernel, sc_list, notebook=True, html_file_name='te
                     color = 'blue'
                 cov_start.append(cov[0][0])
                 cov_finsh.append(cov[0][-1])
-                spk_kernels.append(kernel)
+                spk_kernels.append(kernel.split('/spk/')[-1])
                 colors.append(color)
 
     spiceypy.furnsh(metakernel)
