@@ -425,7 +425,7 @@ def get_latest_kernel(kernel_type, path, pattern, dates=False,
         # Return the latest kernel
         #
         if kernels:
-            return kernels.pop()
+            return os.path.join(os.path.join(path, kernel_type), kernels.pop())
         else:
             print('WARNING: no kernels found with pattern ' + pattern)
             return ''
