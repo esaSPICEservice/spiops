@@ -424,7 +424,11 @@ def get_latest_kernel(kernel_type, path, pattern, dates=False,
         #
         # Return the latest kernel
         #
-        return kernels.pop()
+        if kernels:
+            return kernels.pop()
+        else:
+            print('WARNING: no kernels found with pattern ' + pattern)
+            return ''
     else:
         #
         # Return all the kernels with a given date
