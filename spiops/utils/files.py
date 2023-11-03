@@ -290,8 +290,15 @@ def get_kernels_from_mk(metakernel, k_type, ignore_strs):
     k_type_path = '/' + k_type + '/'
     path = ""
 
+    multiple_path_values, multiple_path_symbols = False, False
     with open(metakernel, 'r') as f:
         for line in f:
+            if multiple_path_values and ')' in line:
+                path.append(line.split("'")[1] + k_type_path)
+                multiple_path_values = False
+            if multiple_path_symbols and ')' in line:
+                symbol.append(line.split("'")[1])
+                multiple_path_symbols = False
             if k_type_path in line:
 
                 ignore_strs_found = False
@@ -301,13 +308,20 @@ def get_kernels_from_mk(metakernel, k_type, ignore_strs):
                         break
 
                 if not ignore_strs_found:
-                    kernels.append(line.split(k_type_path)[-1].strip().split("'")[0])
+                    kernel_path = path[symbol.index(line.split('$')[1].split('/')[0])]
+                    kernels.append(kernel_path + line.split(k_type_path)[-1].strip().split("'")[0])
 
             if 'PATH_VALUES' in line and '=' in line:
-                path = line.split("'")[1] + k_type_path
+                if not ')' in line:
+                    multiple_path_values = True
+                path = [line.split("'")[1] + k_type_path]
+            if 'PATH_SYMBOLS' in line and '=' in line:
+                if not ')' in line:
+                    multiple_path_symbols = True
+                symbol = [line.split("'")[1]]
 
     kernels = list(reversed(kernels))
-    return kernels, path
+    return kernels
 
 def search_pds_file(pds_root, filename):
     # Search recursive in the PDS root
