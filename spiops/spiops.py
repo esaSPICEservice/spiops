@@ -3512,7 +3512,7 @@ def ck_coverage_timeline(metakernel, frame_list, notebook=True, html_file_name='
     else:
         output_file(html_file_name + '.html')
 
-    kernels, path = get_kernels_from_mk(metakernel, "ck", ["prelaunch"])
+    kernels = get_kernels_from_mk(metakernel, "ck", ["prelaunch"])
 
     cov_start = []
     cov_finsh = []
@@ -3521,13 +3521,13 @@ def ck_coverage_timeline(metakernel, frame_list, notebook=True, html_file_name='
 
     for kernel in kernels:
         for frame in frame_list:
-            cov = cov_ck_ker(path + kernel, frame, support_ker=metakernel, time_format='TDB')
+            cov = cov_ck_ker(kernel, frame, support_ker=metakernel, time_format='TDB')
 
             if cov:
                 cov_start.append(cov[0])
                 cov_finsh.append(cov[-1])
-                ck_kernels.append(kernel)
-                colors.append(get_ck_kernel_color(kernel, frame))
+                ck_kernels.append(kernel.split('/ck/')[-1])
+                colors.append(get_ck_kernel_color(kernel.split('/ck/')[-1], frame))
 
     spiceypy.furnsh(metakernel)
     date_format = 'UTC'
@@ -3562,12 +3562,13 @@ def ck_gap_report(metakernel, frame_list, notebook=True, html_file_name='test',
     else:
         output_file(html_file_name + '.html')
 
-    kernels, path = get_kernels_from_mk(metakernel, "ck", ["prelaunch"])
+    kernels = get_kernels_from_mk(metakernel, "ck", ["prelaunch"])
     kernels_data = {}
 
     for kernel in kernels:
         for frame in frame_list:
-            cov = cov_ck_ker(path + kernel, frame, support_ker=metakernel, time_format='TDB')
+            cov = cov_ck_ker(kernel, frame, support_ker=metakernel, time_format='TDB')
+            kernel = kernel.split('/ck/')[-1]
             if cov and (kernel not in kernels_data):
                 kernels_data[kernel] = {}
                 kernels_data[kernel]["cov"] = [cov[0], cov[-1]]
@@ -3581,6 +3582,7 @@ def ck_gap_report(metakernel, frame_list, notebook=True, html_file_name='test',
     finish_dt = []
     ck_kernels = []
     for kernel in kernels_data.keys():
+        kernel = kernel.split('/ck/')[-1]
         ck_kernels.append(kernel)
         start_dt.append(et_to_datetime(kernels_data[kernel]["cov"][0], date_format))
         finish_dt.append(et_to_datetime(kernels_data[kernel]["cov"][1], date_format))
@@ -3619,32 +3621,10 @@ def spk_coverage_timeline(metakernel, sc_list, notebook=True, html_file_name='te
     else:
         output_file(html_file_name + '.html')
 
+    kernels = get_kernels_from_mk(metakernel, "spk", ["prelaunch"])
+
     cov_start = []
     cov_finsh = []
-    kernels = []
-
-    multiple_path_values, multiple_path_symbols = False, False
-    with open(metakernel, 'r') as f:
-        for line in f:
-            if multiple_path_values and ')' in line:
-                path.append(line.split("'")[1] + '/spk/')
-                multiple_path_values = False
-            if multiple_path_symbols and ')' in line:
-                symbol.append(line.split("'")[1])
-                multiple_path_symbols = False
-            if '/spk/' in line and 'prelaunch' not in line:
-                kernel_path = path[symbol.index(line.split('$')[1].split('/')[0])]
-                kernels.append(kernel_path + line.split('/spk/')[-1].strip().split("'")[0])
-            if 'PATH_VALUES' in line and '=' in line:
-                if not ')' in line:
-                    multiple_path_values = True
-                path = [line.split("'")[1] + '/spk/']
-            if 'PATH_SYMBOLS' in line and '=' in line:
-                if not ')' in line:
-                    multiple_path_symbols = True
-                symbol = [line.split("'")[1]]
-
-    kernels = list(reversed(kernels))
     spk_kernels = []
     colors = []
 
