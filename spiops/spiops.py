@@ -3568,12 +3568,12 @@ def ck_gap_report(metakernel, frame_list, notebook=True, html_file_name='test',
     for kernel in kernels:
         for frame in frame_list:
             cov = cov_ck_ker(kernel, frame, support_ker=metakernel, time_format='TDB')
-            kernel = kernel.split('/ck/')[-1]
-            if cov and (kernel not in kernels_data):
-                kernels_data[kernel] = {}
-                kernels_data[kernel]["cov"] = [cov[0], cov[-1]]
-                kernels_data[kernel]["gaps"] = get_gaps_from_cov(cov)
-                kernels_data[kernel]["color"] = get_ck_kernel_color(kernel, frame)
+            kernel_name = kernel.split('/ck/')[-1]
+            if cov and (kernel_name not in kernels_data):
+                kernels_data[kernel_name] = {}
+                kernels_data[kernel_name]["cov"] = [cov[0], cov[-1]]
+                kernels_data[kernel_name]["gaps"] = get_gaps_from_cov(cov)
+                kernels_data[kernel_name]["color"] = get_ck_kernel_color(kernel_name, frame)
 
     spiceypy.furnsh(metakernel)
     date_format = 'UTC'
