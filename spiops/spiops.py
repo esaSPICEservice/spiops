@@ -2384,7 +2384,7 @@ def get_euler_boresights_angles(ck, et_list, spacecraft_frame, target_frame, bor
 def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance,
                  mk='', utc_start='', utc_finish='', output='',
                  boresight=[0, 0, 1], plot_style='line', report=False,
-                 notebook=False):
+                 notebook=False, mission_config=None):
 
     if isinstance(spacecraft_frame, str):
         ck1_frm = spacecraft_frame
