@@ -2410,6 +2410,8 @@ def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance
         print('WARNING: No Time Window could be determined')
         return None
 
+    exclude_intervals = get_exclude_intervals(mission_config, "ckMeasVsPlan")
+
     windows_intersected = spiceypy.wnintd(windows_ck1, windows_ck2)
 
     number_of_intervals = list(range(spiceypy.wncard(windows_intersected)))
@@ -2440,6 +2442,11 @@ def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance
         et_finish = spiceypy.utc2et(utc_finish)
         et_list = numpy.arange(et_start, et_finish, resolution)
 
+    # Get indices to keep
+    indices_to_keep = [i for i, et in enumerate(et_list) if not is_excluded(et, exclude_intervals)[0]]
+    print('Removed ' + str(len(et_list) - len(indices_to_keep)) + ' datapoints from excluded intervals')
+    et_list = et_list[indices_to_keep]
+
     expected_samples = len(et_list)
     if not expected_samples:
         print('WARNING: No valid time period')
@@ -2454,6 +2461,7 @@ def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance
 
         angle_diff = [abs(i - j) for i, j in zip(angle_ck1, angle_ck2)]
         max_ang_error = spiceypy.convrt(np.max(angle_diff), 'ARCSECONDS', 'DEGREES') * 1e3
+        print_intervals(exclude_intervals, "Excluded intervals:")
         print('Max angular error [mdeg]: ' + str(max_ang_error))
 
         if output == 'euler_angles':
