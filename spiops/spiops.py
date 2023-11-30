@@ -2445,8 +2445,10 @@ def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance
     # Get indices to keep
     indices_to_keep = []
     i = 0
+    exclude_int_idx = -1
     for et in et_list:
-        if not is_excluded(et, exclude_intervals)[0]:
+        exclude_flag, exclude_int_idx = is_excluded(et, exclude_intervals, exclude_int_idx)
+        if not exclude_flag:
             indices_to_keep.append(i)
         i += 1
     print('Removed ' + str(len(et_list) - len(indices_to_keep)) + ' datapoints from excluded intervals')
