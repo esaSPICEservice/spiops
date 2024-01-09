@@ -119,9 +119,8 @@ def get_latest_step_sclk(sc, skd_path=None):
     elif '-EXPRESS' in mission or 'ROSETTA' == mission:
         wildcard = "{}_??????_STEP.TSC"
 
-    try:
-        sclk = get_latest_kernel('sclk', skd_path, wildcard.format(sc.lower()))
-    except:
+    sclk = get_latest_kernel('sclk', skd_path, wildcard.format(sc.lower()))
+    if not os.path.isfile(os.path.join(skd_path, "sclk", sclk)):
         sclk = get_latest_kernel('sclk', skd_path, wildcard.upper().format(sc.upper()))
 
     return os.path.join(skd_path, "sclk", sclk)

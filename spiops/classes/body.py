@@ -150,6 +150,8 @@ class Body(object):
 
         except Exception as ex:
             print("Error: Could not obtain SCLK time bounds. Error: " + str(ex))
+            self.clock_dates = []
+            self.clock_drift = []
             return
 
         ticks_per_second = spiceypy.gdpool('SCLK01_MODULI_{}'.format(str(-1*self.id)), 0, 1000)[1]
