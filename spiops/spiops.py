@@ -2386,6 +2386,17 @@ def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance
                  boresight=[0, 0, 1], plot_style='line', report=False,
                  notebook=False, mission_config=None):
 
+    file1, file2 = '', ''
+    if 'JUICE' in spacecraft_frame:
+        if not os.path.exists(ck1):
+            file1 = ck1.split(os.sep)[-1]
+            download_file("data/SPICE/JUICE/kernels/ck", file1)
+            ck1 = file1
+        if not os.path.exists(ck2):
+            file2 = ck2.split(os.sep)[-1]
+            download_file("data/SPICE/JUICE/kernels/ck", file2)
+            ck2 = file2
+
     if isinstance(spacecraft_frame, str):
         ck1_frm = spacecraft_frame
         ck2_frm = spacecraft_frame
@@ -2534,6 +2545,11 @@ def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance
         if validated_samples != expected_samples:
             print("Warning: Validated only " + str(validated_samples)
                   + " samples from expected " + str(expected_samples) + " samples")
+
+        if file1:
+            os.remove(file1)
+        if file2:
+            os.remove(file2)
 
         return max_ang_error
 
