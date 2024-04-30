@@ -138,20 +138,30 @@ def test_hga_angles():
     print(hga_az_el)
 
 def test_ckdiff_error():
+    mission_config = spiops.load_config('/Users/aescalante/Documents/GitHub/spival/spival/tests/juice.json')
+    start_time = '2023-11-10T23:59:31'  # Start time
+    finish_time = '2023-11-17T23:59:31'
 
-    spiops.load('/Users/mcosta/SPICE/BEPICOLOMBO/kernels/mk/bc_ops_local.tm')
-    measured_ck = '/Users/mcosta/SPICE/BEPICOLOMBO/kernels/ck/bc_mpo_sc_scm_20200101_20200508_s20200109_v01.bc'
-    predicted_ck = '/Users/mcosta/SPICE/BEPICOLOMBO/kernels/ck/ck/bc_mpo_sc_fsp_00080_20181020_20200701_f20181127_v01.bc'
-    resolution = 16
-    start_time = '2020-04-09T03:00:00Z'
-    finish_time = '2020-04-09T09:00:00Z'
+    spiops.load('/Users/aescalante/spice/missions/juice/juice/kernels/mk/juice_ops_local.tm')
+    measured_ck = '/Users/aescalante/Downloads/juice_sc_meas_231101_231117_s231118_v01.bc'
+    predicted_ck = '/Users/aescalante/Downloads/juice_sc_attc_000051_230414_231214_v01.bc'
+    resolution = 30
 
-    spiops.ckdiff_error(measured_ck, predicted_ck, 'MPO_SPACECRAFT', 'J2000', resolution, 0.001,
-                    plot_style='circle', utc_start=start_time, utc_finish=finish_time, notebook=True)
+    res = spiops.ckdiff_error(measured_ck, predicted_ck, ['JUICE_SPACECRAFT_MEAS', 'JUICE_SPACECRAFT_PLAN'], 'J2000',
+                              resolution, 0.001,
+                              plot_style='circle', utc_start=start_time, utc_finish=finish_time, notebook=True,
+                              mission_config=mission_config)
+    spiceypy.kclear()
 
+
+def test_ckdiff_commanded():
+    mission_config = spiops.load_config('/Users/aescalante/Documents/GitHub/spival/spival/tests/juice.json')
+    commanded_ck = '/Users/aescalante/spice/missions/juice/juice/kernels/ck/juice_sc_cmmd_240401_240408_s240409_v01.bc'
+    measured_ck = '/Users/aescalante/spice/missions/juice/juice/kernels/ck/juice_sc_meas_240401_240408_s240409_v01.bc'
+    spiops.ckdiff_error(commanded_ck, measured_ck, 'JUICE_SPACECRAFT_MEAS', 'J2000', 4, 0.001)
+test_ckdiff_commanded()
 
 if __name__ == '__main__':
 
-    test_hga_angles()
-    test_ckdiff_error()
+    test_ckdiff_commanded()
     print('Test')

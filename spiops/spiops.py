@@ -2384,7 +2384,18 @@ def get_euler_boresights_angles(ck, et_list, spacecraft_frame, target_frame, bor
 def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance,
                  mk='', utc_start='', utc_finish='', output='',
                  boresight=[0, 0, 1], plot_style='line', report=False,
-                 notebook=False):
+                 notebook=False, mission_config=None):
+
+    file1, file2 = '', ''
+    if 'JUICE' in spacecraft_frame:
+        if not os.path.exists(ck1):
+            file1 = ck1.split(os.sep)[-1]
+            download_file("data/SPICE/JUICE/kernels/ck", file1)
+            ck1 = file1
+        if not os.path.exists(ck2):
+            file2 = ck2.split(os.sep)[-1]
+            download_file("data/SPICE/JUICE/kernels/ck", file2)
+            ck2 = file2
 
     if isinstance(spacecraft_frame, str):
         ck1_frm = spacecraft_frame
@@ -2409,6 +2420,8 @@ def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance
     except:
         print('WARNING: No Time Window could be determined')
         return None
+
+    exclude_intervals = get_exclude_intervals(mission_config, "ckMeasVsPlan")
 
     windows_intersected = spiceypy.wnintd(windows_ck1, windows_ck2)
 
@@ -2440,6 +2453,18 @@ def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance
         et_finish = spiceypy.utc2et(utc_finish)
         et_list = numpy.arange(et_start, et_finish, resolution)
 
+    # Get indices to keep
+    indices_to_keep = []
+    i = 0
+    exclude_int_idx = -1
+    for et in et_list:
+        exclude_flag, exclude_int_idx = is_excluded(et, exclude_intervals, exclude_int_idx)
+        if not exclude_flag:
+            indices_to_keep.append(i)
+        i += 1
+    print('Removed ' + str(len(et_list) - len(indices_to_keep)) + ' datapoints from excluded intervals')
+    et_list = et_list[indices_to_keep]
+
     expected_samples = len(et_list)
     if not expected_samples:
         print('WARNING: No valid time period')
@@ -2454,6 +2479,7 @@ def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance
 
         angle_diff = [abs(i - j) for i, j in zip(angle_ck1, angle_ck2)]
         max_ang_error = spiceypy.convrt(np.max(angle_diff), 'ARCSECONDS', 'DEGREES') * 1e3
+        print_intervals(exclude_intervals, "Excluded intervals:")
         print('Max angular error [mdeg]: ' + str(max_ang_error))
 
         if output == 'euler_angles':
@@ -2519,6 +2545,11 @@ def ckdiff_error(ck1, ck2, spacecraft_frame, target_frame, resolution, tolerance
         if validated_samples != expected_samples:
             print("Warning: Validated only " + str(validated_samples)
                   + " samples from expected " + str(expected_samples) + " samples")
+
+        if file1:
+            os.remove(file1)
+        if file2:
+            os.remove(file2)
 
         return max_ang_error
 
