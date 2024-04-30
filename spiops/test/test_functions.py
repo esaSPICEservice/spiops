@@ -154,7 +154,14 @@ def test_ckdiff_error():
     spiceypy.kclear()
 
 
+def test_ckdiff_commanded():
+    mission_config = spiops.load_config('/Users/aescalante/Documents/GitHub/spival/spival/tests/juice.json')
+    commanded_ck = '/Users/aescalante/spice/missions/juice/juice/kernels/ck/juice_sc_cmmd_240401_240408_s240409_v01.bc'
+    measured_ck = '/Users/aescalante/spice/missions/juice/juice/kernels/ck/juice_sc_meas_240401_240408_s240409_v01.bc'
+    spiops.ckdiff_error(commanded_ck, measured_ck, 'JUICE_SPACECRAFT_MEAS', 'J2000', 4, 0.001)
+test_ckdiff_commanded()
+
 if __name__ == '__main__':
 
-    test_ckdiff_error()
+    test_ckdiff_commanded()
     print('Test')

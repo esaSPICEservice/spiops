@@ -115,6 +115,7 @@ def download_file(path, file):
                 get_from_server(path, file)
             else:
                 download_from_ftp(path, file)
+        print('Warning: Downloaded file ' + path + os.sep + file)
     except:
         print('Warning: Error downloading file: ' + file)
 
