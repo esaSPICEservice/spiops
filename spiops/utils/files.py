@@ -10,7 +10,7 @@ from spiceypy import spiceypy
 
 
 # SOME CONSTANTS, consider move it to a config file
-SERVER_HOST_NAME = "spiops.n1data.lan"
+SERVER_HOST_NAME = "spiops.ebe.lan"
 SERVER_HOST_USER = "esaspice"
 SERVER_HOST_FTP_PATH = "/home/esaspice/ftp"
 FTP_HOST = "spiftp.esac.esa.int"
