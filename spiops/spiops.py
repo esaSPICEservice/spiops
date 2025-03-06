@@ -815,8 +815,7 @@ def ckVsAocs(sc, ck, mission_config=None, plot_style='line', notebook=True):
         download_file("data/ANCDR/BEPICOLOMBO/hkt", file)
 
     elif sc == 'JUICE':
-        file = ck.split('/')[-1].replace('\n', '').split('_')[4]
-        file = 'juice_raw_hk_aocs_measured_attitude_20' + file + '.tab'
+        file = get_section_text_from_kernel_comments(ck.split('/')[-1].replace('\n', ''), 'Pedigree').splitlines()[-3].strip()
         download_file("data/ANCDR/JUICE/hkt", file)
 
     else:
@@ -1357,8 +1356,7 @@ def time_correlation(sc, ck, plot_style='line', notebook=True):
         download_file("data/ANCDR/BEPICOLOMBO/hkt", file)
 
     elif sc == 'JUICE':
-        file = ck.split('/')[-1].replace('\n', '').split('_')[4]
-        file = 'juice_raw_hk_aocs_measured_attitude_20' + file + '.tab'
+        file = get_section_text_from_kernel_comments(ck.split('/')[-1].replace('\n', ''), 'Pedigree').splitlines()[-3].strip()
         download_file("data/ANCDR/JUICE/hkt", file)
 
     else:
@@ -1433,11 +1431,11 @@ def time_deviation(sc, start_time_s, end_time_s, plot_style='line', notebook=Tru
 
         if sc == 'JUICE':
             spiops_pds_root = os.environ.get(JUICE_SPIOPS_PDS_ROOT_KEY, "/home/esaspice/pds/juice/spacecraft_housekeeping")
-            filename = "juice_raw_hk_time_deviation_" + day_s + ".tab"
+            filename = "juice_raw_hk_time_deviation_" + day_s + "__*_*.tab"
             file = search_pds_file(spiops_pds_root, filename)
         elif sc == 'MPO':
             spiops_pds_root = os.environ.get(BC_SPIOPS_PDS_ROOT_KEY, "/home/esaspice/pds/bc/spacecraft_housekeeping")
-            filename = "mpo_raw_hk_time_deviation_" + day_s + ".tab"
+            filename = "mpo_raw_hk_time_deviation_" + day_s + "__*_*.tab"
             file = search_pds_file(spiops_pds_root, filename)
         else:
             print('Unsupported spacecraft: ' + sc)
