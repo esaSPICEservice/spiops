@@ -816,7 +816,7 @@ def ckVsAocs(sc, ck, mission_config=None, plot_style='line', notebook=True):
         download_file("data/ANCDR/BEPICOLOMBO/hkt", file)
 
     elif sc == 'JUICE':
-        file = get_section_text_from_kernel_comments(ck.split('/')[-1].replace('\n', ''), 'Pedigree').splitlines()[-3].strip()
+        file = get_section_text_from_kernel_comments(ck, 'Pedigree').splitlines()[-3].strip()
         download_file("data/ANCDR/JUICE/hkt", file)
 
     else:
@@ -1357,7 +1357,7 @@ def time_correlation(sc, ck, plot_style='line', notebook=True):
         download_file("data/ANCDR/BEPICOLOMBO/hkt", file)
 
     elif sc == 'JUICE':
-        file = get_section_text_from_kernel_comments(ck.split('/')[-1].replace('\n', ''), 'Pedigree').splitlines()[-3].strip()
+        file = get_section_text_from_kernel_comments(ck, 'Pedigree').splitlines()[-3].strip()
         download_file("data/ANCDR/JUICE/hkt", file)
 
     else:
