@@ -3,6 +3,8 @@ import glob
 import platform
 import subprocess
 import fnmatch
+import logging
+import select
 from tempfile import mkstemp
 from shutil import move
 from ftplib import FTP
@@ -330,3 +332,93 @@ def search_pds_file(pds_root, filename):
     if len(files) > 0:
         return files[0]
     return None
+
+def check_spice_path(spice_path):
+    if os.path.isabs(spice_path) and \
+            ((os.path.isfile(spice_path) and len(spice_path) > 100)
+                    or (os.path.isdir(spice_path) and len(spice_path) > 60)):
+        spice_path = os.path.relpath(spice_path, os.getcwd())
+
+    return spice_path
+
+def read_all_text(file_path):
+    text = ""
+    with open(file_path, 'r') as d:
+        lines = d.readlines()
+        text = "".join(lines)
+    return text
+
+def commnt_read(kernel_path, directories=None):
+
+    exe_path = directories.executables + '/' if directories is not None else ""
+
+    command_line_process = subprocess.Popen([exe_path + 'commnt', '-r',
+                                             check_spice_path(kernel_path)],
+                                             bufsize=8192, shell=False,
+                                             stdout=subprocess.PIPE,
+                                             stderr=subprocess.PIPE)
+    process_output = ""
+    dataend = False
+    while (command_line_process.returncode is None) or (not dataend):
+        command_line_process.poll()
+        dataend = False
+
+        ready = select.select([command_line_process.stdout, command_line_process.stderr], [], [], 1.0)
+
+        if command_line_process.stderr in ready[0]:
+            data = command_line_process.stderr.read(1024)
+            if len(data) > 0:
+                raise Exception(data)
+
+        if command_line_process.stdout in ready[0]:
+            data = command_line_process.stdout.read(1024)
+            if len(data) == 0:  # Read of zero bytes means EOF
+                dataend = True
+            else:
+                process_output += data.decode('utf-8')
+
+    return process_output
+
+def get_kernel_comments(kernel_path, directories=None):
+
+    # First check if is a binary kernel or text kernel
+    name, extension = os.path.splitext(kernel_path)
+    if str(extension).lower().startswith(".t"):
+        # Is a text kernel, just read the file:
+        kernel_comments = read_all_text(kernel_path)
+    else:
+        # Shall be a binary kernel, use commnt read:
+        kernel_comments = commnt_read(kernel_path, directories)
+
+    return kernel_comments
+
+def get_section_text_from_kernel_comments(kernel_path, section_name, directories=None):
+    try:
+
+        kernel_comments = get_kernel_comments(kernel_path, directories)
+        kernel_comments = kernel_comments.splitlines()
+
+        section_text = ""
+        inside_section = False
+        previous_line = ""
+        for line in kernel_comments:
+
+            if inside_section:
+
+                if line.startswith("----") or line.startswith("===="):
+                    break
+
+                if not (previous_line.startswith("----") or previous_line.startswith("====")):
+                    section_text += previous_line + "\n"
+
+            elif previous_line.startswith(section_name) \
+                    and (line.startswith("----") or line.startswith("====")):
+                inside_section = True
+
+            previous_line = line
+
+        return section_text
+
+    except Exception as ex:
+        logging.info('Error on get_section_text_from_kernel_comments:', ex)
+        return ""

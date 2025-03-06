@@ -38,6 +38,7 @@ from spiops.utils.files import download_tm_data
 from spiops.utils.files import get_csv_data
 from spiops.utils.files import get_kernels_from_mk
 from spiops.utils.files import search_pds_file
+from spiops.utils.files import get_section_text_from_kernel_comments
 
 from spiops.utils.naif import optiks  # Do not remove, called from spival
 from spiops.utils.naif import brief  # Do not remove, called from spival
