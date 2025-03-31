@@ -590,6 +590,10 @@ def spkVsOem(sc, spk, mission_config=None, plot_style='line', notebook=True, max
     if ref_file is not None:
         path = ref_file[0]
         file = ref_file[1]
+        if not len(path):
+            print('OEM not specified from config.')
+            return None, None
+
         download_file(path, file)
 
     else:
