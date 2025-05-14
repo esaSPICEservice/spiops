@@ -689,12 +689,13 @@ def spkVsOem(sc, spk, mission_config=None, plot_style='line', notebook=True, max
 
                 if not center_list[i] == center_list[i-1]:
                     # check for discontinuities at center changes, e.g. due to different planetary ephemeris
-                    r_prev2sc = spiceypy.spkpos(sc, et, 'J2000', 'NONE', center_list[i-1])[0]
-                    r_actu2sc = spiceypy.spkpos(sc, et, 'J2000', 'NONE', center_list[i])[0]
+                    r_prev2sc = [float(data_list[i-1][1]), float(data_list[i-1][2]), float(data_list[i-1][3])]
+                    r_actu2sc = [float(data_list[i][1]), float(data_list[i][2]), float(data_list[i][3])]
                     r_prev2actu = spiceypy.spkpos(center_list[i], et, 'J2000', 'NONE', center_list[i-1])[0]
-                    if np.linalg.norm(r_prev2actu + r_actu2sc - r_prev2sc) > 0.1:
-                        print('Warning: discontinuity found at center change from ' + center_list[i-1] + ' to ' + center_list[i] + ' at ' + data_list[i - 1][0])
-                        discontinuities.append([data[0], np.linalg.norm(r_prev2actu + r_actu2sc - r_prev2sc)])
+                    discontinuity_mag = np.linalg.norm(r_prev2actu + r_actu2sc - r_prev2sc)
+                    if discontinuity_mag > 0.1:
+                        print(f'Warning: {discontinuity_mag} km discontinuity found at center change from ' + center_list[i-1].strip() + ' to ' + center_list[i].strip() + ' at ' + data_list[i - 1][0])
+                        discontinuities.append([data[0], discontinuity_mag])
                     state = spiceypy.spkezr(sc, et, 'J2000', 'NONE', center_list[i-1])[0]
                 else:
                     print('Warning: using previous segment boundary point at ' + data_list[i - 1][0])
