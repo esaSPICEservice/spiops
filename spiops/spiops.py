@@ -636,6 +636,7 @@ def spkVsOem(sc, spk, mission_config=None, plot_style='line', notebook=True, max
     valid_vel_norm_errors = []
     data_list = []
     center_list = []
+    discontinuities = []
     for line in oemfile.readlines():
         if 'CENTER_NAME' in line:
             center = line.split('= ')[1].replace('\n', '')
@@ -693,6 +694,7 @@ def spkVsOem(sc, spk, mission_config=None, plot_style='line', notebook=True, max
                     r_prev2actu = spiceypy.spkpos(center_list[i], et, 'J2000', 'NONE', center_list[i-1])[0]
                     if np.linalg.norm(r_prev2actu + r_actu2sc - r_prev2sc) > 0.1:
                         print('Warning: discontinuity found at center change from ' + center_list[i-1] + ' to ' + center_list[i] + ' at ' + data_list[i - 1][0])
+                        discontinuities.append([data[0], np.linalg.norm(r_prev2actu + r_actu2sc - r_prev2sc)])
                     state = spiceypy.spkezr(sc, et, 'J2000', 'NONE', center_list[i-1])[0]
                 else:
                     print('Warning: using previous segment boundary point at ' + data_list[i - 1][0])
@@ -761,7 +763,7 @@ def spkVsOem(sc, spk, mission_config=None, plot_style='line', notebook=True, max
     spiceypy.timdef('SET', 'SYSTEM', 10, 'UTC')
     spiceypy.unload(spk)
 
-    return max_pos_norm_error, max_vel_norm_error
+    return max_pos_norm_error, max_vel_norm_error, discontinuities
 
 
 def ckVsAEM(sc, ck, mission_config=None, plot_style='line', notebook=True):
