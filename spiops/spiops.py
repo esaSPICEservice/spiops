@@ -592,7 +592,7 @@ def spkVsOem(sc, spk, mission_config=None, plot_style='line', notebook=True, max
         file = ref_file[1]
         if not len(path):
             print('OEM not specified from config.')
-            return None, None
+            return None, None, None
 
         download_file(path, file)
 
@@ -619,14 +619,14 @@ def spkVsOem(sc, spk, mission_config=None, plot_style='line', notebook=True, max
 
         else:
             print('Unsupported spacecraft: ' + sc)
-            return None, None
+            return None, None, None
 
     exclude_intervals = get_exclude_intervals(mission_config, "spkVsOem")
 
     print('OEM file: ' + file)
     if not os.path.isfile(file):
         print('OEM file cannot be downloaded!')
-        return None, None
+        return None, None, None
 
     oemfile = open(file)
     error = []
