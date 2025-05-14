@@ -678,8 +678,7 @@ def spkVsOem(sc, spk, mission_config=None, plot_style='line', notebook=True, max
             vel = np.asarray(curr_error[4:7])
             # due to floating point arithmetics, in some cases the first point of a segment does not
             # supersed the last point of the previous segment with identical time tag
-            if spiceypy.vnorm(pos) > max_pos_error and data_list[i][0] == data_list[i-1][0] and center_list[i] == center_list[i-1]:
-                print('Warning: using previous segment boundary point at ' + data_list[i-1][0])
+            if spiceypy.vnorm(pos) > max_pos_error and data_list[i][0] == data_list[i-1][0]:
                 data = data_list[i - 1]
                 et = spiceypy.str2et(data[0])
 
@@ -687,7 +686,17 @@ def spkVsOem(sc, spk, mission_config=None, plot_style='line', notebook=True, max
                 if excluded:
                     excluded_ets.append(et)
 
-                state = spiceypy.spkezr(sc, et, 'J2000', 'NONE', center_list[i])[0]
+                if not center_list[i] == center_list[i-1]:
+                    # check for discontinuities at center changes, e.g. due to different planetary ephemeris
+                    r_prev2sc = spiceypy.spkpos(sc, et, 'J2000', 'NONE', center_list[i-1])[0]
+                    r_actu2sc = spiceypy.spkpos(sc, et, 'J2000', 'NONE', center_list[i])[0]
+                    r_prev2actu = spiceypy.spkpos(center_list[i], et, 'J2000', 'NONE', center_list[i-1])[0]
+                    if np.linalg.norm(r_prev2actu + r_actu2sc - r_prev2sc) > 0.1:
+                        print('Warning: discontinuity found at center change from ' + center_list[i-1] + ' to ' + center_list[i] + ' at ' + data_list[i - 1][0])
+                    state = spiceypy.spkezr(sc, et, 'J2000', 'NONE', center_list[i-1])[0]
+                else:
+                    print('Warning: using previous segment boundary point at ' + data_list[i - 1][0])
+                    state = spiceypy.spkezr(sc, et, 'J2000', 'NONE', center_list[i])[0]
                 curr_error = [et,
                               abs(state[0] - float(data[1])),
                               abs(state[1] - float(data[2])),
