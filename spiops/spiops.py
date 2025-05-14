@@ -678,7 +678,7 @@ def spkVsOem(sc, spk, mission_config=None, plot_style='line', notebook=True, max
             vel = np.asarray(curr_error[4:7])
             # due to floating point arithmetics, in some cases the first point of a segment does not
             # supersed the last point of the previous segment with identical time tag
-            if spiceypy.vnorm(pos) > max_pos_error and data_list[i][0] == data_list[i-1][0]:
+            if spiceypy.vnorm(pos) > max_pos_error and data_list[i][0] == data_list[i-1][0] and center_list[i] == center_list[i-1]:
                 print('Warning: using previous segment boundary point at ' + data_list[i-1][0])
                 data = data_list[i - 1]
                 et = spiceypy.str2et(data[0])
