@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import traceback
-from datetime import timedelta
+from datetime import datetime, timedelta
 import math
 import spiceypy
 import logging
@@ -42,6 +42,9 @@ from spiops.utils.files import get_section_text_from_kernel_comments
 
 from spiops.utils.naif import optiks  # Do not remove, called from spival
 from spiops.utils.naif import brief  # Do not remove, called from spival
+
+from spiops.utils.events import get_timeline_events
+from spiops.utils.events import get_closest_event
 
 from spiops.classes.observation import TimeWindow  # Do not remove, called from spival
 from spiops.classes.body import Target  # Do not remove, called from spival
@@ -645,6 +648,8 @@ def spkVsOem(sc, spk, mission_config=None, plot_style='line', notebook=True, max
             center_list.append(center)
             data_list.append(data)
 
+    events = get_timeline_events(sc)
+
     exclude_int_idx = -1
     excluded_ets = []
 
@@ -694,12 +699,28 @@ def spkVsOem(sc, spk, mission_config=None, plot_style='line', notebook=True, max
                     r_prev2actu = spiceypy.spkpos(center_list[i], et, 'J2000', 'NONE', center_list[i-1])[0]
                     discontinuity_mag = np.linalg.norm(r_prev2actu + r_actu2sc - r_prev2sc)
                     if discontinuity_mag > 0.1:
-                        print(f'Warning: {discontinuity_mag} km discontinuity found at center change from ' + center_list[i-1].strip() + ' to ' + center_list[i].strip() + ' at ' + data_list[i - 1][0])
+
+                        event_text = ""
+                        if events is not None:
+
+                            # If timestr might include a TZ offset, parse and then remove it.
+                            dt = datetime.strptime(data_list[i - 1][0].split(".")[0], "%Y-%m-%dT%H:%M:%S")
+                            if dt.tzinfo is not None:
+                                # Remove tzinfo to get a naive datetime
+                                dt = dt.replace(tzinfo=None)
+
+                            closest_event = get_closest_event(dt, events)
+                            event_text = " ( " + str(closest_event["type"]) + " - " + str(closest_event["name"]) + " at " + str(closest_event["datetime_utc"]) + " )"
+
+                        print(f'Warning: {discontinuity_mag} km discontinuity found at center change from ' + center_list[i-1].strip() + ' to ' + center_list[i].strip() + ' at ' + data_list[i - 1][0] + event_text)
                         discontinuities.append([data[0], discontinuity_mag])
+
                     state = spiceypy.spkezr(sc, et, 'J2000', 'NONE', center_list[i-1])[0]
+
                 else:
                     print('Warning: using previous segment boundary point at ' + data_list[i - 1][0])
                     state = spiceypy.spkezr(sc, et, 'J2000', 'NONE', center_list[i])[0]
+
                 curr_error = [et,
                               abs(state[0] - float(data[1])),
                               abs(state[1] - float(data[2])),
