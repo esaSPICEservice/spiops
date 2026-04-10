@@ -854,8 +854,7 @@ def ckVsAocs(sc, ck, mission_config=None, plot_style='line', notebook=True):
     spiceypy.furnsh(ck)
 
     if sc == 'MPO':
-        file = ck.split('/')[-1].replace('\n', '').split('_')[5]
-        file = 'mpo_raw_hk_aocs_measured_attitude_' + file + '.tab'
+        file = get_section_text_from_kernel_comments(ck, 'Pedigree').splitlines()[-3].strip()
         download_file("data/ANCDR/BEPICOLOMBO/hkt", file)
 
     elif sc == 'JUICE':
@@ -969,7 +968,7 @@ def saa_vs_hk_sa_position(sc, plot_style='line', notebook=True):
         ref_vector = np.asarray([0, 0, 1])  # SA Rotating Plane normal
         ref_cross_vector = np.asarray([0, 1, 0])  # Common rotation vector btw SA Rotating Frm and Fixed Frm
         hkt_path = "data/ANCDR/BEPICOLOMBO/hkt/"
-        hkt_expression = 'mpo_raw_hk_sa_position_????????.tab'
+        hkt_expression = 'mpo_raw_hk_sa_position_*.tab'
 
     elif sc == 'MTM':
 
@@ -979,7 +978,7 @@ def saa_vs_hk_sa_position(sc, plot_style='line', notebook=True):
         ref_vector = np.asarray([0, 1, 0])    # SA Rotating Plane normal
         ref_cross_vector = np.asarray([1, 0, 0])  # Common rotation vector btw SA Rotating Frm and Fixed Frm
         hkt_path = "data/ANCDR/BEPICOLOMBO/hkt/"
-        hkt_expression = 'mtm_raw_hk_sa_position_????????.tab'
+        hkt_expression = 'mtm_raw_hk_sa_position_*.tab'
 
     elif sc == 'JUICE':
 
@@ -1395,8 +1394,7 @@ def time_correlation(sc, ck, plot_style='line', notebook=True):
     spiceypy.timdef('SET', 'SYSTEM', 10, 'UTC')
 
     if sc == 'MPO':
-        file = ck.split('/')[-1].replace('\n', '').split('_')[5]
-        file = 'mpo_raw_hk_aocs_measured_attitude_' + file + '.tab'
+        file = get_section_text_from_kernel_comments(ck, 'Pedigree').splitlines()[-3].strip()
         download_file("data/ANCDR/BEPICOLOMBO/hkt", file)
 
     elif sc == 'JUICE':
