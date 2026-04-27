@@ -826,10 +826,11 @@ def ckVsAEM(sc, ck, mission_config=None, plot_style='line', notebook=True):
 
     aem_guats = get_aem_quaternions(file)
 
-    if len(aem_guats):
-        # If any quaternion inserted, remove the first element to create a
-        # margin with the start of the CK
+    if len(aem_guats) >= 2:
+    # If any quaternion inserted, remove the first and last elements to create a
+    # margin with the start/end of the CK
         aem_guats.pop(0)
+        aem_guats.pop(-1)
 
     error, max_ang_error, max_ang_error_et, excluded_ets, ang_errors = get_quats_ang_error(aem_guats, sc, exclude_intervals)
 
