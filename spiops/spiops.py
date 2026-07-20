@@ -46,6 +46,8 @@ from spiops.utils.naif import brief  # Do not remove, called from spival
 from spiops.utils.events import get_timeline_events
 from spiops.utils.events import get_closest_event
 
+from spiops.utils.orbnum import BCOrbnumHandler
+
 from spiops.classes.observation import TimeWindow  # Do not remove, called from spival
 from spiops.classes.body import Target  # Do not remove, called from spival
 from spiops.classes.body import Observer  # Do not remove, called from spival
@@ -58,6 +60,7 @@ import json
 from spiceypy import support_types as stypes
 
 from bokeh.plotting import figure, output_file, output_notebook, show
+from bokeh.models import ColumnDataSource
 from spiops.utils.time import et_to_datetime, get_gaps_from_cov
 # from spiops.utils.webmust.webmust_handler import WebmustHandler
 
@@ -5033,3 +5036,28 @@ def check_fovs(max_angle_deg):
             all_fovs_ok = False
 
     return all_fovs_ok
+
+def show_bc_orbital_parameters(orbnum_path, drifts=False, notebook=True):
+    oh = BCOrbnumHandler(orbnum_path)
+
+    for name, magnitude in oh.get_orbital_parameters(drifts).items():
+        x_values = oh.get_orbit_number()
+        y_values = magnitude.get('data')
+        extra_values = oh.get_event_utc_apo()
+
+        # Auxiliary values feeding the tooltip with the orbit dates
+        
+        source = ColumnDataSource(data={
+        'x': x_values,
+        'y': y_values,
+        'extra': extra_values
+        })
+
+        plot(x_values,  
+            y_values,
+            xaxis_name='Orbit number',
+            title=name,
+            yaxis_name=name,
+            yaxis_units=magnitude.get('units'),
+            notebook=notebook,
+            source=source)

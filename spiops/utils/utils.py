@@ -125,7 +125,8 @@ def plot(xaxis, yaxis, xaxis_name='Date', yaxis_name='', title='', format='line'
          external_data=[], notebook=False, mission='', target='', yaxis_units='',
          date_format='TDB', plot_width=975, plot_height=300,
          fill_color=[], fill_alpha=0, background_image=False,
-         line_width=2, back_intervals=None, back_color="gray", back_alpha=0.2, color_list=None):
+         line_width=2, back_intervals=None, back_color="gray", back_alpha=0.2, color_list=None, 
+         source=None):
 
     if not isinstance(yaxis_name, list):
         yaxis_name = [yaxis_name]
@@ -195,11 +196,19 @@ def plot(xaxis, yaxis, xaxis_name='Date', yaxis_name='', title='', format='line'
                                                     years=["%Y-%m-%d %H:%M:%S"],
                                                 )
 
+    tooltips=[(xaxis_name, '@x{0.000}'), (title, '@y{0.000}')]
+    formatters={xaxis_name: 'numeral', title: 'numeral'}
+
+    if source is not None:
+        tooltips=[(xaxis_name, '@x'), 
+                  ('Orbit start:', '@extra'),
+                  (title, '@y{0.000}')]
+        formatters={xaxis_name: 'numeral', title: 'numeral'}
+
     hover = HoverTool(
-                 tooltips=[(xaxis_name, '@x{0.000}'),
-                           (title, '@y{0.000}')],
-                 formatters={xaxis_name: 'numeral',
-                             title: 'numeral'})
+                 tooltips=tooltips,
+                 formatters=formatters)
+    
     p.add_tools(hover)
 
     if external_data:
@@ -263,7 +272,10 @@ def plot(xaxis, yaxis, xaxis_name='Date', yaxis_name='', title='', format='line'
                 p.circle(x, element, size=3, color=color_list[color_idx], legend=legend)
 
             elif format == 'line':
-                p.line(x, element, line_width=line_width, color=color_list[color_idx], legend=legend)
+                if source:
+                    p.line(x='x', y='y', source=source, line_width=line_width, color=color_list[color_idx], legend=legend)
+                else:
+                    p.line(x, element, line_width=line_width, color=color_list[color_idx], legend=legend)
 
             index += 1
             color_idx = index % len(color_list)
