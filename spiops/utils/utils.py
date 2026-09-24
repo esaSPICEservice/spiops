@@ -5,16 +5,20 @@ import matplotlib as mpl
 import spiceypy
 import numpy as np
 from bokeh.plotting import figure, output_file, output_notebook, show
+from bokeh.layouts import column
 from bokeh.models import HoverTool, BoxAnnotation
 from bokeh.models import ColumnDataSource
 from bokeh.models import DatetimeTickFormatter
 from bokeh.models import LabelSet
 from bokeh.models import Range1d
+from bokeh.models import CustomJS
+from bokeh.models import Select
 from tempfile import mkstemp
 from shutil import move
 import os
 import glob
 import platform
+from datetime import datetime
 from os import fdopen, chmod
 try:
     import importlib.resources as pkg_resources
@@ -698,3 +702,75 @@ def is_excluded(et, exclude_intervals, curr_interval_idx=-1):
             return False, len(exclude_intervals)
 
     return False, -1
+
+def plot_drift_comparator(data_series, title="Orbital Drift", select_title="Orbnum", x_axis_label="Orbit number"):
+
+
+    output_notebook()
+
+    processed_data = {}
+    
+    for series_name, series_dict in data_series.items():
+        processed_data[series_name] = {
+            int(k): datetime.strptime(v, "%Y-%m-%dT%H:%M:%SZ").timestamp() 
+            for k, v in series_dict.items()
+        }
+
+    series = list(processed_data.keys())
+    series_key_1 = series[0]
+    series_key_2 = series[1]
+    initial_x = sorted(processed_data[series_key_1].keys())
+    initial_drift = [
+        (processed_data[series_key_2][i] - processed_data[series_key_1][i])
+        for i in initial_x
+    ]
+
+    source = ColumnDataSource(data={"x":initial_x, "drift":initial_drift})
+
+    p = figure(
+        title=title, 
+        x_axis_label=x_axis_label, 
+        y_axis_label="Drift (s)",
+        width=700, 
+        height=400
+    )
+    p.line('x', 'drift', source=source, line_width=3, color="navy", alpha=0.8)
+
+    callback_code = """
+        const s1 = select1.value;
+        const s2 = select2.value;
+        const raw_data = all_data;
+        
+        const x = [];
+        const drift = [];
+        const indices = Object.keys(raw_data[s1]);
+        
+        for (let i of indices) {
+            if (raw_data[s2].hasOwnProperty(i)) {
+                let time1 = raw_data[s1][i];
+                let time2 = raw_data[s2][i];
+                let drift_seconds = (time2 - time1);
+                x.push(parseInt(i));
+                drift.push(drift_seconds);
+            }
+        }
+        
+        source.data = { 'x': x, 'drift': drift };
+        source.change.emit();
+    """
+
+    options = sorted(data_series.keys())
+    select1 = Select(title=select_title + " 1", value=series[0], options=options)
+    select2 = Select(title=select_title + " 2", value=series[1], options=options)
+
+
+    callback = CustomJS(
+        args={'source': source, 'select1': select1, 'select2': select2, 'all_data': processed_data},
+        code=callback_code
+    )
+
+    select1.js_on_change('value', callback)
+    select2.js_on_change('value', callback)
+
+    layout = column(select1, select2, p)
+    show(layout)
