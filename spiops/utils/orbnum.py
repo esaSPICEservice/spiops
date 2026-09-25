@@ -4,7 +4,7 @@ import os
 
 
 def get_orbnum(mission, pattern):
-    ftp_orbnum_folder = f'/data/SPICE/{mission}/misc/orbnum/'
+    ftp_orbnum_folder = f'data/SPICE/{mission}/misc/orbnum/'
     files = list_files_from_ftp(ftp_orbnum_folder, pattern)
     files.sort()
     if len(files) > 0:
@@ -17,7 +17,7 @@ def get_orbnum(mission, pattern):
     return None
 
 def get_orbnums(mission, pattern):
-    ftp_orbnum_folder = f'/data/SPICE/{mission}/misc/orbnum/'
+    ftp_orbnum_folder = f'data/SPICE/{mission}/misc/orbnum/'
     files = list_files_from_ftp(ftp_orbnum_folder, pattern)
     files.sort()
     if len(files) > 0:
