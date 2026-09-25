@@ -1,5 +1,6 @@
 from spiops.utils.files import list_files_from_ftp, download_file
 from datetime import datetime
+import os
 
 
 def get_orbnum(mission, pattern):
@@ -7,8 +8,25 @@ def get_orbnum(mission, pattern):
     files = list_files_from_ftp(ftp_orbnum_folder, pattern)
     files.sort()
     if len(files) > 0:
-        download_file(ftp_orbnum_folder, files[-1])
-        return files[-1]
+        file = files[-1]
+        if os.path.isfile(file):
+            print('File already downloaded: ' + file)
+        else:
+            download_file(ftp_orbnum_folder, file)
+        return file
+    return None
+
+def get_orbnums(mission, pattern):
+    ftp_orbnum_folder = f'/data/SPICE/{mission}/misc/orbnum/'
+    files = list_files_from_ftp(ftp_orbnum_folder, pattern)
+    files.sort()
+    if len(files) > 0:
+        for file in files:
+            if os.path.isfile(file):
+                print('File already downloaded: ' + file)
+                continue
+            download_file(ftp_orbnum_folder, file)
+        return files
     return None
 
 
