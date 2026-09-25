@@ -7,7 +7,6 @@ def get_orbnum(mission, pattern):
     ftp_orbnum_folder = f'/data/SPICE/{mission}/misc/orbnum/'
     files = list_files_from_ftp(ftp_orbnum_folder, pattern)
     files.sort()
-    print(files)
     if len(files) > 0:
         file = files[-1]
         if os.path.isfile(file):
